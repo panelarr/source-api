@@ -31,6 +31,26 @@ service SourcePluginService {
     option (google.api.http) = {get: "/v1/info"};
   }
 
+  // GetConfig returns the plugin-level configuration in effect, described by
+  // PluginInfo.config_schema. Values of properties the schema marks `writeOnly` (secrets
+  // such as API keys) come back empty. Plugins without a config_schema answer
+  // UNIMPLEMENTED.
+  rpc GetConfig(GetConfigRequest) returns (GetConfigResponse) {
+    option (google.api.http) = {get: "/v1/config"};
+  }
+
+  // SetConfig replaces the plugin-level configuration after validating it against
+  // PluginInfo.config_schema. Hosts call it after starting the plugin and whenever the
+  // configuration changes. A `writeOnly` property sent empty keeps its current value, so
+  // a configuration read with GetConfig can be sent back. It returns the configuration in
+  // effect, as GetConfig does.
+  rpc SetConfig(SetConfigRequest) returns (SetConfigResponse) {
+    option (google.api.http) = {
+      put: "/v1/config"
+      body: "*"
+    };
+  }
+
   // Health reports whether the plugin can serve requests. It needs no credentials.
   rpc Health(HealthRequest) returns (HealthResponse) {
     option (google.api.http) = {get: "/v1/health"};
@@ -151,8 +171,8 @@ message PluginInfo {
   repeated PluginCapability capabilities = 5;
   // Limits the plugin asks hosts to respect. Hosts should enforce them too.
   Limits limits = 6;
-  // JSON Schema of the plugin-level configuration the plugin expects from a host.
-  // Unset when the plugin needs none.
+  // JSON Schema (draft 2020-12) of the plugin-level configuration the plugin expects
+  // from a host, which sets it with SetConfig. Unset when the plugin needs none.
   google.protobuf.Struct config_schema = 7;
   // Common services the plugin can use when a host provides them.
   repeated CommonService common_services = 8;
@@ -199,6 +219,20 @@ enum RateLimitScope {
   RATE_LIMIT_SCOPE_SOURCE = 1;
   // One budget per target host.
   RATE_LIMIT_SCOPE_HOST = 2;
+}
+
+message GetConfigRequest {}
+
+message GetConfigResponse {
+  google.protobuf.Struct values = 1;
+}
+
+message SetConfigRequest {
+  google.protobuf.Struct values = 1;
+}
+
+message SetConfigResponse {
+  google.protobuf.Struct values = 1;
 }
 
 message HealthRequest {}

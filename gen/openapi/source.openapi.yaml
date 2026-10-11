@@ -352,6 +352,19 @@ components:
              for a filter inside a group.
       title: FilterValue
       description: FilterValue sets the value of one filter for a search.
+    panelarr.source.v1.GetConfigRequest:
+      type: object
+      title: GetConfigRequest
+      additionalProperties: false
+    panelarr.source.v1.GetConfigResponse:
+      type: object
+      properties:
+        values:
+          allOf:
+            - $ref: '#/components/schemas/google.protobuf.Struct'
+          title: values
+      title: GetConfigResponse
+      additionalProperties: false
     panelarr.source.v1.GetFiltersRequest:
       type: object
       properties:
@@ -739,8 +752,8 @@ components:
             - $ref: '#/components/schemas/google.protobuf.Struct'
           title: config_schema
           description: |-
-            JSON Schema of the plugin-level configuration the plugin expects from a host.
-             Unset when the plugin needs none.
+            JSON Schema (draft 2020-12) of the plugin-level configuration the plugin expects
+             from a host, which sets it with SetConfig. Unset when the plugin needs none.
         commonServices:
           type: array
           items:
@@ -965,6 +978,24 @@ components:
         - SERIES_STATUS_PUBLISHING_FINISHED
         - SERIES_STATUS_CANCELLED
         - SERIES_STATUS_ON_HIATUS
+    panelarr.source.v1.SetConfigRequest:
+      type: object
+      properties:
+        values:
+          allOf:
+            - $ref: '#/components/schemas/google.protobuf.Struct'
+          title: values
+      title: SetConfigRequest
+      additionalProperties: false
+    panelarr.source.v1.SetConfigResponse:
+      type: object
+      properties:
+        values:
+          allOf:
+            - $ref: '#/components/schemas/google.protobuf.Struct'
+          title: values
+      title: SetConfigResponse
+      additionalProperties: false
     panelarr.source.v1.SetNetworkProfileRequest:
       type: object
       properties:
@@ -1245,6 +1276,48 @@ components:
                     - randomDesktop
       title: UserAgent
 paths:
+  /v1/config:
+    get:
+      tags:
+        - SourcePluginService
+      summary: GetConfig
+      description: |-
+        GetConfig returns the plugin-level configuration in effect, described by
+         PluginInfo.config_schema. Values of properties the schema marks `writeOnly` (secrets
+         such as API keys) come back empty. Plugins without a config_schema answer
+         UNIMPLEMENTED.
+      operationId: SourcePluginService_GetConfig
+      responses:
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/panelarr.source.v1.GetConfigResponse'
+    put:
+      tags:
+        - SourcePluginService
+      summary: SetConfig
+      description: |-
+        SetConfig replaces the plugin-level configuration after validating it against
+         PluginInfo.config_schema. Hosts call it after starting the plugin and whenever the
+         configuration changes. A `writeOnly` property sent empty keeps its current value, so
+         a configuration read with GetConfig can be sent back. It returns the configuration in
+         effect, as GetConfig does.
+      operationId: SourcePluginService_SetConfig
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/panelarr.source.v1.SetConfigRequest'
+        required: true
+      responses:
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/panelarr.source.v1.SetConfigResponse'
   /v1/health:
     get:
       tags:

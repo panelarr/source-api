@@ -38,6 +38,12 @@ const (
 	// SourcePluginServiceGetInfoProcedure is the fully-qualified name of the SourcePluginService's
 	// GetInfo RPC.
 	SourcePluginServiceGetInfoProcedure = "/panelarr.source.v1.SourcePluginService/GetInfo"
+	// SourcePluginServiceGetConfigProcedure is the fully-qualified name of the SourcePluginService's
+	// GetConfig RPC.
+	SourcePluginServiceGetConfigProcedure = "/panelarr.source.v1.SourcePluginService/GetConfig"
+	// SourcePluginServiceSetConfigProcedure is the fully-qualified name of the SourcePluginService's
+	// SetConfig RPC.
+	SourcePluginServiceSetConfigProcedure = "/panelarr.source.v1.SourcePluginService/SetConfig"
 	// SourcePluginServiceHealthProcedure is the fully-qualified name of the SourcePluginService's
 	// Health RPC.
 	SourcePluginServiceHealthProcedure = "/panelarr.source.v1.SourcePluginService/Health"
@@ -93,6 +99,17 @@ type SourcePluginServiceClient interface {
 	// GetInfo describes the plugin: identity, version, capabilities, declared limits,
 	// the configuration it expects and the common services it can use.
 	GetInfo(context.Context, *connect.Request[v1.GetInfoRequest]) (*connect.Response[v1.GetInfoResponse], error)
+	// GetConfig returns the plugin-level configuration in effect, described by
+	// PluginInfo.config_schema. Values of properties the schema marks `writeOnly` (secrets
+	// such as API keys) come back empty. Plugins without a config_schema answer
+	// UNIMPLEMENTED.
+	GetConfig(context.Context, *connect.Request[v1.GetConfigRequest]) (*connect.Response[v1.GetConfigResponse], error)
+	// SetConfig replaces the plugin-level configuration after validating it against
+	// PluginInfo.config_schema. Hosts call it after starting the plugin and whenever the
+	// configuration changes. A `writeOnly` property sent empty keeps its current value, so
+	// a configuration read with GetConfig can be sent back. It returns the configuration in
+	// effect, as GetConfig does.
+	SetConfig(context.Context, *connect.Request[v1.SetConfigRequest]) (*connect.Response[v1.SetConfigResponse], error)
 	// Health reports whether the plugin can serve requests. It needs no credentials.
 	Health(context.Context, *connect.Request[v1.HealthRequest]) (*connect.Response[v1.HealthResponse], error)
 	// ListSources lists the sources the plugin serves.
@@ -148,6 +165,18 @@ func NewSourcePluginServiceClient(httpClient connect.HTTPClient, baseURL string,
 			httpClient,
 			baseURL+SourcePluginServiceGetInfoProcedure,
 			connect.WithSchema(sourcePluginServiceMethods.ByName("GetInfo")),
+			connect.WithClientOptions(opts...),
+		),
+		getConfig: connect.NewClient[v1.GetConfigRequest, v1.GetConfigResponse](
+			httpClient,
+			baseURL+SourcePluginServiceGetConfigProcedure,
+			connect.WithSchema(sourcePluginServiceMethods.ByName("GetConfig")),
+			connect.WithClientOptions(opts...),
+		),
+		setConfig: connect.NewClient[v1.SetConfigRequest, v1.SetConfigResponse](
+			httpClient,
+			baseURL+SourcePluginServiceSetConfigProcedure,
+			connect.WithSchema(sourcePluginServiceMethods.ByName("SetConfig")),
 			connect.WithClientOptions(opts...),
 		),
 		health: connect.NewClient[v1.HealthRequest, v1.HealthResponse](
@@ -252,6 +281,8 @@ func NewSourcePluginServiceClient(httpClient connect.HTTPClient, baseURL string,
 // sourcePluginServiceClient implements SourcePluginServiceClient.
 type sourcePluginServiceClient struct {
 	getInfo           *connect.Client[v1.GetInfoRequest, v1.GetInfoResponse]
+	getConfig         *connect.Client[v1.GetConfigRequest, v1.GetConfigResponse]
+	setConfig         *connect.Client[v1.SetConfigRequest, v1.SetConfigResponse]
 	health            *connect.Client[v1.HealthRequest, v1.HealthResponse]
 	listSources       *connect.Client[v1.ListSourcesRequest, v1.ListSourcesResponse]
 	getSource         *connect.Client[v1.GetSourceRequest, v1.GetSourceResponse]
@@ -273,6 +304,16 @@ type sourcePluginServiceClient struct {
 // GetInfo calls panelarr.source.v1.SourcePluginService.GetInfo.
 func (c *sourcePluginServiceClient) GetInfo(ctx context.Context, req *connect.Request[v1.GetInfoRequest]) (*connect.Response[v1.GetInfoResponse], error) {
 	return c.getInfo.CallUnary(ctx, req)
+}
+
+// GetConfig calls panelarr.source.v1.SourcePluginService.GetConfig.
+func (c *sourcePluginServiceClient) GetConfig(ctx context.Context, req *connect.Request[v1.GetConfigRequest]) (*connect.Response[v1.GetConfigResponse], error) {
+	return c.getConfig.CallUnary(ctx, req)
+}
+
+// SetConfig calls panelarr.source.v1.SourcePluginService.SetConfig.
+func (c *sourcePluginServiceClient) SetConfig(ctx context.Context, req *connect.Request[v1.SetConfigRequest]) (*connect.Response[v1.SetConfigResponse], error) {
+	return c.setConfig.CallUnary(ctx, req)
 }
 
 // Health calls panelarr.source.v1.SourcePluginService.Health.
@@ -361,6 +402,17 @@ type SourcePluginServiceHandler interface {
 	// GetInfo describes the plugin: identity, version, capabilities, declared limits,
 	// the configuration it expects and the common services it can use.
 	GetInfo(context.Context, *connect.Request[v1.GetInfoRequest]) (*connect.Response[v1.GetInfoResponse], error)
+	// GetConfig returns the plugin-level configuration in effect, described by
+	// PluginInfo.config_schema. Values of properties the schema marks `writeOnly` (secrets
+	// such as API keys) come back empty. Plugins without a config_schema answer
+	// UNIMPLEMENTED.
+	GetConfig(context.Context, *connect.Request[v1.GetConfigRequest]) (*connect.Response[v1.GetConfigResponse], error)
+	// SetConfig replaces the plugin-level configuration after validating it against
+	// PluginInfo.config_schema. Hosts call it after starting the plugin and whenever the
+	// configuration changes. A `writeOnly` property sent empty keeps its current value, so
+	// a configuration read with GetConfig can be sent back. It returns the configuration in
+	// effect, as GetConfig does.
+	SetConfig(context.Context, *connect.Request[v1.SetConfigRequest]) (*connect.Response[v1.SetConfigResponse], error)
 	// Health reports whether the plugin can serve requests. It needs no credentials.
 	Health(context.Context, *connect.Request[v1.HealthRequest]) (*connect.Response[v1.HealthResponse], error)
 	// ListSources lists the sources the plugin serves.
@@ -412,6 +464,18 @@ func NewSourcePluginServiceHandler(svc SourcePluginServiceHandler, opts ...conne
 		SourcePluginServiceGetInfoProcedure,
 		svc.GetInfo,
 		connect.WithSchema(sourcePluginServiceMethods.ByName("GetInfo")),
+		connect.WithHandlerOptions(opts...),
+	)
+	sourcePluginServiceGetConfigHandler := connect.NewUnaryHandler(
+		SourcePluginServiceGetConfigProcedure,
+		svc.GetConfig,
+		connect.WithSchema(sourcePluginServiceMethods.ByName("GetConfig")),
+		connect.WithHandlerOptions(opts...),
+	)
+	sourcePluginServiceSetConfigHandler := connect.NewUnaryHandler(
+		SourcePluginServiceSetConfigProcedure,
+		svc.SetConfig,
+		connect.WithSchema(sourcePluginServiceMethods.ByName("SetConfig")),
 		connect.WithHandlerOptions(opts...),
 	)
 	sourcePluginServiceHealthHandler := connect.NewUnaryHandler(
@@ -514,6 +578,10 @@ func NewSourcePluginServiceHandler(svc SourcePluginServiceHandler, opts ...conne
 		switch r.URL.Path {
 		case SourcePluginServiceGetInfoProcedure:
 			sourcePluginServiceGetInfoHandler.ServeHTTP(w, r)
+		case SourcePluginServiceGetConfigProcedure:
+			sourcePluginServiceGetConfigHandler.ServeHTTP(w, r)
+		case SourcePluginServiceSetConfigProcedure:
+			sourcePluginServiceSetConfigHandler.ServeHTTP(w, r)
 		case SourcePluginServiceHealthProcedure:
 			sourcePluginServiceHealthHandler.ServeHTTP(w, r)
 		case SourcePluginServiceListSourcesProcedure:
@@ -557,6 +625,14 @@ type UnimplementedSourcePluginServiceHandler struct{}
 
 func (UnimplementedSourcePluginServiceHandler) GetInfo(context.Context, *connect.Request[v1.GetInfoRequest]) (*connect.Response[v1.GetInfoResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("panelarr.source.v1.SourcePluginService.GetInfo is not implemented"))
+}
+
+func (UnimplementedSourcePluginServiceHandler) GetConfig(context.Context, *connect.Request[v1.GetConfigRequest]) (*connect.Response[v1.GetConfigResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("panelarr.source.v1.SourcePluginService.GetConfig is not implemented"))
+}
+
+func (UnimplementedSourcePluginServiceHandler) SetConfig(context.Context, *connect.Request[v1.SetConfigRequest]) (*connect.Response[v1.SetConfigResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("panelarr.source.v1.SourcePluginService.SetConfig is not implemented"))
 }
 
 func (UnimplementedSourcePluginServiceHandler) Health(context.Context, *connect.Request[v1.HealthRequest]) (*connect.Response[v1.HealthResponse], error) {

@@ -22,6 +22,8 @@ const _ = grpc.SupportPackageIsVersion9
 
 const (
 	SourcePluginService_GetInfo_FullMethodName           = "/panelarr.source.v1.SourcePluginService/GetInfo"
+	SourcePluginService_GetConfig_FullMethodName         = "/panelarr.source.v1.SourcePluginService/GetConfig"
+	SourcePluginService_SetConfig_FullMethodName         = "/panelarr.source.v1.SourcePluginService/SetConfig"
 	SourcePluginService_Health_FullMethodName            = "/panelarr.source.v1.SourcePluginService/Health"
 	SourcePluginService_ListSources_FullMethodName       = "/panelarr.source.v1.SourcePluginService/ListSources"
 	SourcePluginService_GetSource_FullMethodName         = "/panelarr.source.v1.SourcePluginService/GetSource"
@@ -60,6 +62,17 @@ type SourcePluginServiceClient interface {
 	// GetInfo describes the plugin: identity, version, capabilities, declared limits,
 	// the configuration it expects and the common services it can use.
 	GetInfo(ctx context.Context, in *GetInfoRequest, opts ...grpc.CallOption) (*GetInfoResponse, error)
+	// GetConfig returns the plugin-level configuration in effect, described by
+	// PluginInfo.config_schema. Values of properties the schema marks `writeOnly` (secrets
+	// such as API keys) come back empty. Plugins without a config_schema answer
+	// UNIMPLEMENTED.
+	GetConfig(ctx context.Context, in *GetConfigRequest, opts ...grpc.CallOption) (*GetConfigResponse, error)
+	// SetConfig replaces the plugin-level configuration after validating it against
+	// PluginInfo.config_schema. Hosts call it after starting the plugin and whenever the
+	// configuration changes. A `writeOnly` property sent empty keeps its current value, so
+	// a configuration read with GetConfig can be sent back. It returns the configuration in
+	// effect, as GetConfig does.
+	SetConfig(ctx context.Context, in *SetConfigRequest, opts ...grpc.CallOption) (*SetConfigResponse, error)
 	// Health reports whether the plugin can serve requests. It needs no credentials.
 	Health(ctx context.Context, in *HealthRequest, opts ...grpc.CallOption) (*HealthResponse, error)
 	// ListSources lists the sources the plugin serves.
@@ -112,6 +125,26 @@ func (c *sourcePluginServiceClient) GetInfo(ctx context.Context, in *GetInfoRequ
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	out := new(GetInfoResponse)
 	err := c.cc.Invoke(ctx, SourcePluginService_GetInfo_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *sourcePluginServiceClient) GetConfig(ctx context.Context, in *GetConfigRequest, opts ...grpc.CallOption) (*GetConfigResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(GetConfigResponse)
+	err := c.cc.Invoke(ctx, SourcePluginService_GetConfig_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *sourcePluginServiceClient) SetConfig(ctx context.Context, in *SetConfigRequest, opts ...grpc.CallOption) (*SetConfigResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(SetConfigResponse)
+	err := c.cc.Invoke(ctx, SourcePluginService_SetConfig_FullMethodName, in, out, cOpts...)
 	if err != nil {
 		return nil, err
 	}
@@ -307,6 +340,17 @@ type SourcePluginServiceServer interface {
 	// GetInfo describes the plugin: identity, version, capabilities, declared limits,
 	// the configuration it expects and the common services it can use.
 	GetInfo(context.Context, *GetInfoRequest) (*GetInfoResponse, error)
+	// GetConfig returns the plugin-level configuration in effect, described by
+	// PluginInfo.config_schema. Values of properties the schema marks `writeOnly` (secrets
+	// such as API keys) come back empty. Plugins without a config_schema answer
+	// UNIMPLEMENTED.
+	GetConfig(context.Context, *GetConfigRequest) (*GetConfigResponse, error)
+	// SetConfig replaces the plugin-level configuration after validating it against
+	// PluginInfo.config_schema. Hosts call it after starting the plugin and whenever the
+	// configuration changes. A `writeOnly` property sent empty keeps its current value, so
+	// a configuration read with GetConfig can be sent back. It returns the configuration in
+	// effect, as GetConfig does.
+	SetConfig(context.Context, *SetConfigRequest) (*SetConfigResponse, error)
 	// Health reports whether the plugin can serve requests. It needs no credentials.
 	Health(context.Context, *HealthRequest) (*HealthResponse, error)
 	// ListSources lists the sources the plugin serves.
@@ -357,6 +401,12 @@ type UnimplementedSourcePluginServiceServer struct{}
 
 func (UnimplementedSourcePluginServiceServer) GetInfo(context.Context, *GetInfoRequest) (*GetInfoResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method GetInfo not implemented")
+}
+func (UnimplementedSourcePluginServiceServer) GetConfig(context.Context, *GetConfigRequest) (*GetConfigResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method GetConfig not implemented")
+}
+func (UnimplementedSourcePluginServiceServer) SetConfig(context.Context, *SetConfigRequest) (*SetConfigResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method SetConfig not implemented")
 }
 func (UnimplementedSourcePluginServiceServer) Health(context.Context, *HealthRequest) (*HealthResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method Health not implemented")
@@ -441,6 +491,42 @@ func _SourcePluginService_GetInfo_Handler(srv interface{}, ctx context.Context, 
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(SourcePluginServiceServer).GetInfo(ctx, req.(*GetInfoRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _SourcePluginService_GetConfig_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(GetConfigRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(SourcePluginServiceServer).GetConfig(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: SourcePluginService_GetConfig_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(SourcePluginServiceServer).GetConfig(ctx, req.(*GetConfigRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _SourcePluginService_SetConfig_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(SetConfigRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(SourcePluginServiceServer).SetConfig(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: SourcePluginService_SetConfig_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(SourcePluginServiceServer).SetConfig(ctx, req.(*SetConfigRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -736,6 +822,14 @@ var SourcePluginService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "GetInfo",
 			Handler:    _SourcePluginService_GetInfo_Handler,
+		},
+		{
+			MethodName: "GetConfig",
+			Handler:    _SourcePluginService_GetConfig_Handler,
+		},
+		{
+			MethodName: "SetConfig",
+			Handler:    _SourcePluginService_SetConfig_Handler,
 		},
 		{
 			MethodName: "Health",
