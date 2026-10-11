@@ -7,4 +7,6 @@ The v0 plan for source-api and source-mihon, in slices. Each slice works end to 
 - [x] **3. SDK:** `plugin.Main` (managed and standalone), a client (managed, remote, in-process), `httpx`, settings validation and a conformance suite and runner. Plus plugin-level `GetConfig`/`SetConfig` in the protos.
 - [x] **4. mihon-source consumes these protos** (pinned in `third_party/source-api` with a checksum guard), with no API change.
 - [x] **5. source-mihon:** a source plugin that serves mihon-source's sources, keeps its stores and extensions and forwards network profiles; conformance end to end (`make e2e` in source-mihon).
-- [ ] **6. Image and docs** for source-mihon.
+- [x] **6. Image and docs** for source-mihon: a distroless image (`make docker`), a compose example next to mihon-source, and GoReleaser releases.
+
+All v0 slices are done.
