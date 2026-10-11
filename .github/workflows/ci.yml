@@ -1,0 +1,48 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  check:
+    name: Lint, test, build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-go@v6
+        with:
+          go-version-file: go.mod
+
+      - name: Cache tools
+        uses: actions/cache@v4
+        with:
+          path: bin
+          key: tools-${{ runner.os }}-${{ hashFiles('Makefile', 'go.mod') }}
+
+      - name: Install tools
+        run: make setup
+
+      # The breaking-change check compares with main.
+      - name: Fetch main
+        run: git fetch origin main:main || true
+
+      - name: Generated code is up to date
+        run: make gen-check
+
+      - name: Check (format, vet, lint, breaking changes, govulncheck, tests)
+        run: make check
+
+      - name: Build
+        run: make build
