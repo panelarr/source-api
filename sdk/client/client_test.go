@@ -272,3 +272,27 @@ func TestNetworkProfileReachesThePlugin(t *testing.T) {
 		t.Fatalf("remove: %v %v", err, f.Profile("1001"))
 	}
 }
+
+func TestExtraRoutes(t *testing.T) {
+	routes := []plugin.Route{
+		{Pattern: "GET /metrics", Handler: http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) { _, _ = w.Write([]byte("m 1")) })},
+		{Pattern: "GET /public", Public: true, Handler: http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) { _, _ = w.Write([]byte("hi")) })},
+	}
+	srv := httptest.NewServer(plugin.NewHandler(plugintest.New(), "k", routes...))
+	defer srv.Close()
+	status := func(path, key string) int {
+		req, _ := http.NewRequestWithContext(context.Background(), http.MethodGet, srv.URL+path, nil)
+		if key != "" {
+			req.Header.Set("Authorization", "Bearer "+key)
+		}
+		res, err := http.DefaultClient.Do(req)
+		if err != nil {
+			t.Fatal(err)
+		}
+		_ = res.Body.Close()
+		return res.StatusCode
+	}
+	if status("/metrics", "") != http.StatusUnauthorized || status("/metrics", "k") != http.StatusOK || status("/public", "") != http.StatusOK {
+		t.Fatal("route auth")
+	}
+}

@@ -54,8 +54,20 @@ type Config struct {
 	// ConfigFile, when set, is a JSON file with the plugin-level
 	// configuration, applied with SetConfig before serving (standalone mode).
 	ConfigFile string
+	// Routes are extra HTTP routes served next to the API in standalone
+	// mode, e.g. /metrics or icons.
+	Routes []Route
 	// Logger defaults to JSON on stderr.
 	Logger *slog.Logger
+}
+
+// Route is an extra HTTP route of a standalone plugin. It needs the API key
+// like the API unless Public is set.
+type Route struct {
+	// Pattern is an http.ServeMux pattern, e.g. "GET /metrics".
+	Pattern string
+	Handler http.Handler
+	Public  bool
 }
 
 // IsManaged reports whether the process was started by a host through the
@@ -91,7 +103,7 @@ func Main(p Plugin, opts ...MainOption) {
 	if *apiKey == "" {
 		*apiKey = os.Getenv("PLUGIN_API_KEY")
 	}
-	cfg := Config{Listen: *listen, APIKey: *apiKey, ConfigFile: *configFile}
+	cfg := Config{Listen: *listen, APIKey: *apiKey, ConfigFile: *configFile, Routes: mo.routes}
 	if !IsManaged() && cfg.Listen == "" {
 		fmt.Fprintf(os.Stderr, "This is a Panelarr source plugin.\n\n"+
 			"Let a Panelarr host start it (managed mode), or run it as a service:\n\n"+
@@ -113,6 +125,12 @@ type MainOption func(*mainOptions)
 
 type mainOptions struct {
 	defaultListen string
+	routes        []Route
+}
+
+// WithRoutes adds HTTP routes to the standalone server (see [Route]).
+func WithRoutes(routes ...Route) MainOption {
+	return func(o *mainOptions) { o.routes = append(o.routes, routes...) }
 }
 
 // WithDefaultListen makes the plugin serve standalone on addr when it is
@@ -148,7 +166,7 @@ func serveStandalone(ctx context.Context, p Plugin, cfg Config) error {
 	if err != nil {
 		return fmt.Errorf("plugin: listen: %w", err)
 	}
-	srv := NewHTTPServer(p, cfg.APIKey)
+	srv := NewHTTPServer(p, cfg.APIKey, cfg.Routes...)
 	cfg.Logger.Info("source plugin listening", "addr", ln.Addr().String(), "auth", cfg.APIKey != "")
 	errc := make(chan error, 1)
 	go func() { errc <- srv.Serve(ln) }()
@@ -164,10 +182,11 @@ func serveStandalone(ctx context.Context, p Plugin, cfg Config) error {
 
 // NewHTTPServer returns an HTTP server (HTTP/1.1 and cleartext HTTP/2) that
 // serves the plugin over gRPC, gRPC-Web and Connect, plus an unauthenticated
-// GET /healthz. Use it to embed a plugin in your own server or in tests.
-func NewHTTPServer(p Plugin, apiKey string) *http.Server {
+// GET /healthz and any extra routes. Use it to embed a plugin in your own
+// server or in tests.
+func NewHTTPServer(p Plugin, apiKey string, routes ...Route) *http.Server {
 	srv := &http.Server{
-		Handler:           NewHandler(p, apiKey),
+		Handler:           NewHandler(p, apiKey, routes...),
 		ReadHeaderTimeout: 10 * time.Second,
 	}
 	srv.Protocols = new(http.Protocols)
@@ -177,7 +196,7 @@ func NewHTTPServer(p Plugin, apiKey string) *http.Server {
 }
 
 // NewHandler returns the plugin's HTTP handler (see [NewHTTPServer]).
-func NewHandler(p Plugin, apiKey string) http.Handler {
+func NewHandler(p Plugin, apiKey string, routes ...Route) http.Handler {
 	mux := http.NewServeMux()
 	path, h := sourcev1connect.NewSourcePluginServiceHandler(
 		&connectServer{p: p},
@@ -185,6 +204,13 @@ func NewHandler(p Plugin, apiKey string) http.Handler {
 		connect.WithSendMaxBytes(MaxMessageSize),
 	)
 	mux.Handle(path, requireKey(apiKey, h))
+	for _, r := range routes {
+		h := r.Handler
+		if !r.Public {
+			h = requireKey(apiKey, h)
+		}
+		mux.Handle(r.Pattern, h)
+	}
 	mux.HandleFunc("GET /healthz", func(w http.ResponseWriter, _ *http.Request) {
 		w.Header().Set("Content-Type", "text/plain")
 		_, _ = io.WriteString(w, "ok\n")

@@ -21,7 +21,7 @@ The same binary runs both ways:
 - **Managed:** the host starts it as a child process and talks gRPC to it over a local socket (HashiCorp go-plugin). `plugin.Main` notices the handshake and ignores `--listen`.
 - **Standalone:** `my-plugin --listen :8905 --api-key KEY [--config config.json]` serves gRPC and Connect on that port (HTTP/1.1 and cleartext HTTP/2). Every call needs `Authorization: Bearer KEY` except `Health` and `GET /healthz`. The flags can also come from `PLUGIN_LISTEN`, `PLUGIN_API_KEY` and `PLUGIN_CONFIG`.
 
-Standalone plugins use ports from 8903 up.
+Standalone plugins use ports from 8903 up. `plugin.WithRoutes(plugin.Route{Pattern: "GET /metrics", Handler: h})` adds HTTP routes next to the API (behind the API key unless `Public`), e.g. metrics or icons.
 
 ## What to implement
 
