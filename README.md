@@ -10,8 +10,14 @@ A **source plugin** serves one or more sources: catalogues of series that can be
 |---|---|
 | [`proto/panelarr/source/v1`](proto/panelarr/source/v1) | The protos: `SourcePluginService` and its messages |
 | [`gen/`](gen) | Generated Go (messages, gRPC, Connect) and the OpenAPI document of the HTTP/JSON mapping |
+| [`sdk/plugin`](sdk/plugin) | Write a plugin: `plugin.Main` runs it managed (go-plugin) or standalone (`--listen`), errors with reasons, plugin configuration |
+| [`sdk/client`](sdk/client) | Host plugins: managed, remote (gRPC), over your own gRPC connection, or in-process |
+| [`sdk/httpx`](sdk/httpx) | HTTP clients per source that follow network profiles: proxies, solvers, rate limits, DoH, cookies |
+| [`sdk/settings`](sdk/settings) | JSON Schema settings and configuration: validation and defaults |
+| [`sdk/conformance`](sdk/conformance), [`cmd/source-conformance`](cmd/source-conformance) | The conformance suite every plugin must pass, as a library and a CLI |
+| [`sdk/plugintest`](sdk/plugintest), [`sdk/examples/static-source`](sdk/examples/static-source) | A made-up plugin for tests, and an example plugin built on it |
 
-Any language can implement the API: plain protobuf and gRPC are enough.
+Any language can implement the API: plain protobuf and gRPC are enough. Go plugins and hosts get the SDK: see [writing a plugin](docs/writing-a-plugin.md) and [hosting plugins](docs/hosting.md).
 
 ## Using the protos
 

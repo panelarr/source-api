@@ -19,7 +19,7 @@ TOOLCHAIN := $(shell $(GO) env GOVERSION)
 VERSION  ?= $(shell git describe --tags --always --dirty 2>/dev/null || echo dev)
 LDFLAGS  := -s -w
 
-.PHONY: help setup build test test-short lint fmt fmt-check vet vuln buf-lint breaking gen gen-check clean check
+.PHONY: help setup build conformance run-example test test-short lint fmt fmt-check vet vuln buf-lint breaking gen gen-check clean check
 
 help: ## List targets
 	@awk 'BEGIN {FS = ":.*## "} /^[a-zA-Z0-9_.-]+:.*## / {printf "  \033[36m%-14s\033[0m %s\n", $$1, $$2}' $(MAKEFILE_LIST)
@@ -35,8 +35,17 @@ setup: ## Install pinned developer tools into ./bin and download modules
 	GOTOOLCHAIN=$(TOOLCHAIN) GOBIN=$(BIN) $(GO) install golang.org/x/vuln/cmd/govulncheck@$(GOVULNCHECK_VERSION)
 	$(GO) mod download
 
-build: ## Build every package
-	$(GO) build ./...
+build: ## Build the conformance runner and the example plugin into ./bin
+	CGO_ENABLED=0 $(GO) build -trimpath -ldflags '$(LDFLAGS)' -o $(BIN)/source-conformance ./cmd/source-conformance
+	CGO_ENABLED=0 $(GO) build -trimpath -ldflags '$(LDFLAGS)' -o $(BIN)/static-source ./sdk/examples/static-source
+
+conformance: build ## Check a running plugin: make conformance TARGET=host:port [KEY=api-key] [ARGS="--max-sources 5"]
+	@test -n "$(TARGET)" || (echo "usage: make conformance TARGET=host:port [KEY=api-key] [ARGS=...]" && exit 2)
+	$(BIN)/source-conformance --target "$(TARGET)" --api-key "$(KEY)" $(ARGS)
+
+run-example: build ## Run the example plugin standalone on :8904
+	@echo "static-source listening on http://localhost:8904"
+	$(BIN)/static-source --listen :8904
 
 test: ## Run all tests with the race detector
 	$(GO) test -race -cover ./...
@@ -79,6 +88,7 @@ gen-check: gen ## Fail if generated code is out of date
 	@if [ -n "$$(git status --porcelain -- gen)" ]; then git status --short -- gen; echo "generated code is stale: run make gen and commit"; exit 1; fi
 
 clean: ## Remove build artifacts (keeps installed tools)
+	rm -f $(BIN)/source-conformance $(BIN)/static-source
 	rm -rf dist coverage.out
 
 check: fmt-check vet lint breaking vuln test ## Format check, lint, breaking-change check, vulnerabilities and tests (run before every report/PR)
