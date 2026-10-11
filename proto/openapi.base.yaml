@@ -1,0 +1,21 @@
+openapi: 3.1.0
+info:
+  title: Panelarr source API
+  description: |
+    `panelarr.source.v1`: the contract every Panelarr source plugin implements. A plugin
+    serves one or more sources; each source can be browsed (popular, latest, search) and
+    its series have chapters made of pages.
+
+    Plugins speak gRPC; this is the HTTP/JSON mapping of the same API (`google.api.http`),
+    for plugins that also serve it. Calls usually need `Authorization: Bearer <key>`.
+  version: v1
+  license:
+    name: Apache-2.0
+    url: https://www.apache.org/licenses/LICENSE-2.0
+security:
+  - apiKey: []
+components:
+  securitySchemes:
+    apiKey:
+      type: http
+      scheme: bearer

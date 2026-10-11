@@ -1,0 +1,689 @@
+// SPDX-License-Identifier: Apache-2.0
+
+syntax = "proto3";
+
+package panelarr.source.v1;
+
+import "google/api/annotations.proto";
+import "google/protobuf/duration.proto";
+import "google/protobuf/struct.proto";
+import "google/protobuf/timestamp.proto";
+
+option java_multiple_files = true;
+option java_package = "panelarr.source.v1";
+
+// SourcePluginService is the contract every Panelarr source plugin implements.
+//
+// A plugin serves one or more sources. Each source is a catalogue of series that can be
+// browsed (popular, latest, search), and each series has chapters made of pages.
+//
+// Keys (series keys, chapter keys, page refs) are opaque strings chosen by the plugin.
+// Callers store them and pass them back as they are, and never parse them.
+//
+// Errors use gRPC status codes. When a request fails because of the upstream source,
+// the status carries a google.rpc.ErrorInfo whose `reason` is one of ErrorReason's
+// names without the `ERROR_REASON_` prefix (for example `RATE_LIMITED`), and whose
+// `domain` is `source.panelarr`. RATE_LIMITED may also carry a google.rpc.RetryInfo.
+service SourcePluginService {
+  // GetInfo describes the plugin: identity, version, capabilities, declared limits,
+  // the configuration it expects and the common services it can use.
+  rpc GetInfo(GetInfoRequest) returns (GetInfoResponse) {
+    option (google.api.http) = {get: "/v1/info"};
+  }
+
+  // Health reports whether the plugin can serve requests. It needs no credentials.
+  rpc Health(HealthRequest) returns (HealthResponse) {
+    option (google.api.http) = {get: "/v1/health"};
+  }
+
+  // ListSources lists the sources the plugin serves.
+  rpc ListSources(ListSourcesRequest) returns (ListSourcesResponse) {
+    option (google.api.http) = {get: "/v1/sources"};
+  }
+
+  // GetSource returns one source.
+  rpc GetSource(GetSourceRequest) returns (GetSourceResponse) {
+    option (google.api.http) = {get: "/v1/sources/{source_id}"};
+  }
+
+  // GetFilters returns the search filters of a source with their default values.
+  rpc GetFilters(GetFiltersRequest) returns (GetFiltersResponse) {
+    option (google.api.http) = {get: "/v1/sources/{source_id}/filters"};
+  }
+
+  // Popular lists a page of the source's popular series.
+  rpc Popular(PopularRequest) returns (PopularResponse) {
+    option (google.api.http) = {get: "/v1/sources/{source_id}/popular"};
+  }
+
+  // Latest lists a page of recently updated series. Needs the LATEST capability.
+  rpc Latest(LatestRequest) returns (LatestResponse) {
+    option (google.api.http) = {get: "/v1/sources/{source_id}/latest"};
+  }
+
+  // Search lists a page of series matching a query and filter values.
+  rpc Search(SearchRequest) returns (SearchResponse) {
+    option (google.api.http) = {
+      post: "/v1/sources/{source_id}/search"
+      body: "*"
+    };
+  }
+
+  // ResolveUrl turns a web URL into a series. Sources with the RESOLVE_URL capability do
+  // it themselves; a plugin may also try others and mark the answer best_effort.
+  rpc ResolveUrl(ResolveUrlRequest) returns (ResolveUrlResponse) {
+    option (google.api.http) = {
+      post: "/v1/resolve-url"
+      body: "*"
+    };
+  }
+
+  // GetSeries returns the full details of a series.
+  rpc GetSeries(GetSeriesRequest) returns (GetSeriesResponse) {
+    option (google.api.http) = {get: "/v1/sources/{source_id}/series"};
+  }
+
+  // ListChapters lists the chapters of a series, newest first.
+  rpc ListChapters(ListChaptersRequest) returns (ListChaptersResponse) {
+    option (google.api.http) = {get: "/v1/sources/{source_id}/chapters"};
+  }
+
+  // ListPages lists the pages of a chapter in reading order.
+  rpc ListPages(ListPagesRequest) returns (ListPagesResponse) {
+    option (google.api.http) = {get: "/v1/sources/{source_id}/pages"};
+  }
+
+  // FetchImage streams the bytes of one image (a page or a cover) through the source's
+  // own network settings. The first message carries the metadata, the rest carry bytes.
+  // Over HTTP the same image is a plain streamed GET (see the service docs).
+  rpc FetchImage(FetchImageRequest) returns (stream FetchImageResponse);
+
+  // GetSettingsSchema returns the JSON Schema of a source's settings.
+  rpc GetSettingsSchema(GetSettingsSchemaRequest) returns (GetSettingsSchemaResponse) {
+    option (google.api.http) = {get: "/v1/sources/{source_id}/settings/schema"};
+  }
+
+  // GetSettings returns a source's current setting values.
+  rpc GetSettings(GetSettingsRequest) returns (GetSettingsResponse) {
+    option (google.api.http) = {get: "/v1/sources/{source_id}/settings"};
+  }
+
+  // SetSettings changes some of a source's settings. Keys that are left out keep
+  // their value. It returns all values after the change.
+  rpc SetSettings(SetSettingsRequest) returns (SetSettingsResponse) {
+    option (google.api.http) = {
+      patch: "/v1/sources/{source_id}/settings"
+      body: "*"
+    };
+  }
+
+  // SetNetworkProfile is how a host pushes the network profile a source must use.
+  // A pushed profile overrides anything the plugin configured locally. Leaving
+  // `profile` unset removes the override.
+  rpc SetNetworkProfile(SetNetworkProfileRequest) returns (SetNetworkProfileResponse) {
+    option (google.api.http) = {
+      put: "/v1/sources/{source_id}/network-profile"
+      body: "*"
+    };
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Plugin
+// ---------------------------------------------------------------------------
+
+message GetInfoRequest {}
+
+message GetInfoResponse {
+  PluginInfo info = 1;
+}
+
+message PluginInfo {
+  // Stable identifier of the plugin, e.g. "mihon-source".
+  string id = 1;
+  // Human-readable name.
+  string name = 2;
+  // Version of the plugin itself.
+  string version = 3;
+  // Contracts the plugin implements, e.g. "panelarr.source.v1".
+  repeated string contracts = 4;
+  // Features of the plugin as a whole. Per-source features are on Source.
+  repeated PluginCapability capabilities = 5;
+  // Limits the plugin asks hosts to respect. Hosts should enforce them too.
+  Limits limits = 6;
+  // JSON Schema of the plugin-level configuration the plugin expects from a host.
+  // Unset when the plugin needs none.
+  google.protobuf.Struct config_schema = 7;
+  // Common services the plugin can use when a host provides them.
+  repeated CommonService common_services = 8;
+}
+
+enum PluginCapability {
+  PLUGIN_CAPABILITY_UNSPECIFIED = 0;
+  // The plugin applies network profiles pushed with SetNetworkProfile.
+  PLUGIN_CAPABILITY_NETWORK_PROFILES = 1;
+  // Sources can be added and removed at runtime, so hosts should re-list them.
+  PLUGIN_CAPABILITY_DYNAMIC_SOURCES = 2;
+}
+
+// CommonService is a service a host can offer to plugins.
+enum CommonService {
+  COMMON_SERVICE_UNSPECIFIED = 0;
+  // Network profiles: proxy, rate limit, user agent, cookies, timeouts.
+  COMMON_SERVICE_NETWORK_PROFILE = 1;
+  // Challenge solvers (FlareSolverr-compatible endpoints).
+  COMMON_SERVICE_SOLVER = 2;
+}
+
+message Limits {
+  // Maximum parallel requests the plugin wants per source. 0 means no limit declared.
+  uint32 max_concurrency_per_source = 1;
+  // Default request rate per source. Unset means no limit declared.
+  RateLimit default_rate_limit = 2;
+}
+
+message RateLimit {
+  // Requests allowed per period.
+  uint32 requests = 1;
+  // Length of the period.
+  google.protobuf.Duration period = 2;
+  // Extra requests allowed in a burst. 0 means none.
+  uint32 burst = 3;
+  // What the limit counts.
+  RateLimitScope scope = 4;
+}
+
+enum RateLimitScope {
+  RATE_LIMIT_SCOPE_UNSPECIFIED = 0;
+  // One budget for all requests of the source.
+  RATE_LIMIT_SCOPE_SOURCE = 1;
+  // One budget per target host.
+  RATE_LIMIT_SCOPE_HOST = 2;
+}
+
+message HealthRequest {}
+
+message HealthResponse {
+  HealthStatus status = 1;
+  // Optional detail for humans.
+  string message = 2;
+}
+
+enum HealthStatus {
+  HEALTH_STATUS_UNSPECIFIED = 0;
+  HEALTH_STATUS_SERVING = 1;
+  // Serving, but some sources are failing (e.g. extensions that didn't load).
+  HEALTH_STATUS_DEGRADED = 2;
+  HEALTH_STATUS_NOT_SERVING = 3;
+}
+
+// ErrorReason documents the `reason` values of google.rpc.ErrorInfo. On the wire the
+// reason is the value name without the `ERROR_REASON_` prefix.
+enum ErrorReason {
+  ERROR_REASON_UNSPECIFIED = 0;
+  // An anti-bot challenge blocked the request and no solver could pass it.
+  ERROR_REASON_CLOUDFLARE_CHALLENGE = 1;
+  // The upstream or the plugin rate-limited the request. May carry RetryInfo.
+  ERROR_REASON_RATE_LIMITED = 2;
+  // The upstream is unreachable or failing.
+  ERROR_REASON_SOURCE_DOWN = 3;
+  // The source, series, chapter or page doesn't exist.
+  ERROR_REASON_NOT_FOUND = 4;
+  // The upstream needs a login the plugin doesn't have.
+  ERROR_REASON_LOGIN_REQUIRED = 5;
+  // The source doesn't support this call.
+  ERROR_REASON_UNSUPPORTED = 6;
+}
+
+// ---------------------------------------------------------------------------
+// Sources
+// ---------------------------------------------------------------------------
+
+message Source {
+  // Identifier of the source, unique within the plugin and stable across restarts.
+  string id = 1;
+  string name = 2;
+  // Language as a BCP 47 tag, or "all" / "multi" for multi-language sources.
+  string lang = 3;
+  ContentRating content_rating = 4;
+  // URL of an icon for the source, if the plugin has one. It may be a path relative to
+  // the plugin's own address (e.g. "/v1/sources/123/icon"), fetched with the same
+  // credentials as the API.
+  string icon_url = 5;
+  repeated SourceCapability capabilities = 6;
+  // Web address of the source, for display.
+  string home_url = 7;
+  // The result of the plugin's last check of this source, when it checks sources.
+  SourceHealth health = 8;
+}
+
+// SourceHealth is what a plugin last saw when it checked a source itself.
+message SourceHealth {
+  SourceHealthStatus status = 1;
+  // ErrorReason name without the prefix (e.g. "SOURCE_DOWN"), or "NEEDS_WEBVIEW", when
+  // failing. Empty when OK.
+  string reason = 2;
+  // Detail for humans.
+  string message = 3;
+  // How long the check took.
+  google.protobuf.Duration latency = 4;
+  google.protobuf.Timestamp checked_at = 5;
+  // Scheduled checks are turned off for this source.
+  bool checks_disabled = 6;
+}
+
+enum SourceHealthStatus {
+  // Not checked (yet), or checks are off for this source.
+  SOURCE_HEALTH_STATUS_UNSPECIFIED = 0;
+  SOURCE_HEALTH_STATUS_OK = 1;
+  SOURCE_HEALTH_STATUS_FAILING = 2;
+}
+
+enum SourceCapability {
+  SOURCE_CAPABILITY_UNSPECIFIED = 0;
+  SOURCE_CAPABILITY_LATEST = 1;
+  SOURCE_CAPABILITY_SEARCH = 2;
+  SOURCE_CAPABILITY_FILTERS = 3;
+  SOURCE_CAPABILITY_RESOLVE_URL = 4;
+  SOURCE_CAPABILITY_SETTINGS = 5;
+  // The source needs a browser engine the plugin doesn't have, so most calls fail.
+  SOURCE_CAPABILITY_NEEDS_WEBVIEW = 6;
+  // The source may serve adult content.
+  SOURCE_CAPABILITY_NSFW = 7;
+}
+
+enum ContentRating {
+  CONTENT_RATING_UNSPECIFIED = 0;
+  CONTENT_RATING_SAFE = 1;
+  // Mostly safe content with some adult titles.
+  CONTENT_RATING_MIXED = 2;
+  // Mostly or only adult content.
+  CONTENT_RATING_NSFW = 3;
+}
+
+message ListSourcesRequest {
+  // Only sources in this language. Empty means all.
+  string lang = 1;
+}
+
+message ListSourcesResponse {
+  repeated Source sources = 1;
+}
+
+message GetSourceRequest {
+  string source_id = 1;
+}
+
+message GetSourceResponse {
+  Source source = 1;
+}
+
+// ---------------------------------------------------------------------------
+// Filters
+// ---------------------------------------------------------------------------
+
+message GetFiltersRequest {
+  string source_id = 1;
+}
+
+message GetFiltersResponse {
+  // Filters in display order, with their default values.
+  repeated Filter filters = 1;
+}
+
+// Filter is one search filter. Filters have no stable keys: they are addressed by
+// their position (see FilterValue.path).
+message Filter {
+  // Label shown to users.
+  string name = 1;
+  oneof kind {
+    HeaderFilter header = 10;
+    SeparatorFilter separator = 11;
+    TextFilter text = 12;
+    CheckboxFilter checkbox = 13;
+    TriStateFilter tri_state = 14;
+    SelectFilter select = 15;
+    SortFilter sort = 16;
+    GroupFilter group = 17;
+  }
+}
+
+// HeaderFilter is a label with no value.
+message HeaderFilter {}
+
+// SeparatorFilter is a visual divider with no value.
+message SeparatorFilter {}
+
+message TextFilter {
+  string value = 1;
+}
+
+message CheckboxFilter {
+  bool value = 1;
+}
+
+message TriStateFilter {
+  TriState value = 1;
+}
+
+enum TriState {
+  // Treated like IGNORE.
+  TRI_STATE_UNSPECIFIED = 0;
+  TRI_STATE_IGNORE = 1;
+  TRI_STATE_INCLUDE = 2;
+  TRI_STATE_EXCLUDE = 3;
+}
+
+message SelectFilter {
+  repeated string options = 1;
+  // Index into options.
+  uint32 selected = 2;
+}
+
+message SortFilter {
+  repeated string options = 1;
+  // Unset when no sort is selected.
+  SortSelection selection = 2;
+}
+
+message SortSelection {
+  // Index into options.
+  uint32 index = 1;
+  bool ascending = 2;
+}
+
+// GroupFilter holds child filters (usually checkboxes, tri-states, texts or selects).
+message GroupFilter {
+  repeated Filter filters = 1;
+}
+
+// FilterValue sets the value of one filter for a search.
+message FilterValue {
+  // Position of the filter: [index] for a top-level filter, [group index, child index]
+  // for a filter inside a group.
+  repeated uint32 path = 1;
+  oneof value {
+    string text = 2;
+    bool checkbox = 3;
+    TriState tri_state = 4;
+    uint32 select = 5;
+    SortSelection sort = 6;
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Series and browsing
+// ---------------------------------------------------------------------------
+
+message Series {
+  // Opaque key of the series within its source.
+  string key = 1;
+  string title = 2;
+  repeated string alt_titles = 3;
+  repeated string authors = 4;
+  repeated string artists = 5;
+  string description = 6;
+  repeated string genres = 7;
+  SeriesStatus status = 8;
+  string cover_url = 9;
+  // Web address of the series, for display and "open in browser".
+  string url = 10;
+  // False when only list fields (key, title, cover) are filled in. Call GetSeries for
+  // the rest.
+  bool details_loaded = 11;
+}
+
+enum SeriesStatus {
+  SERIES_STATUS_UNSPECIFIED = 0;
+  SERIES_STATUS_ONGOING = 1;
+  SERIES_STATUS_COMPLETED = 2;
+  SERIES_STATUS_LICENSED = 3;
+  // The original run finished, translation may still be ongoing.
+  SERIES_STATUS_PUBLISHING_FINISHED = 4;
+  SERIES_STATUS_CANCELLED = 5;
+  SERIES_STATUS_ON_HIATUS = 6;
+}
+
+message PopularRequest {
+  string source_id = 1;
+  // 1-based page number.
+  uint32 page = 2;
+}
+
+message PopularResponse {
+  repeated Series series = 1;
+  bool has_next_page = 2;
+}
+
+message LatestRequest {
+  string source_id = 1;
+  // 1-based page number.
+  uint32 page = 2;
+}
+
+message LatestResponse {
+  repeated Series series = 1;
+  bool has_next_page = 2;
+}
+
+message SearchRequest {
+  string source_id = 1;
+  // 1-based page number.
+  uint32 page = 2;
+  string query = 3;
+  // Filters to change from their defaults. Filters not listed keep their default.
+  repeated FilterValue filters = 4;
+}
+
+message SearchResponse {
+  repeated Series series = 1;
+  bool has_next_page = 2;
+}
+
+message ResolveUrlRequest {
+  string url = 1;
+  // Source to ask. Empty means every source that may know the URL.
+  string source_id = 2;
+}
+
+message ResolveUrlResponse {
+  string source_id = 1;
+  Series series = 2;
+  // The source has no URL resolver of its own and the plugin found the series another
+  // way (e.g. by searching for the URL). The match may be wrong.
+  bool best_effort = 3;
+}
+
+message GetSeriesRequest {
+  string source_id = 1;
+  string key = 2;
+  // Load from the source even if the plugin has a recent result cached, e.g. to check
+  // for new chapters now. The fresh result replaces the cached one.
+  bool refresh = 3;
+}
+
+message GetSeriesResponse {
+  Series series = 1;
+}
+
+// ---------------------------------------------------------------------------
+// Chapters, pages, images
+// ---------------------------------------------------------------------------
+
+message Chapter {
+  // Opaque key of the chapter within its source.
+  string key = 1;
+  string name = 2;
+  // Chapter number, when the source knows it.
+  optional double number = 3;
+  // Volume, when the source knows it.
+  string volume = 4;
+  string scanlator = 5;
+  google.protobuf.Timestamp uploaded_at = 6;
+  // Language as a BCP 47 tag, when it differs from the source's language.
+  string lang = 7;
+  // Web address of the chapter.
+  string url = 8;
+}
+
+message ListChaptersRequest {
+  string source_id = 1;
+  string series_key = 2;
+  // Load from the source even if the plugin has a recent result cached, e.g. to check
+  // for new chapters now. The fresh result replaces the cached one.
+  bool refresh = 3;
+}
+
+message ListChaptersResponse {
+  repeated Chapter chapters = 1;
+}
+
+message Page {
+  // 0-based position in the chapter.
+  uint32 index = 1;
+  // Opaque reference to pass to FetchImage.
+  string ref = 2;
+  // Direct image URL when known. It may need the source's headers or cookies, so
+  // fetching through FetchImage is preferred.
+  string image_url = 3;
+}
+
+message ListPagesRequest {
+  string source_id = 1;
+  string chapter_key = 2;
+}
+
+message ListPagesResponse {
+  repeated Page pages = 1;
+}
+
+message FetchImageRequest {
+  string source_id = 1;
+  // A Page.ref, or an absolute image URL such as Series.cover_url.
+  string ref = 2;
+}
+
+message FetchImageResponse {
+  oneof part {
+    // First message only.
+    ImageMetadata metadata = 1;
+    // Every following message.
+    bytes chunk = 2;
+  }
+}
+
+message ImageMetadata {
+  // MIME type, e.g. "image/webp".
+  string content_type = 1;
+  // Total size in bytes, or 0 when unknown.
+  uint64 content_length = 2;
+}
+
+// ---------------------------------------------------------------------------
+// Settings
+// ---------------------------------------------------------------------------
+
+message GetSettingsSchemaRequest {
+  string source_id = 1;
+}
+
+message GetSettingsSchemaResponse {
+  // JSON Schema (draft 2020-12) describing the settings object.
+  google.protobuf.Struct schema = 1;
+}
+
+message GetSettingsRequest {
+  string source_id = 1;
+}
+
+message GetSettingsResponse {
+  google.protobuf.Struct values = 1;
+}
+
+message SetSettingsRequest {
+  string source_id = 1;
+  // Settings to change. Keys not listed keep their value.
+  google.protobuf.Struct values = 2;
+}
+
+message SetSettingsResponse {
+  google.protobuf.Struct values = 1;
+}
+
+// ---------------------------------------------------------------------------
+// Network profiles
+// ---------------------------------------------------------------------------
+
+message SetNetworkProfileRequest {
+  string source_id = 1;
+  // Unset removes the pushed profile.
+  NetworkProfile profile = 2;
+}
+
+message SetNetworkProfileResponse {}
+
+// NetworkProfile is everything a plugin needs to make requests for one source.
+message NetworkProfile {
+  // Name of the profile on the host, for display and logs.
+  string name = 1;
+  // Unset means a direct connection.
+  Proxy proxy = 2;
+  // Unset means no challenge solver.
+  Solver solver = 3;
+  // Unset means the plugin's default.
+  RateLimit rate_limit = 4;
+  // Maximum parallel requests. 0 means the plugin's default.
+  uint32 concurrency = 5;
+  // Unset means the plugin's default user agent.
+  UserAgent user_agent = 6;
+  // DNS-over-HTTPS resolver URL. Empty means the system resolver.
+  string doh_url = 7;
+  // Extra headers added to every request.
+  map<string, string> headers = 8;
+  // Name of a cookie jar shared with other sources. Empty means a jar of its own.
+  string shared_cookie_jar = 9;
+  Timeouts timeouts = 10;
+}
+
+message Proxy {
+  // http://, https:// or socks5:// URL without credentials.
+  string url = 1;
+  string username = 2;
+  string password = 3;
+}
+
+message Solver {
+  SolverType type = 1;
+  // Base URL of the solver, e.g. http://flaresolverr:8191.
+  string url = 2;
+  // How long a solver session or its clearance cookies are reused.
+  google.protobuf.Duration session_ttl = 3;
+  // Upper bound for one solve.
+  google.protobuf.Duration max_timeout = 4;
+  // Use the solver's own response body when a fresh request still fails.
+  bool as_response_fallback = 5;
+}
+
+enum SolverType {
+  SOLVER_TYPE_UNSPECIFIED = 0;
+  SOLVER_TYPE_FLARESOLVERR = 1;
+  SOLVER_TYPE_BYPARR = 2;
+}
+
+message UserAgent {
+  oneof mode {
+    // Always this value.
+    string fixed = 1;
+    // A realistic desktop browser user agent chosen by the plugin.
+    bool random_desktop = 2;
+    // The user agent the solver reports, so it matches the clearance cookies.
+    bool from_solver = 3;
+  }
+}
+
+message Timeouts {
+  google.protobuf.Duration connect = 1;
+  google.protobuf.Duration read = 2;
+  // Whole call, including redirects and retries.
+  google.protobuf.Duration call = 3;
+}

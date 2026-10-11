@@ -1,0 +1,1699 @@
+openapi: 3.1.0
+info:
+  title: Panelarr source API
+  description: |
+    `panelarr.source.v1`: the contract every Panelarr source plugin implements. A plugin
+    serves one or more sources; each source can be browsed (popular, latest, search) and
+    its series have chapters made of pages.
+
+    Plugins speak gRPC; this is the HTTP/JSON mapping of the same API (`google.api.http`),
+    for plugins that also serve it. Calls usually need `Authorization: Bearer <key>`.
+  version: v1
+  license:
+    name: Apache-2.0
+    url: https://www.apache.org/licenses/LICENSE-2.0
+security:
+  - apiKey: []
+components:
+  securitySchemes:
+    apiKey:
+      type: http
+      scheme: bearer
+  schemas:
+    google.protobuf.Duration:
+      type: string
+      format: duration
+      description: A signed duration in seconds, with up to nine fractional digits and an `s` suffix (for example, `3s` or `-0.001s`).
+    google.protobuf.ListValue:
+      type: array
+      items:
+        $ref: '#/components/schemas/google.protobuf.Value'
+      description: A JSON array whose elements may be any JSON value.
+    google.protobuf.NullValue:
+      type: string
+      title: NullValue
+      enum:
+        - NULL_VALUE
+      description: |-
+        Represents a JSON `null`.
+
+         `NullValue` is a sentinel, using an enum with only one value to represent
+         the null value for the `Value` type union.
+
+         A field of type `NullValue` with any value other than `0` is considered
+         invalid. Most ProtoJSON serializers will emit a Value with a `null_value` set
+         as a JSON `null` regardless of the integer value, and so will round trip to
+         a `0` value.
+    google.protobuf.Struct:
+      type: object
+      additionalProperties:
+        $ref: '#/components/schemas/google.protobuf.Value'
+      description: A JSON object whose property values may be any JSON value.
+    google.protobuf.Timestamp:
+      type: string
+      examples:
+        - "2023-01-15T01:30:15.01Z"
+        - "2024-12-25T12:00:00Z"
+      format: date-time
+      description: A point in time in RFC 3339 format, with up to nanosecond precision. Output uses UTC (`Z`); input may use an offset from UTC.
+    google.protobuf.Value:
+      oneOf:
+        - type: "null"
+        - type: number
+        - type: string
+        - type: boolean
+        - type: array
+        - type: object
+          additionalProperties: true
+      description: 'Any JSON value: `null`, number, string, boolean, array, or object.'
+    panelarr.source.v1.Chapter:
+      type: object
+      properties:
+        key:
+          type: string
+          title: key
+          description: Opaque key of the chapter within its source.
+        name:
+          type: string
+          title: name
+        number:
+          type:
+            - number
+            - "null"
+          title: number
+          format: double
+          description: Chapter number, when the source knows it.
+        volume:
+          type: string
+          title: volume
+          description: Volume, when the source knows it.
+        scanlator:
+          type: string
+          title: scanlator
+        uploadedAt:
+          allOf:
+            - $ref: '#/components/schemas/google.protobuf.Timestamp'
+          title: uploaded_at
+        lang:
+          type: string
+          title: lang
+          description: Language as a BCP 47 tag, when it differs from the source's language.
+        url:
+          type: string
+          title: url
+          description: Web address of the chapter.
+      title: Chapter
+      additionalProperties: false
+    panelarr.source.v1.CheckboxFilter:
+      type: object
+      properties:
+        value:
+          type: boolean
+          title: value
+      title: CheckboxFilter
+      additionalProperties: false
+    panelarr.source.v1.CommonService:
+      type: string
+      title: CommonService
+      enum:
+        - COMMON_SERVICE_UNSPECIFIED
+        - COMMON_SERVICE_NETWORK_PROFILE
+        - COMMON_SERVICE_SOLVER
+      description: CommonService is a service a host can offer to plugins.
+    panelarr.source.v1.ContentRating:
+      type: string
+      title: ContentRating
+      enum:
+        - CONTENT_RATING_UNSPECIFIED
+        - CONTENT_RATING_SAFE
+        - CONTENT_RATING_MIXED
+        - CONTENT_RATING_NSFW
+    panelarr.source.v1.FetchImageRequest:
+      type: object
+      properties:
+        sourceId:
+          type: string
+          title: source_id
+        ref:
+          type: string
+          title: ref
+          description: A Page.ref, or an absolute image URL such as Series.cover_url.
+      title: FetchImageRequest
+      additionalProperties: false
+    panelarr.source.v1.FetchImageResponse:
+      type: object
+      anyOf:
+        - type: object
+          properties:
+            chunk:
+              type: string
+              title: chunk
+              format: byte
+              description: Every following message.
+          title: chunk
+        - type: object
+          properties:
+            metadata:
+              allOf:
+                - $ref: '#/components/schemas/panelarr.source.v1.ImageMetadata'
+              title: metadata
+              description: First message only.
+          title: metadata
+      unevaluatedProperties: false
+      not:
+        allOf:
+          - anyOf:
+              - required:
+                  - chunk
+              - required:
+                  - metadata
+          - not:
+              oneOf:
+                - required:
+                    - chunk
+                - required:
+                    - metadata
+      title: FetchImageResponse
+    panelarr.source.v1.Filter:
+      type: object
+      anyOf:
+        - type: object
+          properties:
+            checkbox:
+              allOf:
+                - $ref: '#/components/schemas/panelarr.source.v1.CheckboxFilter'
+              title: checkbox
+          title: checkbox
+        - type: object
+          properties:
+            group:
+              allOf:
+                - $ref: '#/components/schemas/panelarr.source.v1.GroupFilter'
+              title: group
+          title: group
+        - type: object
+          properties:
+            header:
+              allOf:
+                - $ref: '#/components/schemas/panelarr.source.v1.HeaderFilter'
+              title: header
+          title: header
+        - type: object
+          properties:
+            select:
+              allOf:
+                - $ref: '#/components/schemas/panelarr.source.v1.SelectFilter'
+              title: select
+          title: select
+        - type: object
+          properties:
+            separator:
+              allOf:
+                - $ref: '#/components/schemas/panelarr.source.v1.SeparatorFilter'
+              title: separator
+          title: separator
+        - type: object
+          properties:
+            sort:
+              allOf:
+                - $ref: '#/components/schemas/panelarr.source.v1.SortFilter'
+              title: sort
+          title: sort
+        - type: object
+          properties:
+            text:
+              allOf:
+                - $ref: '#/components/schemas/panelarr.source.v1.TextFilter'
+              title: text
+          title: text
+        - type: object
+          properties:
+            triState:
+              allOf:
+                - $ref: '#/components/schemas/panelarr.source.v1.TriStateFilter'
+              title: tri_state
+          title: tri_state
+      unevaluatedProperties: false
+      not:
+        allOf:
+          - anyOf:
+              - required:
+                  - checkbox
+              - required:
+                  - group
+              - required:
+                  - header
+              - required:
+                  - select
+              - required:
+                  - separator
+              - required:
+                  - sort
+              - required:
+                  - text
+              - required:
+                  - triState
+          - not:
+              oneOf:
+                - required:
+                    - checkbox
+                - required:
+                    - group
+                - required:
+                    - header
+                - required:
+                    - select
+                - required:
+                    - separator
+                - required:
+                    - sort
+                - required:
+                    - text
+                - required:
+                    - triState
+      properties:
+        name:
+          type: string
+          title: name
+          description: Label shown to users.
+      title: Filter
+      description: |-
+        Filter is one search filter. Filters have no stable keys: they are addressed by
+         their position (see FilterValue.path).
+    panelarr.source.v1.FilterValue:
+      type: object
+      anyOf:
+        - type: object
+          properties:
+            checkbox:
+              type: boolean
+              title: checkbox
+          title: checkbox
+        - type: object
+          properties:
+            select:
+              type: integer
+              title: select
+          title: select
+        - type: object
+          properties:
+            sort:
+              allOf:
+                - $ref: '#/components/schemas/panelarr.source.v1.SortSelection'
+              title: sort
+          title: sort
+        - type: object
+          properties:
+            text:
+              type: string
+              title: text
+          title: text
+        - type: object
+          properties:
+            triState:
+              allOf:
+                - $ref: '#/components/schemas/panelarr.source.v1.TriState'
+              title: tri_state
+          title: tri_state
+      unevaluatedProperties: false
+      not:
+        allOf:
+          - anyOf:
+              - required:
+                  - checkbox
+              - required:
+                  - select
+              - required:
+                  - sort
+              - required:
+                  - text
+              - required:
+                  - triState
+          - not:
+              oneOf:
+                - required:
+                    - checkbox
+                - required:
+                    - select
+                - required:
+                    - sort
+                - required:
+                    - text
+                - required:
+                    - triState
+      properties:
+        path:
+          type: array
+          items:
+            type: integer
+          title: path
+          description: |-
+            Position of the filter: [index] for a top-level filter, [group index, child index]
+             for a filter inside a group.
+      title: FilterValue
+      description: FilterValue sets the value of one filter for a search.
+    panelarr.source.v1.GetFiltersRequest:
+      type: object
+      properties:
+        sourceId:
+          type: string
+          title: source_id
+      title: GetFiltersRequest
+      additionalProperties: false
+    panelarr.source.v1.GetFiltersResponse:
+      type: object
+      properties:
+        filters:
+          type: array
+          items:
+            $ref: '#/components/schemas/panelarr.source.v1.Filter'
+          title: filters
+          description: Filters in display order, with their default values.
+      title: GetFiltersResponse
+      additionalProperties: false
+    panelarr.source.v1.GetInfoRequest:
+      type: object
+      title: GetInfoRequest
+      additionalProperties: false
+    panelarr.source.v1.GetInfoResponse:
+      type: object
+      properties:
+        info:
+          allOf:
+            - $ref: '#/components/schemas/panelarr.source.v1.PluginInfo'
+          title: info
+      title: GetInfoResponse
+      additionalProperties: false
+    panelarr.source.v1.GetSeriesRequest:
+      type: object
+      properties:
+        sourceId:
+          type: string
+          title: source_id
+        key:
+          type: string
+          title: key
+        refresh:
+          type: boolean
+          title: refresh
+          description: |-
+            Load from the source even if the plugin has a recent result cached, e.g. to check
+             for new chapters now. The fresh result replaces the cached one.
+      title: GetSeriesRequest
+      additionalProperties: false
+    panelarr.source.v1.GetSeriesResponse:
+      type: object
+      properties:
+        series:
+          allOf:
+            - $ref: '#/components/schemas/panelarr.source.v1.Series'
+          title: series
+      title: GetSeriesResponse
+      additionalProperties: false
+    panelarr.source.v1.GetSettingsRequest:
+      type: object
+      properties:
+        sourceId:
+          type: string
+          title: source_id
+      title: GetSettingsRequest
+      additionalProperties: false
+    panelarr.source.v1.GetSettingsResponse:
+      type: object
+      properties:
+        values:
+          allOf:
+            - $ref: '#/components/schemas/google.protobuf.Struct'
+          title: values
+      title: GetSettingsResponse
+      additionalProperties: false
+    panelarr.source.v1.GetSettingsSchemaRequest:
+      type: object
+      properties:
+        sourceId:
+          type: string
+          title: source_id
+      title: GetSettingsSchemaRequest
+      additionalProperties: false
+    panelarr.source.v1.GetSettingsSchemaResponse:
+      type: object
+      properties:
+        schema:
+          allOf:
+            - $ref: '#/components/schemas/google.protobuf.Struct'
+          title: schema
+          description: JSON Schema (draft 2020-12) describing the settings object.
+      title: GetSettingsSchemaResponse
+      additionalProperties: false
+    panelarr.source.v1.GetSourceRequest:
+      type: object
+      properties:
+        sourceId:
+          type: string
+          title: source_id
+      title: GetSourceRequest
+      additionalProperties: false
+    panelarr.source.v1.GetSourceResponse:
+      type: object
+      properties:
+        source:
+          allOf:
+            - $ref: '#/components/schemas/panelarr.source.v1.Source'
+          title: source
+      title: GetSourceResponse
+      additionalProperties: false
+    panelarr.source.v1.GroupFilter:
+      type: object
+      properties:
+        filters:
+          type: array
+          items:
+            $ref: '#/components/schemas/panelarr.source.v1.Filter'
+          title: filters
+      title: GroupFilter
+      additionalProperties: false
+      description: GroupFilter holds child filters (usually checkboxes, tri-states, texts or selects).
+    panelarr.source.v1.HeaderFilter:
+      type: object
+      title: HeaderFilter
+      additionalProperties: false
+      description: HeaderFilter is a label with no value.
+    panelarr.source.v1.HealthRequest:
+      type: object
+      title: HealthRequest
+      additionalProperties: false
+    panelarr.source.v1.HealthResponse:
+      type: object
+      properties:
+        status:
+          allOf:
+            - $ref: '#/components/schemas/panelarr.source.v1.HealthStatus'
+          title: status
+        message:
+          type: string
+          title: message
+          description: Optional detail for humans.
+      title: HealthResponse
+      additionalProperties: false
+    panelarr.source.v1.HealthStatus:
+      type: string
+      title: HealthStatus
+      enum:
+        - HEALTH_STATUS_UNSPECIFIED
+        - HEALTH_STATUS_SERVING
+        - HEALTH_STATUS_DEGRADED
+        - HEALTH_STATUS_NOT_SERVING
+    panelarr.source.v1.ImageMetadata:
+      type: object
+      properties:
+        contentType:
+          type: string
+          title: content_type
+          description: MIME type, e.g. "image/webp".
+        contentLength:
+          type: string
+          title: content_length
+          format: int64
+          description: Total size in bytes, or 0 when unknown.
+      title: ImageMetadata
+      additionalProperties: false
+    panelarr.source.v1.LatestRequest:
+      type: object
+      properties:
+        sourceId:
+          type: string
+          title: source_id
+        page:
+          type: integer
+          title: page
+          description: 1-based page number.
+      title: LatestRequest
+      additionalProperties: false
+    panelarr.source.v1.LatestResponse:
+      type: object
+      properties:
+        series:
+          type: array
+          items:
+            $ref: '#/components/schemas/panelarr.source.v1.Series'
+          title: series
+        hasNextPage:
+          type: boolean
+          title: has_next_page
+      title: LatestResponse
+      additionalProperties: false
+    panelarr.source.v1.Limits:
+      type: object
+      properties:
+        maxConcurrencyPerSource:
+          type: integer
+          title: max_concurrency_per_source
+          description: Maximum parallel requests the plugin wants per source. 0 means no limit declared.
+        defaultRateLimit:
+          allOf:
+            - $ref: '#/components/schemas/panelarr.source.v1.RateLimit'
+          title: default_rate_limit
+          description: Default request rate per source. Unset means no limit declared.
+      title: Limits
+      additionalProperties: false
+    panelarr.source.v1.ListChaptersRequest:
+      type: object
+      properties:
+        sourceId:
+          type: string
+          title: source_id
+        seriesKey:
+          type: string
+          title: series_key
+        refresh:
+          type: boolean
+          title: refresh
+          description: |-
+            Load from the source even if the plugin has a recent result cached, e.g. to check
+             for new chapters now. The fresh result replaces the cached one.
+      title: ListChaptersRequest
+      additionalProperties: false
+    panelarr.source.v1.ListChaptersResponse:
+      type: object
+      properties:
+        chapters:
+          type: array
+          items:
+            $ref: '#/components/schemas/panelarr.source.v1.Chapter'
+          title: chapters
+      title: ListChaptersResponse
+      additionalProperties: false
+    panelarr.source.v1.ListPagesRequest:
+      type: object
+      properties:
+        sourceId:
+          type: string
+          title: source_id
+        chapterKey:
+          type: string
+          title: chapter_key
+      title: ListPagesRequest
+      additionalProperties: false
+    panelarr.source.v1.ListPagesResponse:
+      type: object
+      properties:
+        pages:
+          type: array
+          items:
+            $ref: '#/components/schemas/panelarr.source.v1.Page'
+          title: pages
+      title: ListPagesResponse
+      additionalProperties: false
+    panelarr.source.v1.ListSourcesRequest:
+      type: object
+      properties:
+        lang:
+          type: string
+          title: lang
+          description: Only sources in this language. Empty means all.
+      title: ListSourcesRequest
+      additionalProperties: false
+    panelarr.source.v1.ListSourcesResponse:
+      type: object
+      properties:
+        sources:
+          type: array
+          items:
+            $ref: '#/components/schemas/panelarr.source.v1.Source'
+          title: sources
+      title: ListSourcesResponse
+      additionalProperties: false
+    panelarr.source.v1.NetworkProfile:
+      type: object
+      properties:
+        name:
+          type: string
+          title: name
+          description: Name of the profile on the host, for display and logs.
+        proxy:
+          allOf:
+            - $ref: '#/components/schemas/panelarr.source.v1.Proxy'
+          title: proxy
+          description: Unset means a direct connection.
+        solver:
+          allOf:
+            - $ref: '#/components/schemas/panelarr.source.v1.Solver'
+          title: solver
+          description: Unset means no challenge solver.
+        rateLimit:
+          allOf:
+            - $ref: '#/components/schemas/panelarr.source.v1.RateLimit'
+          title: rate_limit
+          description: Unset means the plugin's default.
+        concurrency:
+          type: integer
+          title: concurrency
+          description: Maximum parallel requests. 0 means the plugin's default.
+        userAgent:
+          allOf:
+            - $ref: '#/components/schemas/panelarr.source.v1.UserAgent'
+          title: user_agent
+          description: Unset means the plugin's default user agent.
+        dohUrl:
+          type: string
+          title: doh_url
+          description: DNS-over-HTTPS resolver URL. Empty means the system resolver.
+        headers:
+          type: object
+          title: headers
+          additionalProperties:
+            type: string
+            title: value
+          description: Extra headers added to every request.
+        sharedCookieJar:
+          type: string
+          title: shared_cookie_jar
+          description: Name of a cookie jar shared with other sources. Empty means a jar of its own.
+        timeouts:
+          allOf:
+            - $ref: '#/components/schemas/panelarr.source.v1.Timeouts'
+          title: timeouts
+      title: NetworkProfile
+      additionalProperties: false
+      description: NetworkProfile is everything a plugin needs to make requests for one source.
+    panelarr.source.v1.Page:
+      type: object
+      properties:
+        index:
+          type: integer
+          title: index
+          description: 0-based position in the chapter.
+        ref:
+          type: string
+          title: ref
+          description: Opaque reference to pass to FetchImage.
+        imageUrl:
+          type: string
+          title: image_url
+          description: |-
+            Direct image URL when known. It may need the source's headers or cookies, so
+             fetching through FetchImage is preferred.
+      title: Page
+      additionalProperties: false
+    panelarr.source.v1.PluginCapability:
+      type: string
+      title: PluginCapability
+      enum:
+        - PLUGIN_CAPABILITY_UNSPECIFIED
+        - PLUGIN_CAPABILITY_NETWORK_PROFILES
+        - PLUGIN_CAPABILITY_DYNAMIC_SOURCES
+    panelarr.source.v1.PluginInfo:
+      type: object
+      properties:
+        id:
+          type: string
+          title: id
+          description: Stable identifier of the plugin, e.g. "mihon-source".
+        name:
+          type: string
+          title: name
+          description: Human-readable name.
+        version:
+          type: string
+          title: version
+          description: Version of the plugin itself.
+        contracts:
+          type: array
+          items:
+            type: string
+          title: contracts
+          description: Contracts the plugin implements, e.g. "panelarr.source.v1".
+        capabilities:
+          type: array
+          items:
+            $ref: '#/components/schemas/panelarr.source.v1.PluginCapability'
+          title: capabilities
+          description: Features of the plugin as a whole. Per-source features are on Source.
+        limits:
+          allOf:
+            - $ref: '#/components/schemas/panelarr.source.v1.Limits'
+          title: limits
+          description: Limits the plugin asks hosts to respect. Hosts should enforce them too.
+        configSchema:
+          allOf:
+            - $ref: '#/components/schemas/google.protobuf.Struct'
+          title: config_schema
+          description: |-
+            JSON Schema of the plugin-level configuration the plugin expects from a host.
+             Unset when the plugin needs none.
+        commonServices:
+          type: array
+          items:
+            $ref: '#/components/schemas/panelarr.source.v1.CommonService'
+          title: common_services
+          description: Common services the plugin can use when a host provides them.
+      title: PluginInfo
+      additionalProperties: false
+    panelarr.source.v1.PopularRequest:
+      type: object
+      properties:
+        sourceId:
+          type: string
+          title: source_id
+        page:
+          type: integer
+          title: page
+          description: 1-based page number.
+      title: PopularRequest
+      additionalProperties: false
+    panelarr.source.v1.PopularResponse:
+      type: object
+      properties:
+        series:
+          type: array
+          items:
+            $ref: '#/components/schemas/panelarr.source.v1.Series'
+          title: series
+        hasNextPage:
+          type: boolean
+          title: has_next_page
+      title: PopularResponse
+      additionalProperties: false
+    panelarr.source.v1.Proxy:
+      type: object
+      properties:
+        url:
+          type: string
+          title: url
+          description: http://, https:// or socks5:// URL without credentials.
+        username:
+          type: string
+          title: username
+        password:
+          type: string
+          title: password
+      title: Proxy
+      additionalProperties: false
+    panelarr.source.v1.RateLimit:
+      type: object
+      properties:
+        requests:
+          type: integer
+          title: requests
+          description: Requests allowed per period.
+        period:
+          allOf:
+            - $ref: '#/components/schemas/google.protobuf.Duration'
+          title: period
+          description: Length of the period.
+        burst:
+          type: integer
+          title: burst
+          description: Extra requests allowed in a burst. 0 means none.
+        scope:
+          allOf:
+            - $ref: '#/components/schemas/panelarr.source.v1.RateLimitScope'
+          title: scope
+          description: What the limit counts.
+      title: RateLimit
+      additionalProperties: false
+    panelarr.source.v1.RateLimitScope:
+      type: string
+      title: RateLimitScope
+      enum:
+        - RATE_LIMIT_SCOPE_UNSPECIFIED
+        - RATE_LIMIT_SCOPE_SOURCE
+        - RATE_LIMIT_SCOPE_HOST
+    panelarr.source.v1.ResolveUrlRequest:
+      type: object
+      properties:
+        url:
+          type: string
+          title: url
+        sourceId:
+          type: string
+          title: source_id
+          description: Source to ask. Empty means every source that may know the URL.
+      title: ResolveUrlRequest
+      additionalProperties: false
+    panelarr.source.v1.ResolveUrlResponse:
+      type: object
+      properties:
+        sourceId:
+          type: string
+          title: source_id
+        series:
+          allOf:
+            - $ref: '#/components/schemas/panelarr.source.v1.Series'
+          title: series
+        bestEffort:
+          type: boolean
+          title: best_effort
+          description: |-
+            The source has no URL resolver of its own and the plugin found the series another
+             way (e.g. by searching for the URL). The match may be wrong.
+      title: ResolveUrlResponse
+      additionalProperties: false
+    panelarr.source.v1.SearchRequest:
+      type: object
+      properties:
+        sourceId:
+          type: string
+          title: source_id
+        page:
+          type: integer
+          title: page
+          description: 1-based page number.
+        query:
+          type: string
+          title: query
+        filters:
+          type: array
+          items:
+            $ref: '#/components/schemas/panelarr.source.v1.FilterValue'
+          title: filters
+          description: Filters to change from their defaults. Filters not listed keep their default.
+      title: SearchRequest
+      additionalProperties: false
+    panelarr.source.v1.SearchResponse:
+      type: object
+      properties:
+        series:
+          type: array
+          items:
+            $ref: '#/components/schemas/panelarr.source.v1.Series'
+          title: series
+        hasNextPage:
+          type: boolean
+          title: has_next_page
+      title: SearchResponse
+      additionalProperties: false
+    panelarr.source.v1.SelectFilter:
+      type: object
+      properties:
+        options:
+          type: array
+          items:
+            type: string
+          title: options
+        selected:
+          type: integer
+          title: selected
+          description: Index into options.
+      title: SelectFilter
+      additionalProperties: false
+    panelarr.source.v1.SeparatorFilter:
+      type: object
+      title: SeparatorFilter
+      additionalProperties: false
+      description: SeparatorFilter is a visual divider with no value.
+    panelarr.source.v1.Series:
+      type: object
+      properties:
+        key:
+          type: string
+          title: key
+          description: Opaque key of the series within its source.
+        title:
+          type: string
+          title: title
+        altTitles:
+          type: array
+          items:
+            type: string
+          title: alt_titles
+        authors:
+          type: array
+          items:
+            type: string
+          title: authors
+        artists:
+          type: array
+          items:
+            type: string
+          title: artists
+        description:
+          type: string
+          title: description
+        genres:
+          type: array
+          items:
+            type: string
+          title: genres
+        status:
+          allOf:
+            - $ref: '#/components/schemas/panelarr.source.v1.SeriesStatus'
+          title: status
+        coverUrl:
+          type: string
+          title: cover_url
+        url:
+          type: string
+          title: url
+          description: Web address of the series, for display and "open in browser".
+        detailsLoaded:
+          type: boolean
+          title: details_loaded
+          description: |-
+            False when only list fields (key, title, cover) are filled in. Call GetSeries for
+             the rest.
+      title: Series
+      additionalProperties: false
+    panelarr.source.v1.SeriesStatus:
+      type: string
+      title: SeriesStatus
+      enum:
+        - SERIES_STATUS_UNSPECIFIED
+        - SERIES_STATUS_ONGOING
+        - SERIES_STATUS_COMPLETED
+        - SERIES_STATUS_LICENSED
+        - SERIES_STATUS_PUBLISHING_FINISHED
+        - SERIES_STATUS_CANCELLED
+        - SERIES_STATUS_ON_HIATUS
+    panelarr.source.v1.SetNetworkProfileRequest:
+      type: object
+      properties:
+        sourceId:
+          type: string
+          title: source_id
+        profile:
+          allOf:
+            - $ref: '#/components/schemas/panelarr.source.v1.NetworkProfile'
+          title: profile
+          description: Unset removes the pushed profile.
+      title: SetNetworkProfileRequest
+      additionalProperties: false
+    panelarr.source.v1.SetNetworkProfileResponse:
+      type: object
+      title: SetNetworkProfileResponse
+      additionalProperties: false
+    panelarr.source.v1.SetSettingsRequest:
+      type: object
+      properties:
+        sourceId:
+          type: string
+          title: source_id
+        values:
+          allOf:
+            - $ref: '#/components/schemas/google.protobuf.Struct'
+          title: values
+          description: Settings to change. Keys not listed keep their value.
+      title: SetSettingsRequest
+      additionalProperties: false
+    panelarr.source.v1.SetSettingsResponse:
+      type: object
+      properties:
+        values:
+          allOf:
+            - $ref: '#/components/schemas/google.protobuf.Struct'
+          title: values
+      title: SetSettingsResponse
+      additionalProperties: false
+    panelarr.source.v1.Solver:
+      type: object
+      properties:
+        type:
+          allOf:
+            - $ref: '#/components/schemas/panelarr.source.v1.SolverType'
+          title: type
+        url:
+          type: string
+          title: url
+          description: Base URL of the solver, e.g. http://flaresolverr:8191.
+        sessionTtl:
+          allOf:
+            - $ref: '#/components/schemas/google.protobuf.Duration'
+          title: session_ttl
+          description: How long a solver session or its clearance cookies are reused.
+        maxTimeout:
+          allOf:
+            - $ref: '#/components/schemas/google.protobuf.Duration'
+          title: max_timeout
+          description: Upper bound for one solve.
+        asResponseFallback:
+          type: boolean
+          title: as_response_fallback
+          description: Use the solver's own response body when a fresh request still fails.
+      title: Solver
+      additionalProperties: false
+    panelarr.source.v1.SolverType:
+      type: string
+      title: SolverType
+      enum:
+        - SOLVER_TYPE_UNSPECIFIED
+        - SOLVER_TYPE_FLARESOLVERR
+        - SOLVER_TYPE_BYPARR
+    panelarr.source.v1.SortFilter:
+      type: object
+      properties:
+        options:
+          type: array
+          items:
+            type: string
+          title: options
+        selection:
+          allOf:
+            - $ref: '#/components/schemas/panelarr.source.v1.SortSelection'
+          title: selection
+          description: Unset when no sort is selected.
+      title: SortFilter
+      additionalProperties: false
+    panelarr.source.v1.SortSelection:
+      type: object
+      properties:
+        index:
+          type: integer
+          title: index
+          description: Index into options.
+        ascending:
+          type: boolean
+          title: ascending
+      title: SortSelection
+      additionalProperties: false
+    panelarr.source.v1.Source:
+      type: object
+      properties:
+        id:
+          type: string
+          title: id
+          description: Identifier of the source, unique within the plugin and stable across restarts.
+        name:
+          type: string
+          title: name
+        lang:
+          type: string
+          title: lang
+          description: Language as a BCP 47 tag, or "all" / "multi" for multi-language sources.
+        contentRating:
+          allOf:
+            - $ref: '#/components/schemas/panelarr.source.v1.ContentRating'
+          title: content_rating
+        iconUrl:
+          type: string
+          title: icon_url
+          description: |-
+            URL of an icon for the source, if the plugin has one. It may be a path relative to
+             the plugin's own address (e.g. "/v1/sources/123/icon"), fetched with the same
+             credentials as the API.
+        capabilities:
+          type: array
+          items:
+            $ref: '#/components/schemas/panelarr.source.v1.SourceCapability'
+          title: capabilities
+        homeUrl:
+          type: string
+          title: home_url
+          description: Web address of the source, for display.
+        health:
+          allOf:
+            - $ref: '#/components/schemas/panelarr.source.v1.SourceHealth'
+          title: health
+          description: The result of the plugin's last check of this source, when it checks sources.
+      title: Source
+      additionalProperties: false
+    panelarr.source.v1.SourceCapability:
+      type: string
+      title: SourceCapability
+      enum:
+        - SOURCE_CAPABILITY_UNSPECIFIED
+        - SOURCE_CAPABILITY_LATEST
+        - SOURCE_CAPABILITY_SEARCH
+        - SOURCE_CAPABILITY_FILTERS
+        - SOURCE_CAPABILITY_RESOLVE_URL
+        - SOURCE_CAPABILITY_SETTINGS
+        - SOURCE_CAPABILITY_NEEDS_WEBVIEW
+        - SOURCE_CAPABILITY_NSFW
+    panelarr.source.v1.SourceHealth:
+      type: object
+      properties:
+        status:
+          allOf:
+            - $ref: '#/components/schemas/panelarr.source.v1.SourceHealthStatus'
+          title: status
+        reason:
+          type: string
+          title: reason
+          description: |-
+            ErrorReason name without the prefix (e.g. "SOURCE_DOWN"), or "NEEDS_WEBVIEW", when
+             failing. Empty when OK.
+        message:
+          type: string
+          title: message
+          description: Detail for humans.
+        latency:
+          allOf:
+            - $ref: '#/components/schemas/google.protobuf.Duration'
+          title: latency
+          description: How long the check took.
+        checkedAt:
+          allOf:
+            - $ref: '#/components/schemas/google.protobuf.Timestamp'
+          title: checked_at
+        checksDisabled:
+          type: boolean
+          title: checks_disabled
+          description: Scheduled checks are turned off for this source.
+      title: SourceHealth
+      additionalProperties: false
+      description: SourceHealth is what a plugin last saw when it checked a source itself.
+    panelarr.source.v1.SourceHealthStatus:
+      type: string
+      title: SourceHealthStatus
+      enum:
+        - SOURCE_HEALTH_STATUS_UNSPECIFIED
+        - SOURCE_HEALTH_STATUS_OK
+        - SOURCE_HEALTH_STATUS_FAILING
+    panelarr.source.v1.TextFilter:
+      type: object
+      properties:
+        value:
+          type: string
+          title: value
+      title: TextFilter
+      additionalProperties: false
+    panelarr.source.v1.Timeouts:
+      type: object
+      properties:
+        connect:
+          allOf:
+            - $ref: '#/components/schemas/google.protobuf.Duration'
+          title: connect
+        read:
+          allOf:
+            - $ref: '#/components/schemas/google.protobuf.Duration'
+          title: read
+        call:
+          allOf:
+            - $ref: '#/components/schemas/google.protobuf.Duration'
+          title: call
+          description: Whole call, including redirects and retries.
+      title: Timeouts
+      additionalProperties: false
+    panelarr.source.v1.TriState:
+      type: string
+      title: TriState
+      enum:
+        - TRI_STATE_UNSPECIFIED
+        - TRI_STATE_IGNORE
+        - TRI_STATE_INCLUDE
+        - TRI_STATE_EXCLUDE
+    panelarr.source.v1.TriStateFilter:
+      type: object
+      properties:
+        value:
+          allOf:
+            - $ref: '#/components/schemas/panelarr.source.v1.TriState'
+          title: value
+      title: TriStateFilter
+      additionalProperties: false
+    panelarr.source.v1.UserAgent:
+      type: object
+      anyOf:
+        - type: object
+          properties:
+            fixed:
+              type: string
+              title: fixed
+              description: Always this value.
+          title: fixed
+        - type: object
+          properties:
+            fromSolver:
+              type: boolean
+              title: from_solver
+              description: The user agent the solver reports, so it matches the clearance cookies.
+          title: from_solver
+        - type: object
+          properties:
+            randomDesktop:
+              type: boolean
+              title: random_desktop
+              description: A realistic desktop browser user agent chosen by the plugin.
+          title: random_desktop
+      unevaluatedProperties: false
+      not:
+        allOf:
+          - anyOf:
+              - required:
+                  - fixed
+              - required:
+                  - fromSolver
+              - required:
+                  - randomDesktop
+          - not:
+              oneOf:
+                - required:
+                    - fixed
+                - required:
+                    - fromSolver
+                - required:
+                    - randomDesktop
+      title: UserAgent
+paths:
+  /v1/health:
+    get:
+      tags:
+        - SourcePluginService
+      summary: Health
+      description: Health reports whether the plugin can serve requests. It needs no credentials.
+      operationId: SourcePluginService_Health
+      responses:
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/panelarr.source.v1.HealthResponse'
+  /v1/info:
+    get:
+      tags:
+        - SourcePluginService
+      summary: GetInfo
+      description: |-
+        GetInfo describes the plugin: identity, version, capabilities, declared limits,
+         the configuration it expects and the common services it can use.
+      operationId: SourcePluginService_GetInfo
+      responses:
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/panelarr.source.v1.GetInfoResponse'
+  /v1/resolve-url:
+    post:
+      tags:
+        - SourcePluginService
+      summary: ResolveUrl
+      description: |-
+        ResolveUrl turns a web URL into a series. Sources with the RESOLVE_URL capability do
+         it themselves; a plugin may also try others and mark the answer best_effort.
+      operationId: SourcePluginService_ResolveUrl
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/panelarr.source.v1.ResolveUrlRequest'
+        required: true
+      responses:
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/panelarr.source.v1.ResolveUrlResponse'
+  /v1/sources:
+    get:
+      tags:
+        - SourcePluginService
+      summary: ListSources
+      description: ListSources lists the sources the plugin serves.
+      operationId: SourcePluginService_ListSources
+      parameters:
+        - name: lang
+          in: query
+          description: Only sources in this language. Empty means all.
+          schema:
+            type: string
+            title: lang
+      responses:
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/panelarr.source.v1.ListSourcesResponse'
+  /v1/sources/{sourceId}:
+    get:
+      tags:
+        - SourcePluginService
+      summary: GetSource
+      description: GetSource returns one source.
+      operationId: SourcePluginService_GetSource
+      parameters:
+        - name: sourceId
+          in: path
+          description: The sourceId path parameter.
+          required: true
+          schema:
+            type: string
+            title: source_id
+      responses:
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/panelarr.source.v1.GetSourceResponse'
+  /v1/sources/{sourceId}/chapters:
+    get:
+      tags:
+        - SourcePluginService
+      summary: ListChapters
+      description: ListChapters lists the chapters of a series, newest first.
+      operationId: SourcePluginService_ListChapters
+      parameters:
+        - name: sourceId
+          in: path
+          description: The sourceId path parameter.
+          required: true
+          schema:
+            type: string
+            title: source_id
+        - name: seriesKey
+          in: query
+          description: The seriesKey query parameter.
+          schema:
+            type: string
+            title: series_key
+        - name: refresh
+          in: query
+          description: |-
+            Load from the source even if the plugin has a recent result cached, e.g. to check
+             for new chapters now. The fresh result replaces the cached one.
+          schema:
+            type: boolean
+            title: refresh
+      responses:
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/panelarr.source.v1.ListChaptersResponse'
+  /v1/sources/{sourceId}/filters:
+    get:
+      tags:
+        - SourcePluginService
+      summary: GetFilters
+      description: GetFilters returns the search filters of a source with their default values.
+      operationId: SourcePluginService_GetFilters
+      parameters:
+        - name: sourceId
+          in: path
+          description: The sourceId path parameter.
+          required: true
+          schema:
+            type: string
+            title: source_id
+      responses:
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/panelarr.source.v1.GetFiltersResponse'
+  /v1/sources/{sourceId}/latest:
+    get:
+      tags:
+        - SourcePluginService
+      summary: Latest
+      description: Latest lists a page of recently updated series. Needs the LATEST capability.
+      operationId: SourcePluginService_Latest
+      parameters:
+        - name: sourceId
+          in: path
+          description: The sourceId path parameter.
+          required: true
+          schema:
+            type: string
+            title: source_id
+        - name: page
+          in: query
+          description: 1-based page number.
+          schema:
+            type: integer
+            title: page
+      responses:
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/panelarr.source.v1.LatestResponse'
+  /v1/sources/{sourceId}/network-profile:
+    put:
+      tags:
+        - SourcePluginService
+      summary: SetNetworkProfile
+      description: |-
+        SetNetworkProfile is how a host pushes the network profile a source must use.
+         A pushed profile overrides anything the plugin configured locally. Leaving
+         `profile` unset removes the override.
+      operationId: SourcePluginService_SetNetworkProfile
+      parameters:
+        - name: sourceId
+          in: path
+          description: The sourceId path parameter.
+          required: true
+          schema:
+            type: string
+            title: source_id
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                profile:
+                  allOf:
+                    - $ref: '#/components/schemas/panelarr.source.v1.NetworkProfile'
+                  title: profile
+                  description: Unset removes the pushed profile.
+              title: SetNetworkProfileRequest
+              additionalProperties: false
+        required: true
+      responses:
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/panelarr.source.v1.SetNetworkProfileResponse'
+  /v1/sources/{sourceId}/pages:
+    get:
+      tags:
+        - SourcePluginService
+      summary: ListPages
+      description: ListPages lists the pages of a chapter in reading order.
+      operationId: SourcePluginService_ListPages
+      parameters:
+        - name: sourceId
+          in: path
+          description: The sourceId path parameter.
+          required: true
+          schema:
+            type: string
+            title: source_id
+        - name: chapterKey
+          in: query
+          description: The chapterKey query parameter.
+          schema:
+            type: string
+            title: chapter_key
+      responses:
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/panelarr.source.v1.ListPagesResponse'
+  /v1/sources/{sourceId}/popular:
+    get:
+      tags:
+        - SourcePluginService
+      summary: Popular
+      description: Popular lists a page of the source's popular series.
+      operationId: SourcePluginService_Popular
+      parameters:
+        - name: sourceId
+          in: path
+          description: The sourceId path parameter.
+          required: true
+          schema:
+            type: string
+            title: source_id
+        - name: page
+          in: query
+          description: 1-based page number.
+          schema:
+            type: integer
+            title: page
+      responses:
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/panelarr.source.v1.PopularResponse'
+  /v1/sources/{sourceId}/search:
+    post:
+      tags:
+        - SourcePluginService
+      summary: Search
+      description: Search lists a page of series matching a query and filter values.
+      operationId: SourcePluginService_Search
+      parameters:
+        - name: sourceId
+          in: path
+          description: The sourceId path parameter.
+          required: true
+          schema:
+            type: string
+            title: source_id
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                page:
+                  type: integer
+                  title: page
+                  description: 1-based page number.
+                query:
+                  type: string
+                  title: query
+                filters:
+                  type: array
+                  items:
+                    $ref: '#/components/schemas/panelarr.source.v1.FilterValue'
+                  title: filters
+                  description: Filters to change from their defaults. Filters not listed keep their default.
+              title: SearchRequest
+              additionalProperties: false
+        required: true
+      responses:
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/panelarr.source.v1.SearchResponse'
+  /v1/sources/{sourceId}/series:
+    get:
+      tags:
+        - SourcePluginService
+      summary: GetSeries
+      description: GetSeries returns the full details of a series.
+      operationId: SourcePluginService_GetSeries
+      parameters:
+        - name: sourceId
+          in: path
+          description: The sourceId path parameter.
+          required: true
+          schema:
+            type: string
+            title: source_id
+        - name: key
+          in: query
+          description: The key query parameter.
+          schema:
+            type: string
+            title: key
+        - name: refresh
+          in: query
+          description: |-
+            Load from the source even if the plugin has a recent result cached, e.g. to check
+             for new chapters now. The fresh result replaces the cached one.
+          schema:
+            type: boolean
+            title: refresh
+      responses:
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/panelarr.source.v1.GetSeriesResponse'
+  /v1/sources/{sourceId}/settings:
+    get:
+      tags:
+        - SourcePluginService
+      summary: GetSettings
+      description: GetSettings returns a source's current setting values.
+      operationId: SourcePluginService_GetSettings
+      parameters:
+        - name: sourceId
+          in: path
+          description: The sourceId path parameter.
+          required: true
+          schema:
+            type: string
+            title: source_id
+      responses:
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/panelarr.source.v1.GetSettingsResponse'
+    patch:
+      tags:
+        - SourcePluginService
+      summary: SetSettings
+      description: |-
+        SetSettings changes some of a source's settings. Keys that are left out keep
+         their value. It returns all values after the change.
+      operationId: SourcePluginService_SetSettings
+      parameters:
+        - name: sourceId
+          in: path
+          description: The sourceId path parameter.
+          required: true
+          schema:
+            type: string
+            title: source_id
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                values:
+                  allOf:
+                    - $ref: '#/components/schemas/google.protobuf.Struct'
+                  title: values
+                  description: Settings to change. Keys not listed keep their value.
+              title: SetSettingsRequest
+              additionalProperties: false
+        required: true
+      responses:
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/panelarr.source.v1.SetSettingsResponse'
+  /v1/sources/{sourceId}/settings/schema:
+    get:
+      tags:
+        - SourcePluginService
+      summary: GetSettingsSchema
+      description: GetSettingsSchema returns the JSON Schema of a source's settings.
+      operationId: SourcePluginService_GetSettingsSchema
+      parameters:
+        - name: sourceId
+          in: path
+          description: The sourceId path parameter.
+          required: true
+          schema:
+            type: string
+            title: source_id
+      responses:
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/panelarr.source.v1.GetSettingsSchemaResponse'
+tags:
+  - name: SourcePluginService
+    description: |-
+      SourcePluginService is the contract every Panelarr source plugin implements.
+
+       A plugin serves one or more sources. Each source is a catalogue of series that can be
+       browsed (popular, latest, search), and each series has chapters made of pages.
+
+       Keys (series keys, chapter keys, page refs) are opaque strings chosen by the plugin.
+       Callers store them and pass them back as they are, and never parse them.
+
+       Errors use gRPC status codes. When a request fails because of the upstream source,
+       the status carries a google.rpc.ErrorInfo whose `reason` is one of ErrorReason's
+       names without the `ERROR_REASON_` prefix (for example `RATE_LIMITED`), and whose
+       `domain` is `source.panelarr`. RATE_LIMITED may also carry a google.rpc.RetryInfo.

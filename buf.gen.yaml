@@ -1,0 +1,34 @@
+# `make gen` writes Go (messages, gRPC, Connect) and the OpenAPI document into gen/.
+version: v2
+managed:
+  enabled: true
+  disable:
+    - module: buf.build/googleapis/googleapis
+  override:
+    - file_option: go_package_prefix
+      value: github.com/panelarr/source-api/gen
+plugins:
+  - local: bin/protoc-gen-go
+    out: gen
+    opt: paths=source_relative
+  # gRPC stubs are needed for managed plugins (go-plugin speaks gRPC) and as the
+  # canonical wire to remote plugins.
+  - local: bin/protoc-gen-go-grpc
+    out: gen
+    opt: paths=source_relative
+  - local: bin/protoc-gen-connect-go
+    out: gen
+    opt: paths=source_relative
+  - local: bin/protoc-gen-connect-openapi
+    out: gen/openapi
+    strategy: all
+    opt:
+      - path=source.openapi.yaml
+      - features=google.api.http
+      - services=panelarr.source.v1.*
+      - short-service-tags
+      - short-operation-ids
+      - trim-unused-types
+      - base=proto/openapi.base.yaml
+inputs:
+  - directory: proto
