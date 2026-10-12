@@ -85,3 +85,18 @@ func checkJob(rep *Report, at string, j *jobsv1.Job) {
 		}
 	}
 }
+
+// checkHealthChecks: SetSourceHealthCheck exists with the HEALTH_CHECKS
+// capability. It changes nothing: turning checks off is the admin's call.
+func checkHealthChecks(ctx context.Context, rep *Report, c client.Client, info *sourcev1.PluginInfo) {
+	_, err := c.SetSourceHealthCheck(ctx, &sourcev1.SetSourceHealthCheckRequest{SourceId: "conformance-no-such-source", Enabled: true})
+	if !slices.Contains(info.GetCapabilities(), sourcev1.PluginCapability_PLUGIN_CAPABILITY_HEALTH_CHECKS) {
+		if plugin.ErrorCode(err) != plugin.CodeUnimplemented {
+			rep.warn("SetSourceHealthCheck: a plugin without the HEALTH_CHECKS capability should answer UNIMPLEMENTED, got %v", err)
+		}
+		return
+	}
+	if plugin.ErrorCode(err) != plugin.CodeNotFound {
+		rep.problem("SetSourceHealthCheck: an unknown source must be NOT_FOUND, got %v", err)
+	}
+}

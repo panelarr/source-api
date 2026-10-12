@@ -210,3 +210,42 @@ func TestReadsJobsWithoutRunningThem(t *testing.T) {
 		t.Fatalf("conformance ran a job: %v", runs)
 	}
 }
+
+// brokenOrigins leaves an origin out and gives details to a package that
+// isn't installed.
+type brokenOrigins struct{ *plugintest.Fake }
+
+func (b brokenOrigins) ListOrigins(ctx context.Context, r *sourcev1.ListOriginsRequest) (*sourcev1.ListOriginsResponse, error) {
+	res, err := b.Fake.ListOrigins(ctx, r)
+	if err == nil {
+		res.Origins = res.Origins[:1]
+	}
+	return res, err
+}
+
+func (b brokenOrigins) ListPackages(ctx context.Context, r *sourcev1.ListPackagesRequest) (*sourcev1.ListPackagesResponse, error) {
+	res, err := b.Fake.ListPackages(ctx, r)
+	for _, p := range res.GetPackages() {
+		if !p.GetInstalled() {
+			p.Details = &sourcev1.PackageDetails{ApiVersion: "1.0"}
+		}
+	}
+	return res, err
+}
+
+func (brokenOrigins) SetSourceHealthCheck(context.Context, *sourcev1.SetSourceHealthCheckRequest) (*sourcev1.SetSourceHealthCheckResponse, error) {
+	return &sourcev1.SetSourceHealthCheckResponse{}, nil
+}
+
+func TestReportsOriginAndHealthCheckViolations(t *testing.T) {
+	rep, err := conformance.Check(context.Background(), client.InProcess(brokenOrigins{plugintest.New()}), conformance.Options{SkipImages: true})
+	if err != nil {
+		t.Fatal(err)
+	}
+	problems := strings.Join(rep.Problems, "\n")
+	for _, want := range []string{`origin "store-b", which offers package "multi.comics", isn't listed`, "details are for installed packages", "SetSourceHealthCheck: an unknown source must be NOT_FOUND"} {
+		if !strings.Contains(problems, want) {
+			t.Errorf("missing problem %q in:\n%s", want, problems)
+		}
+	}
+}

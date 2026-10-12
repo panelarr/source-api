@@ -42,6 +42,9 @@ const (
 	// The plugin has background jobs that hosts can list, run and cancel (ListJobs and
 	// the other job calls).
 	PluginCapability_PLUGIN_CAPABILITY_JOBS PluginCapability = 4
+	// The plugin checks its sources on a schedule, reports the results in Source.health,
+	// and lets hosts turn the checks off per source (SetSourceHealthCheck).
+	PluginCapability_PLUGIN_CAPABILITY_HEALTH_CHECKS PluginCapability = 5
 )
 
 // Enum value maps for PluginCapability.
@@ -52,6 +55,7 @@ var (
 		2: "PLUGIN_CAPABILITY_DYNAMIC_SOURCES",
 		3: "PLUGIN_CAPABILITY_PACKAGES",
 		4: "PLUGIN_CAPABILITY_JOBS",
+		5: "PLUGIN_CAPABILITY_HEALTH_CHECKS",
 	}
 	PluginCapability_value = map[string]int32{
 		"PLUGIN_CAPABILITY_UNSPECIFIED":      0,
@@ -59,6 +63,7 @@ var (
 		"PLUGIN_CAPABILITY_DYNAMIC_SOURCES":  2,
 		"PLUGIN_CAPABILITY_PACKAGES":         3,
 		"PLUGIN_CAPABILITY_JOBS":             4,
+		"PLUGIN_CAPABILITY_HEALTH_CHECKS":    5,
 	}
 )
 
@@ -3811,7 +3816,10 @@ type Package struct {
 	// same credentials as the API.
 	IconUrl string `protobuf:"bytes,13,opt,name=icon_url,json=iconUrl,proto3" json:"icon_url,omitempty"`
 	// Why an installed package isn't working (e.g. it failed to load). Empty when fine.
-	Error         string `protobuf:"bytes,14,opt,name=error,proto3" json:"error,omitempty"`
+	Error string `protobuf:"bytes,14,opt,name=error,proto3" json:"error,omitempty"`
+	// More about the installed package, when the plugin knows it. Unset when not
+	// installed.
+	Details       *PackageDetails `protobuf:"bytes,15,opt,name=details,proto3" json:"details,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -3944,6 +3952,195 @@ func (x *Package) GetError() string {
 	return ""
 }
 
+func (x *Package) GetDetails() *PackageDetails {
+	if x != nil {
+		return x.Details
+	}
+	return nil
+}
+
+// PackageDetails describes an installed package, for an admin to check.
+type PackageDetails struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// SHA-256 (hex, lowercase) of the key the package is signed with. Empty when unsigned.
+	SigningFingerprint string `protobuf:"bytes,1,opt,name=signing_fingerprint,json=signingFingerprint,proto3" json:"signing_fingerprint,omitempty"`
+	// The version of the plugin's API the package was built against, e.g. an
+	// extension's library version.
+	ApiVersion  string                 `protobuf:"bytes,2,opt,name=api_version,json=apiVersion,proto3" json:"api_version,omitempty"`
+	InstalledAt *timestamppb.Timestamp `protobuf:"bytes,3,opt,name=installed_at,json=installedAt,proto3" json:"installed_at,omitempty"`
+	// SHA-256 (hex, lowercase) of the installed file.
+	Sha256 string `protobuf:"bytes,4,opt,name=sha256,proto3" json:"sha256,omitempty"`
+	// The origin it was installed from. Empty when installed another way, e.g. from a
+	// file.
+	OriginId      string `protobuf:"bytes,5,opt,name=origin_id,json=originId,proto3" json:"origin_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *PackageDetails) Reset() {
+	*x = PackageDetails{}
+	mi := &file_panelarr_source_v1_source_plugin_proto_msgTypes[51]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *PackageDetails) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*PackageDetails) ProtoMessage() {}
+
+func (x *PackageDetails) ProtoReflect() protoreflect.Message {
+	mi := &file_panelarr_source_v1_source_plugin_proto_msgTypes[51]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use PackageDetails.ProtoReflect.Descriptor instead.
+func (*PackageDetails) Descriptor() ([]byte, []int) {
+	return file_panelarr_source_v1_source_plugin_proto_rawDescGZIP(), []int{51}
+}
+
+func (x *PackageDetails) GetSigningFingerprint() string {
+	if x != nil {
+		return x.SigningFingerprint
+	}
+	return ""
+}
+
+func (x *PackageDetails) GetApiVersion() string {
+	if x != nil {
+		return x.ApiVersion
+	}
+	return ""
+}
+
+func (x *PackageDetails) GetInstalledAt() *timestamppb.Timestamp {
+	if x != nil {
+		return x.InstalledAt
+	}
+	return nil
+}
+
+func (x *PackageDetails) GetSha256() string {
+	if x != nil {
+		return x.Sha256
+	}
+	return ""
+}
+
+func (x *PackageDetails) GetOriginId() string {
+	if x != nil {
+		return x.OriginId
+	}
+	return ""
+}
+
+// Origin is where packages come from, e.g. an extension store.
+type Origin struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Matches `^[A-Za-z0-9][A-Za-z0-9._-]*$`, like package IDs.
+	Id   string `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
+	Name string `protobuf:"bytes,2,opt,name=name,proto3" json:"name,omitempty"`
+	Url  string `protobuf:"bytes,3,opt,name=url,proto3" json:"url,omitempty"`
+	// When its list of packages was last fetched successfully.
+	RefreshedAt *timestamppb.Timestamp `protobuf:"bytes,4,opt,name=refreshed_at,json=refreshedAt,proto3" json:"refreshed_at,omitempty"`
+	// Why the last refresh failed. Empty when it worked.
+	Error string `protobuf:"bytes,5,opt,name=error,proto3" json:"error,omitempty"`
+	// How many packages it offers.
+	PackageCount uint32 `protobuf:"varint,6,opt,name=package_count,json=packageCount,proto3" json:"package_count,omitempty"`
+	// SHA-256 (hex, lowercase) of the signing key pinned for the origin. Empty when it
+	// has none.
+	SigningKeyFingerprint string `protobuf:"bytes,7,opt,name=signing_key_fingerprint,json=signingKeyFingerprint,proto3" json:"signing_key_fingerprint,omitempty"`
+	unknownFields         protoimpl.UnknownFields
+	sizeCache             protoimpl.SizeCache
+}
+
+func (x *Origin) Reset() {
+	*x = Origin{}
+	mi := &file_panelarr_source_v1_source_plugin_proto_msgTypes[52]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *Origin) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*Origin) ProtoMessage() {}
+
+func (x *Origin) ProtoReflect() protoreflect.Message {
+	mi := &file_panelarr_source_v1_source_plugin_proto_msgTypes[52]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use Origin.ProtoReflect.Descriptor instead.
+func (*Origin) Descriptor() ([]byte, []int) {
+	return file_panelarr_source_v1_source_plugin_proto_rawDescGZIP(), []int{52}
+}
+
+func (x *Origin) GetId() string {
+	if x != nil {
+		return x.Id
+	}
+	return ""
+}
+
+func (x *Origin) GetName() string {
+	if x != nil {
+		return x.Name
+	}
+	return ""
+}
+
+func (x *Origin) GetUrl() string {
+	if x != nil {
+		return x.Url
+	}
+	return ""
+}
+
+func (x *Origin) GetRefreshedAt() *timestamppb.Timestamp {
+	if x != nil {
+		return x.RefreshedAt
+	}
+	return nil
+}
+
+func (x *Origin) GetError() string {
+	if x != nil {
+		return x.Error
+	}
+	return ""
+}
+
+func (x *Origin) GetPackageCount() uint32 {
+	if x != nil {
+		return x.PackageCount
+	}
+	return 0
+}
+
+func (x *Origin) GetSigningKeyFingerprint() string {
+	if x != nil {
+		return x.SigningKeyFingerprint
+	}
+	return ""
+}
+
 type PackageOffer struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Identifier of the origin, e.g. an extension store; for InstallPackage.origin_id.
@@ -3957,7 +4154,7 @@ type PackageOffer struct {
 
 func (x *PackageOffer) Reset() {
 	*x = PackageOffer{}
-	mi := &file_panelarr_source_v1_source_plugin_proto_msgTypes[51]
+	mi := &file_panelarr_source_v1_source_plugin_proto_msgTypes[53]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3969,7 +4166,7 @@ func (x *PackageOffer) String() string {
 func (*PackageOffer) ProtoMessage() {}
 
 func (x *PackageOffer) ProtoReflect() protoreflect.Message {
-	mi := &file_panelarr_source_v1_source_plugin_proto_msgTypes[51]
+	mi := &file_panelarr_source_v1_source_plugin_proto_msgTypes[53]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3982,7 +4179,7 @@ func (x *PackageOffer) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use PackageOffer.ProtoReflect.Descriptor instead.
 func (*PackageOffer) Descriptor() ([]byte, []int) {
-	return file_panelarr_source_v1_source_plugin_proto_rawDescGZIP(), []int{51}
+	return file_panelarr_source_v1_source_plugin_proto_rawDescGZIP(), []int{53}
 }
 
 func (x *PackageOffer) GetOriginId() string {
@@ -4029,7 +4226,7 @@ type PackageSource struct {
 
 func (x *PackageSource) Reset() {
 	*x = PackageSource{}
-	mi := &file_panelarr_source_v1_source_plugin_proto_msgTypes[52]
+	mi := &file_panelarr_source_v1_source_plugin_proto_msgTypes[54]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -4041,7 +4238,7 @@ func (x *PackageSource) String() string {
 func (*PackageSource) ProtoMessage() {}
 
 func (x *PackageSource) ProtoReflect() protoreflect.Message {
-	mi := &file_panelarr_source_v1_source_plugin_proto_msgTypes[52]
+	mi := &file_panelarr_source_v1_source_plugin_proto_msgTypes[54]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4054,7 +4251,7 @@ func (x *PackageSource) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use PackageSource.ProtoReflect.Descriptor instead.
 func (*PackageSource) Descriptor() ([]byte, []int) {
-	return file_panelarr_source_v1_source_plugin_proto_rawDescGZIP(), []int{52}
+	return file_panelarr_source_v1_source_plugin_proto_rawDescGZIP(), []int{54}
 }
 
 func (x *PackageSource) GetId() string {
@@ -4097,7 +4294,7 @@ type PackageSettings struct {
 
 func (x *PackageSettings) Reset() {
 	*x = PackageSettings{}
-	mi := &file_panelarr_source_v1_source_plugin_proto_msgTypes[53]
+	mi := &file_panelarr_source_v1_source_plugin_proto_msgTypes[55]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -4109,7 +4306,7 @@ func (x *PackageSettings) String() string {
 func (*PackageSettings) ProtoMessage() {}
 
 func (x *PackageSettings) ProtoReflect() protoreflect.Message {
-	mi := &file_panelarr_source_v1_source_plugin_proto_msgTypes[53]
+	mi := &file_panelarr_source_v1_source_plugin_proto_msgTypes[55]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4122,7 +4319,7 @@ func (x *PackageSettings) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use PackageSettings.ProtoReflect.Descriptor instead.
 func (*PackageSettings) Descriptor() ([]byte, []int) {
-	return file_panelarr_source_v1_source_plugin_proto_rawDescGZIP(), []int{53}
+	return file_panelarr_source_v1_source_plugin_proto_rawDescGZIP(), []int{55}
 }
 
 func (x *PackageSettings) GetEnabledLangs() []string {
@@ -4152,7 +4349,7 @@ type ListPackagesRequest struct {
 
 func (x *ListPackagesRequest) Reset() {
 	*x = ListPackagesRequest{}
-	mi := &file_panelarr_source_v1_source_plugin_proto_msgTypes[54]
+	mi := &file_panelarr_source_v1_source_plugin_proto_msgTypes[56]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -4164,7 +4361,7 @@ func (x *ListPackagesRequest) String() string {
 func (*ListPackagesRequest) ProtoMessage() {}
 
 func (x *ListPackagesRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_panelarr_source_v1_source_plugin_proto_msgTypes[54]
+	mi := &file_panelarr_source_v1_source_plugin_proto_msgTypes[56]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4177,7 +4374,7 @@ func (x *ListPackagesRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListPackagesRequest.ProtoReflect.Descriptor instead.
 func (*ListPackagesRequest) Descriptor() ([]byte, []int) {
-	return file_panelarr_source_v1_source_plugin_proto_rawDescGZIP(), []int{54}
+	return file_panelarr_source_v1_source_plugin_proto_rawDescGZIP(), []int{56}
 }
 
 func (x *ListPackagesRequest) GetQuery() string {
@@ -4240,7 +4437,7 @@ type ListPackagesResponse struct {
 
 func (x *ListPackagesResponse) Reset() {
 	*x = ListPackagesResponse{}
-	mi := &file_panelarr_source_v1_source_plugin_proto_msgTypes[55]
+	mi := &file_panelarr_source_v1_source_plugin_proto_msgTypes[57]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -4252,7 +4449,7 @@ func (x *ListPackagesResponse) String() string {
 func (*ListPackagesResponse) ProtoMessage() {}
 
 func (x *ListPackagesResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_panelarr_source_v1_source_plugin_proto_msgTypes[55]
+	mi := &file_panelarr_source_v1_source_plugin_proto_msgTypes[57]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4265,7 +4462,7 @@ func (x *ListPackagesResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListPackagesResponse.ProtoReflect.Descriptor instead.
 func (*ListPackagesResponse) Descriptor() ([]byte, []int) {
-	return file_panelarr_source_v1_source_plugin_proto_rawDescGZIP(), []int{55}
+	return file_panelarr_source_v1_source_plugin_proto_rawDescGZIP(), []int{57}
 }
 
 func (x *ListPackagesResponse) GetPackages() []*Package {
@@ -4291,7 +4488,7 @@ type GetPackageRequest struct {
 
 func (x *GetPackageRequest) Reset() {
 	*x = GetPackageRequest{}
-	mi := &file_panelarr_source_v1_source_plugin_proto_msgTypes[56]
+	mi := &file_panelarr_source_v1_source_plugin_proto_msgTypes[58]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -4303,7 +4500,7 @@ func (x *GetPackageRequest) String() string {
 func (*GetPackageRequest) ProtoMessage() {}
 
 func (x *GetPackageRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_panelarr_source_v1_source_plugin_proto_msgTypes[56]
+	mi := &file_panelarr_source_v1_source_plugin_proto_msgTypes[58]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4316,7 +4513,7 @@ func (x *GetPackageRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetPackageRequest.ProtoReflect.Descriptor instead.
 func (*GetPackageRequest) Descriptor() ([]byte, []int) {
-	return file_panelarr_source_v1_source_plugin_proto_rawDescGZIP(), []int{56}
+	return file_panelarr_source_v1_source_plugin_proto_rawDescGZIP(), []int{58}
 }
 
 func (x *GetPackageRequest) GetPackageId() string {
@@ -4335,7 +4532,7 @@ type GetPackageResponse struct {
 
 func (x *GetPackageResponse) Reset() {
 	*x = GetPackageResponse{}
-	mi := &file_panelarr_source_v1_source_plugin_proto_msgTypes[57]
+	mi := &file_panelarr_source_v1_source_plugin_proto_msgTypes[59]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -4347,7 +4544,7 @@ func (x *GetPackageResponse) String() string {
 func (*GetPackageResponse) ProtoMessage() {}
 
 func (x *GetPackageResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_panelarr_source_v1_source_plugin_proto_msgTypes[57]
+	mi := &file_panelarr_source_v1_source_plugin_proto_msgTypes[59]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4360,7 +4557,7 @@ func (x *GetPackageResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetPackageResponse.ProtoReflect.Descriptor instead.
 func (*GetPackageResponse) Descriptor() ([]byte, []int) {
-	return file_panelarr_source_v1_source_plugin_proto_rawDescGZIP(), []int{57}
+	return file_panelarr_source_v1_source_plugin_proto_rawDescGZIP(), []int{59}
 }
 
 func (x *GetPackageResponse) GetPackage() *Package {
@@ -4382,7 +4579,7 @@ type InstallPackageRequest struct {
 
 func (x *InstallPackageRequest) Reset() {
 	*x = InstallPackageRequest{}
-	mi := &file_panelarr_source_v1_source_plugin_proto_msgTypes[58]
+	mi := &file_panelarr_source_v1_source_plugin_proto_msgTypes[60]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -4394,7 +4591,7 @@ func (x *InstallPackageRequest) String() string {
 func (*InstallPackageRequest) ProtoMessage() {}
 
 func (x *InstallPackageRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_panelarr_source_v1_source_plugin_proto_msgTypes[58]
+	mi := &file_panelarr_source_v1_source_plugin_proto_msgTypes[60]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4407,7 +4604,7 @@ func (x *InstallPackageRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use InstallPackageRequest.ProtoReflect.Descriptor instead.
 func (*InstallPackageRequest) Descriptor() ([]byte, []int) {
-	return file_panelarr_source_v1_source_plugin_proto_rawDescGZIP(), []int{58}
+	return file_panelarr_source_v1_source_plugin_proto_rawDescGZIP(), []int{60}
 }
 
 func (x *InstallPackageRequest) GetPackageId() string {
@@ -4433,7 +4630,7 @@ type InstallPackageResponse struct {
 
 func (x *InstallPackageResponse) Reset() {
 	*x = InstallPackageResponse{}
-	mi := &file_panelarr_source_v1_source_plugin_proto_msgTypes[59]
+	mi := &file_panelarr_source_v1_source_plugin_proto_msgTypes[61]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -4445,7 +4642,7 @@ func (x *InstallPackageResponse) String() string {
 func (*InstallPackageResponse) ProtoMessage() {}
 
 func (x *InstallPackageResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_panelarr_source_v1_source_plugin_proto_msgTypes[59]
+	mi := &file_panelarr_source_v1_source_plugin_proto_msgTypes[61]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4458,7 +4655,7 @@ func (x *InstallPackageResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use InstallPackageResponse.ProtoReflect.Descriptor instead.
 func (*InstallPackageResponse) Descriptor() ([]byte, []int) {
-	return file_panelarr_source_v1_source_plugin_proto_rawDescGZIP(), []int{59}
+	return file_panelarr_source_v1_source_plugin_proto_rawDescGZIP(), []int{61}
 }
 
 func (x *InstallPackageResponse) GetPackage() *Package {
@@ -4477,7 +4674,7 @@ type UpdatePackageRequest struct {
 
 func (x *UpdatePackageRequest) Reset() {
 	*x = UpdatePackageRequest{}
-	mi := &file_panelarr_source_v1_source_plugin_proto_msgTypes[60]
+	mi := &file_panelarr_source_v1_source_plugin_proto_msgTypes[62]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -4489,7 +4686,7 @@ func (x *UpdatePackageRequest) String() string {
 func (*UpdatePackageRequest) ProtoMessage() {}
 
 func (x *UpdatePackageRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_panelarr_source_v1_source_plugin_proto_msgTypes[60]
+	mi := &file_panelarr_source_v1_source_plugin_proto_msgTypes[62]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4502,7 +4699,7 @@ func (x *UpdatePackageRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use UpdatePackageRequest.ProtoReflect.Descriptor instead.
 func (*UpdatePackageRequest) Descriptor() ([]byte, []int) {
-	return file_panelarr_source_v1_source_plugin_proto_rawDescGZIP(), []int{60}
+	return file_panelarr_source_v1_source_plugin_proto_rawDescGZIP(), []int{62}
 }
 
 func (x *UpdatePackageRequest) GetPackageId() string {
@@ -4521,7 +4718,7 @@ type UpdatePackageResponse struct {
 
 func (x *UpdatePackageResponse) Reset() {
 	*x = UpdatePackageResponse{}
-	mi := &file_panelarr_source_v1_source_plugin_proto_msgTypes[61]
+	mi := &file_panelarr_source_v1_source_plugin_proto_msgTypes[63]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -4533,7 +4730,7 @@ func (x *UpdatePackageResponse) String() string {
 func (*UpdatePackageResponse) ProtoMessage() {}
 
 func (x *UpdatePackageResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_panelarr_source_v1_source_plugin_proto_msgTypes[61]
+	mi := &file_panelarr_source_v1_source_plugin_proto_msgTypes[63]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4546,7 +4743,7 @@ func (x *UpdatePackageResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use UpdatePackageResponse.ProtoReflect.Descriptor instead.
 func (*UpdatePackageResponse) Descriptor() ([]byte, []int) {
-	return file_panelarr_source_v1_source_plugin_proto_rawDescGZIP(), []int{61}
+	return file_panelarr_source_v1_source_plugin_proto_rawDescGZIP(), []int{63}
 }
 
 func (x *UpdatePackageResponse) GetPackage() *Package {
@@ -4565,7 +4762,7 @@ type UninstallPackageRequest struct {
 
 func (x *UninstallPackageRequest) Reset() {
 	*x = UninstallPackageRequest{}
-	mi := &file_panelarr_source_v1_source_plugin_proto_msgTypes[62]
+	mi := &file_panelarr_source_v1_source_plugin_proto_msgTypes[64]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -4577,7 +4774,7 @@ func (x *UninstallPackageRequest) String() string {
 func (*UninstallPackageRequest) ProtoMessage() {}
 
 func (x *UninstallPackageRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_panelarr_source_v1_source_plugin_proto_msgTypes[62]
+	mi := &file_panelarr_source_v1_source_plugin_proto_msgTypes[64]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4590,7 +4787,7 @@ func (x *UninstallPackageRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use UninstallPackageRequest.ProtoReflect.Descriptor instead.
 func (*UninstallPackageRequest) Descriptor() ([]byte, []int) {
-	return file_panelarr_source_v1_source_plugin_proto_rawDescGZIP(), []int{62}
+	return file_panelarr_source_v1_source_plugin_proto_rawDescGZIP(), []int{64}
 }
 
 func (x *UninstallPackageRequest) GetPackageId() string {
@@ -4608,7 +4805,7 @@ type UninstallPackageResponse struct {
 
 func (x *UninstallPackageResponse) Reset() {
 	*x = UninstallPackageResponse{}
-	mi := &file_panelarr_source_v1_source_plugin_proto_msgTypes[63]
+	mi := &file_panelarr_source_v1_source_plugin_proto_msgTypes[65]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -4620,7 +4817,7 @@ func (x *UninstallPackageResponse) String() string {
 func (*UninstallPackageResponse) ProtoMessage() {}
 
 func (x *UninstallPackageResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_panelarr_source_v1_source_plugin_proto_msgTypes[63]
+	mi := &file_panelarr_source_v1_source_plugin_proto_msgTypes[65]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4633,7 +4830,7 @@ func (x *UninstallPackageResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use UninstallPackageResponse.ProtoReflect.Descriptor instead.
 func (*UninstallPackageResponse) Descriptor() ([]byte, []int) {
-	return file_panelarr_source_v1_source_plugin_proto_rawDescGZIP(), []int{63}
+	return file_panelarr_source_v1_source_plugin_proto_rawDescGZIP(), []int{65}
 }
 
 type SetPackageSettingsRequest struct {
@@ -4646,7 +4843,7 @@ type SetPackageSettingsRequest struct {
 
 func (x *SetPackageSettingsRequest) Reset() {
 	*x = SetPackageSettingsRequest{}
-	mi := &file_panelarr_source_v1_source_plugin_proto_msgTypes[64]
+	mi := &file_panelarr_source_v1_source_plugin_proto_msgTypes[66]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -4658,7 +4855,7 @@ func (x *SetPackageSettingsRequest) String() string {
 func (*SetPackageSettingsRequest) ProtoMessage() {}
 
 func (x *SetPackageSettingsRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_panelarr_source_v1_source_plugin_proto_msgTypes[64]
+	mi := &file_panelarr_source_v1_source_plugin_proto_msgTypes[66]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4671,7 +4868,7 @@ func (x *SetPackageSettingsRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SetPackageSettingsRequest.ProtoReflect.Descriptor instead.
 func (*SetPackageSettingsRequest) Descriptor() ([]byte, []int) {
-	return file_panelarr_source_v1_source_plugin_proto_rawDescGZIP(), []int{64}
+	return file_panelarr_source_v1_source_plugin_proto_rawDescGZIP(), []int{66}
 }
 
 func (x *SetPackageSettingsRequest) GetPackageId() string {
@@ -4688,6 +4885,358 @@ func (x *SetPackageSettingsRequest) GetSettings() *PackageSettings {
 	return nil
 }
 
+type ListOriginsRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ListOriginsRequest) Reset() {
+	*x = ListOriginsRequest{}
+	mi := &file_panelarr_source_v1_source_plugin_proto_msgTypes[67]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ListOriginsRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ListOriginsRequest) ProtoMessage() {}
+
+func (x *ListOriginsRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_panelarr_source_v1_source_plugin_proto_msgTypes[67]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ListOriginsRequest.ProtoReflect.Descriptor instead.
+func (*ListOriginsRequest) Descriptor() ([]byte, []int) {
+	return file_panelarr_source_v1_source_plugin_proto_rawDescGZIP(), []int{67}
+}
+
+type ListOriginsResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Origins       []*Origin              `protobuf:"bytes,1,rep,name=origins,proto3" json:"origins,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ListOriginsResponse) Reset() {
+	*x = ListOriginsResponse{}
+	mi := &file_panelarr_source_v1_source_plugin_proto_msgTypes[68]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ListOriginsResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ListOriginsResponse) ProtoMessage() {}
+
+func (x *ListOriginsResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_panelarr_source_v1_source_plugin_proto_msgTypes[68]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ListOriginsResponse.ProtoReflect.Descriptor instead.
+func (*ListOriginsResponse) Descriptor() ([]byte, []int) {
+	return file_panelarr_source_v1_source_plugin_proto_rawDescGZIP(), []int{68}
+}
+
+func (x *ListOriginsResponse) GetOrigins() []*Origin {
+	if x != nil {
+		return x.Origins
+	}
+	return nil
+}
+
+type RefreshOriginRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	OriginId      string                 `protobuf:"bytes,1,opt,name=origin_id,json=originId,proto3" json:"origin_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *RefreshOriginRequest) Reset() {
+	*x = RefreshOriginRequest{}
+	mi := &file_panelarr_source_v1_source_plugin_proto_msgTypes[69]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *RefreshOriginRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*RefreshOriginRequest) ProtoMessage() {}
+
+func (x *RefreshOriginRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_panelarr_source_v1_source_plugin_proto_msgTypes[69]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use RefreshOriginRequest.ProtoReflect.Descriptor instead.
+func (*RefreshOriginRequest) Descriptor() ([]byte, []int) {
+	return file_panelarr_source_v1_source_plugin_proto_rawDescGZIP(), []int{69}
+}
+
+func (x *RefreshOriginRequest) GetOriginId() string {
+	if x != nil {
+		return x.OriginId
+	}
+	return ""
+}
+
+type RefreshOriginResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Origin        *Origin                `protobuf:"bytes,1,opt,name=origin,proto3" json:"origin,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *RefreshOriginResponse) Reset() {
+	*x = RefreshOriginResponse{}
+	mi := &file_panelarr_source_v1_source_plugin_proto_msgTypes[70]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *RefreshOriginResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*RefreshOriginResponse) ProtoMessage() {}
+
+func (x *RefreshOriginResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_panelarr_source_v1_source_plugin_proto_msgTypes[70]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use RefreshOriginResponse.ProtoReflect.Descriptor instead.
+func (*RefreshOriginResponse) Descriptor() ([]byte, []int) {
+	return file_panelarr_source_v1_source_plugin_proto_rawDescGZIP(), []int{70}
+}
+
+func (x *RefreshOriginResponse) GetOrigin() *Origin {
+	if x != nil {
+		return x.Origin
+	}
+	return nil
+}
+
+type ReloadPackageRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	PackageId     string                 `protobuf:"bytes,1,opt,name=package_id,json=packageId,proto3" json:"package_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ReloadPackageRequest) Reset() {
+	*x = ReloadPackageRequest{}
+	mi := &file_panelarr_source_v1_source_plugin_proto_msgTypes[71]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ReloadPackageRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ReloadPackageRequest) ProtoMessage() {}
+
+func (x *ReloadPackageRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_panelarr_source_v1_source_plugin_proto_msgTypes[71]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ReloadPackageRequest.ProtoReflect.Descriptor instead.
+func (*ReloadPackageRequest) Descriptor() ([]byte, []int) {
+	return file_panelarr_source_v1_source_plugin_proto_rawDescGZIP(), []int{71}
+}
+
+func (x *ReloadPackageRequest) GetPackageId() string {
+	if x != nil {
+		return x.PackageId
+	}
+	return ""
+}
+
+type ReloadPackageResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Package       *Package               `protobuf:"bytes,1,opt,name=package,proto3" json:"package,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ReloadPackageResponse) Reset() {
+	*x = ReloadPackageResponse{}
+	mi := &file_panelarr_source_v1_source_plugin_proto_msgTypes[72]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ReloadPackageResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ReloadPackageResponse) ProtoMessage() {}
+
+func (x *ReloadPackageResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_panelarr_source_v1_source_plugin_proto_msgTypes[72]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ReloadPackageResponse.ProtoReflect.Descriptor instead.
+func (*ReloadPackageResponse) Descriptor() ([]byte, []int) {
+	return file_panelarr_source_v1_source_plugin_proto_rawDescGZIP(), []int{72}
+}
+
+func (x *ReloadPackageResponse) GetPackage() *Package {
+	if x != nil {
+		return x.Package
+	}
+	return nil
+}
+
+type SetSourceHealthCheckRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	SourceId      string                 `protobuf:"bytes,1,opt,name=source_id,json=sourceId,proto3" json:"source_id,omitempty"`
+	Enabled       bool                   `protobuf:"varint,2,opt,name=enabled,proto3" json:"enabled,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *SetSourceHealthCheckRequest) Reset() {
+	*x = SetSourceHealthCheckRequest{}
+	mi := &file_panelarr_source_v1_source_plugin_proto_msgTypes[73]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *SetSourceHealthCheckRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*SetSourceHealthCheckRequest) ProtoMessage() {}
+
+func (x *SetSourceHealthCheckRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_panelarr_source_v1_source_plugin_proto_msgTypes[73]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use SetSourceHealthCheckRequest.ProtoReflect.Descriptor instead.
+func (*SetSourceHealthCheckRequest) Descriptor() ([]byte, []int) {
+	return file_panelarr_source_v1_source_plugin_proto_rawDescGZIP(), []int{73}
+}
+
+func (x *SetSourceHealthCheckRequest) GetSourceId() string {
+	if x != nil {
+		return x.SourceId
+	}
+	return ""
+}
+
+func (x *SetSourceHealthCheckRequest) GetEnabled() bool {
+	if x != nil {
+		return x.Enabled
+	}
+	return false
+}
+
+type SetSourceHealthCheckResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Source        *Source                `protobuf:"bytes,1,opt,name=source,proto3" json:"source,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *SetSourceHealthCheckResponse) Reset() {
+	*x = SetSourceHealthCheckResponse{}
+	mi := &file_panelarr_source_v1_source_plugin_proto_msgTypes[74]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *SetSourceHealthCheckResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*SetSourceHealthCheckResponse) ProtoMessage() {}
+
+func (x *SetSourceHealthCheckResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_panelarr_source_v1_source_plugin_proto_msgTypes[74]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use SetSourceHealthCheckResponse.ProtoReflect.Descriptor instead.
+func (*SetSourceHealthCheckResponse) Descriptor() ([]byte, []int) {
+	return file_panelarr_source_v1_source_plugin_proto_rawDescGZIP(), []int{74}
+}
+
+func (x *SetSourceHealthCheckResponse) GetSource() *Source {
+	if x != nil {
+		return x.Source
+	}
+	return nil
+}
+
 type SetPackageSettingsResponse struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Package       *Package               `protobuf:"bytes,1,opt,name=package,proto3" json:"package,omitempty"`
@@ -4697,7 +5246,7 @@ type SetPackageSettingsResponse struct {
 
 func (x *SetPackageSettingsResponse) Reset() {
 	*x = SetPackageSettingsResponse{}
-	mi := &file_panelarr_source_v1_source_plugin_proto_msgTypes[65]
+	mi := &file_panelarr_source_v1_source_plugin_proto_msgTypes[75]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -4709,7 +5258,7 @@ func (x *SetPackageSettingsResponse) String() string {
 func (*SetPackageSettingsResponse) ProtoMessage() {}
 
 func (x *SetPackageSettingsResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_panelarr_source_v1_source_plugin_proto_msgTypes[65]
+	mi := &file_panelarr_source_v1_source_plugin_proto_msgTypes[75]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4722,7 +5271,7 @@ func (x *SetPackageSettingsResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SetPackageSettingsResponse.ProtoReflect.Descriptor instead.
 func (*SetPackageSettingsResponse) Descriptor() ([]byte, []int) {
-	return file_panelarr_source_v1_source_plugin_proto_rawDescGZIP(), []int{65}
+	return file_panelarr_source_v1_source_plugin_proto_rawDescGZIP(), []int{75}
 }
 
 func (x *SetPackageSettingsResponse) GetPackage() *Package {
@@ -4741,7 +5290,7 @@ type GetSettingsSchemaRequest struct {
 
 func (x *GetSettingsSchemaRequest) Reset() {
 	*x = GetSettingsSchemaRequest{}
-	mi := &file_panelarr_source_v1_source_plugin_proto_msgTypes[66]
+	mi := &file_panelarr_source_v1_source_plugin_proto_msgTypes[76]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -4753,7 +5302,7 @@ func (x *GetSettingsSchemaRequest) String() string {
 func (*GetSettingsSchemaRequest) ProtoMessage() {}
 
 func (x *GetSettingsSchemaRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_panelarr_source_v1_source_plugin_proto_msgTypes[66]
+	mi := &file_panelarr_source_v1_source_plugin_proto_msgTypes[76]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4766,7 +5315,7 @@ func (x *GetSettingsSchemaRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetSettingsSchemaRequest.ProtoReflect.Descriptor instead.
 func (*GetSettingsSchemaRequest) Descriptor() ([]byte, []int) {
-	return file_panelarr_source_v1_source_plugin_proto_rawDescGZIP(), []int{66}
+	return file_panelarr_source_v1_source_plugin_proto_rawDescGZIP(), []int{76}
 }
 
 func (x *GetSettingsSchemaRequest) GetSourceId() string {
@@ -4786,7 +5335,7 @@ type GetSettingsSchemaResponse struct {
 
 func (x *GetSettingsSchemaResponse) Reset() {
 	*x = GetSettingsSchemaResponse{}
-	mi := &file_panelarr_source_v1_source_plugin_proto_msgTypes[67]
+	mi := &file_panelarr_source_v1_source_plugin_proto_msgTypes[77]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -4798,7 +5347,7 @@ func (x *GetSettingsSchemaResponse) String() string {
 func (*GetSettingsSchemaResponse) ProtoMessage() {}
 
 func (x *GetSettingsSchemaResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_panelarr_source_v1_source_plugin_proto_msgTypes[67]
+	mi := &file_panelarr_source_v1_source_plugin_proto_msgTypes[77]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4811,7 +5360,7 @@ func (x *GetSettingsSchemaResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetSettingsSchemaResponse.ProtoReflect.Descriptor instead.
 func (*GetSettingsSchemaResponse) Descriptor() ([]byte, []int) {
-	return file_panelarr_source_v1_source_plugin_proto_rawDescGZIP(), []int{67}
+	return file_panelarr_source_v1_source_plugin_proto_rawDescGZIP(), []int{77}
 }
 
 func (x *GetSettingsSchemaResponse) GetSchema() *structpb.Struct {
@@ -4830,7 +5379,7 @@ type GetSettingsRequest struct {
 
 func (x *GetSettingsRequest) Reset() {
 	*x = GetSettingsRequest{}
-	mi := &file_panelarr_source_v1_source_plugin_proto_msgTypes[68]
+	mi := &file_panelarr_source_v1_source_plugin_proto_msgTypes[78]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -4842,7 +5391,7 @@ func (x *GetSettingsRequest) String() string {
 func (*GetSettingsRequest) ProtoMessage() {}
 
 func (x *GetSettingsRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_panelarr_source_v1_source_plugin_proto_msgTypes[68]
+	mi := &file_panelarr_source_v1_source_plugin_proto_msgTypes[78]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4855,7 +5404,7 @@ func (x *GetSettingsRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetSettingsRequest.ProtoReflect.Descriptor instead.
 func (*GetSettingsRequest) Descriptor() ([]byte, []int) {
-	return file_panelarr_source_v1_source_plugin_proto_rawDescGZIP(), []int{68}
+	return file_panelarr_source_v1_source_plugin_proto_rawDescGZIP(), []int{78}
 }
 
 func (x *GetSettingsRequest) GetSourceId() string {
@@ -4874,7 +5423,7 @@ type GetSettingsResponse struct {
 
 func (x *GetSettingsResponse) Reset() {
 	*x = GetSettingsResponse{}
-	mi := &file_panelarr_source_v1_source_plugin_proto_msgTypes[69]
+	mi := &file_panelarr_source_v1_source_plugin_proto_msgTypes[79]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -4886,7 +5435,7 @@ func (x *GetSettingsResponse) String() string {
 func (*GetSettingsResponse) ProtoMessage() {}
 
 func (x *GetSettingsResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_panelarr_source_v1_source_plugin_proto_msgTypes[69]
+	mi := &file_panelarr_source_v1_source_plugin_proto_msgTypes[79]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4899,7 +5448,7 @@ func (x *GetSettingsResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetSettingsResponse.ProtoReflect.Descriptor instead.
 func (*GetSettingsResponse) Descriptor() ([]byte, []int) {
-	return file_panelarr_source_v1_source_plugin_proto_rawDescGZIP(), []int{69}
+	return file_panelarr_source_v1_source_plugin_proto_rawDescGZIP(), []int{79}
 }
 
 func (x *GetSettingsResponse) GetValues() *structpb.Struct {
@@ -4920,7 +5469,7 @@ type SetSettingsRequest struct {
 
 func (x *SetSettingsRequest) Reset() {
 	*x = SetSettingsRequest{}
-	mi := &file_panelarr_source_v1_source_plugin_proto_msgTypes[70]
+	mi := &file_panelarr_source_v1_source_plugin_proto_msgTypes[80]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -4932,7 +5481,7 @@ func (x *SetSettingsRequest) String() string {
 func (*SetSettingsRequest) ProtoMessage() {}
 
 func (x *SetSettingsRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_panelarr_source_v1_source_plugin_proto_msgTypes[70]
+	mi := &file_panelarr_source_v1_source_plugin_proto_msgTypes[80]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4945,7 +5494,7 @@ func (x *SetSettingsRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SetSettingsRequest.ProtoReflect.Descriptor instead.
 func (*SetSettingsRequest) Descriptor() ([]byte, []int) {
-	return file_panelarr_source_v1_source_plugin_proto_rawDescGZIP(), []int{70}
+	return file_panelarr_source_v1_source_plugin_proto_rawDescGZIP(), []int{80}
 }
 
 func (x *SetSettingsRequest) GetSourceId() string {
@@ -4971,7 +5520,7 @@ type SetSettingsResponse struct {
 
 func (x *SetSettingsResponse) Reset() {
 	*x = SetSettingsResponse{}
-	mi := &file_panelarr_source_v1_source_plugin_proto_msgTypes[71]
+	mi := &file_panelarr_source_v1_source_plugin_proto_msgTypes[81]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -4983,7 +5532,7 @@ func (x *SetSettingsResponse) String() string {
 func (*SetSettingsResponse) ProtoMessage() {}
 
 func (x *SetSettingsResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_panelarr_source_v1_source_plugin_proto_msgTypes[71]
+	mi := &file_panelarr_source_v1_source_plugin_proto_msgTypes[81]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4996,7 +5545,7 @@ func (x *SetSettingsResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SetSettingsResponse.ProtoReflect.Descriptor instead.
 func (*SetSettingsResponse) Descriptor() ([]byte, []int) {
-	return file_panelarr_source_v1_source_plugin_proto_rawDescGZIP(), []int{71}
+	return file_panelarr_source_v1_source_plugin_proto_rawDescGZIP(), []int{81}
 }
 
 func (x *SetSettingsResponse) GetValues() *structpb.Struct {
@@ -5017,7 +5566,7 @@ type SetNetworkProfileRequest struct {
 
 func (x *SetNetworkProfileRequest) Reset() {
 	*x = SetNetworkProfileRequest{}
-	mi := &file_panelarr_source_v1_source_plugin_proto_msgTypes[72]
+	mi := &file_panelarr_source_v1_source_plugin_proto_msgTypes[82]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -5029,7 +5578,7 @@ func (x *SetNetworkProfileRequest) String() string {
 func (*SetNetworkProfileRequest) ProtoMessage() {}
 
 func (x *SetNetworkProfileRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_panelarr_source_v1_source_plugin_proto_msgTypes[72]
+	mi := &file_panelarr_source_v1_source_plugin_proto_msgTypes[82]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -5042,7 +5591,7 @@ func (x *SetNetworkProfileRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SetNetworkProfileRequest.ProtoReflect.Descriptor instead.
 func (*SetNetworkProfileRequest) Descriptor() ([]byte, []int) {
-	return file_panelarr_source_v1_source_plugin_proto_rawDescGZIP(), []int{72}
+	return file_panelarr_source_v1_source_plugin_proto_rawDescGZIP(), []int{82}
 }
 
 func (x *SetNetworkProfileRequest) GetSourceId() string {
@@ -5067,7 +5616,7 @@ type SetNetworkProfileResponse struct {
 
 func (x *SetNetworkProfileResponse) Reset() {
 	*x = SetNetworkProfileResponse{}
-	mi := &file_panelarr_source_v1_source_plugin_proto_msgTypes[73]
+	mi := &file_panelarr_source_v1_source_plugin_proto_msgTypes[83]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -5079,7 +5628,7 @@ func (x *SetNetworkProfileResponse) String() string {
 func (*SetNetworkProfileResponse) ProtoMessage() {}
 
 func (x *SetNetworkProfileResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_panelarr_source_v1_source_plugin_proto_msgTypes[73]
+	mi := &file_panelarr_source_v1_source_plugin_proto_msgTypes[83]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -5092,7 +5641,7 @@ func (x *SetNetworkProfileResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SetNetworkProfileResponse.ProtoReflect.Descriptor instead.
 func (*SetNetworkProfileResponse) Descriptor() ([]byte, []int) {
-	return file_panelarr_source_v1_source_plugin_proto_rawDescGZIP(), []int{73}
+	return file_panelarr_source_v1_source_plugin_proto_rawDescGZIP(), []int{83}
 }
 
 type GetNetworkProfileRequest struct {
@@ -5104,7 +5653,7 @@ type GetNetworkProfileRequest struct {
 
 func (x *GetNetworkProfileRequest) Reset() {
 	*x = GetNetworkProfileRequest{}
-	mi := &file_panelarr_source_v1_source_plugin_proto_msgTypes[74]
+	mi := &file_panelarr_source_v1_source_plugin_proto_msgTypes[84]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -5116,7 +5665,7 @@ func (x *GetNetworkProfileRequest) String() string {
 func (*GetNetworkProfileRequest) ProtoMessage() {}
 
 func (x *GetNetworkProfileRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_panelarr_source_v1_source_plugin_proto_msgTypes[74]
+	mi := &file_panelarr_source_v1_source_plugin_proto_msgTypes[84]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -5129,7 +5678,7 @@ func (x *GetNetworkProfileRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetNetworkProfileRequest.ProtoReflect.Descriptor instead.
 func (*GetNetworkProfileRequest) Descriptor() ([]byte, []int) {
-	return file_panelarr_source_v1_source_plugin_proto_rawDescGZIP(), []int{74}
+	return file_panelarr_source_v1_source_plugin_proto_rawDescGZIP(), []int{84}
 }
 
 func (x *GetNetworkProfileRequest) GetSourceId() string {
@@ -5151,7 +5700,7 @@ type GetNetworkProfileResponse struct {
 
 func (x *GetNetworkProfileResponse) Reset() {
 	*x = GetNetworkProfileResponse{}
-	mi := &file_panelarr_source_v1_source_plugin_proto_msgTypes[75]
+	mi := &file_panelarr_source_v1_source_plugin_proto_msgTypes[85]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -5163,7 +5712,7 @@ func (x *GetNetworkProfileResponse) String() string {
 func (*GetNetworkProfileResponse) ProtoMessage() {}
 
 func (x *GetNetworkProfileResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_panelarr_source_v1_source_plugin_proto_msgTypes[75]
+	mi := &file_panelarr_source_v1_source_plugin_proto_msgTypes[85]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -5176,7 +5725,7 @@ func (x *GetNetworkProfileResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetNetworkProfileResponse.ProtoReflect.Descriptor instead.
 func (*GetNetworkProfileResponse) Descriptor() ([]byte, []int) {
-	return file_panelarr_source_v1_source_plugin_proto_rawDescGZIP(), []int{75}
+	return file_panelarr_source_v1_source_plugin_proto_rawDescGZIP(), []int{85}
 }
 
 func (x *GetNetworkProfileResponse) GetProfile() *NetworkProfile {
@@ -5221,7 +5770,7 @@ type NetworkProfile struct {
 
 func (x *NetworkProfile) Reset() {
 	*x = NetworkProfile{}
-	mi := &file_panelarr_source_v1_source_plugin_proto_msgTypes[76]
+	mi := &file_panelarr_source_v1_source_plugin_proto_msgTypes[86]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -5233,7 +5782,7 @@ func (x *NetworkProfile) String() string {
 func (*NetworkProfile) ProtoMessage() {}
 
 func (x *NetworkProfile) ProtoReflect() protoreflect.Message {
-	mi := &file_panelarr_source_v1_source_plugin_proto_msgTypes[76]
+	mi := &file_panelarr_source_v1_source_plugin_proto_msgTypes[86]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -5246,7 +5795,7 @@ func (x *NetworkProfile) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use NetworkProfile.ProtoReflect.Descriptor instead.
 func (*NetworkProfile) Descriptor() ([]byte, []int) {
-	return file_panelarr_source_v1_source_plugin_proto_rawDescGZIP(), []int{76}
+	return file_panelarr_source_v1_source_plugin_proto_rawDescGZIP(), []int{86}
 }
 
 func (x *NetworkProfile) GetName() string {
@@ -5331,7 +5880,7 @@ type Proxy struct {
 
 func (x *Proxy) Reset() {
 	*x = Proxy{}
-	mi := &file_panelarr_source_v1_source_plugin_proto_msgTypes[77]
+	mi := &file_panelarr_source_v1_source_plugin_proto_msgTypes[87]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -5343,7 +5892,7 @@ func (x *Proxy) String() string {
 func (*Proxy) ProtoMessage() {}
 
 func (x *Proxy) ProtoReflect() protoreflect.Message {
-	mi := &file_panelarr_source_v1_source_plugin_proto_msgTypes[77]
+	mi := &file_panelarr_source_v1_source_plugin_proto_msgTypes[87]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -5356,7 +5905,7 @@ func (x *Proxy) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Proxy.ProtoReflect.Descriptor instead.
 func (*Proxy) Descriptor() ([]byte, []int) {
-	return file_panelarr_source_v1_source_plugin_proto_rawDescGZIP(), []int{77}
+	return file_panelarr_source_v1_source_plugin_proto_rawDescGZIP(), []int{87}
 }
 
 func (x *Proxy) GetUrl() string {
@@ -5397,7 +5946,7 @@ type Solver struct {
 
 func (x *Solver) Reset() {
 	*x = Solver{}
-	mi := &file_panelarr_source_v1_source_plugin_proto_msgTypes[78]
+	mi := &file_panelarr_source_v1_source_plugin_proto_msgTypes[88]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -5409,7 +5958,7 @@ func (x *Solver) String() string {
 func (*Solver) ProtoMessage() {}
 
 func (x *Solver) ProtoReflect() protoreflect.Message {
-	mi := &file_panelarr_source_v1_source_plugin_proto_msgTypes[78]
+	mi := &file_panelarr_source_v1_source_plugin_proto_msgTypes[88]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -5422,7 +5971,7 @@ func (x *Solver) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Solver.ProtoReflect.Descriptor instead.
 func (*Solver) Descriptor() ([]byte, []int) {
-	return file_panelarr_source_v1_source_plugin_proto_rawDescGZIP(), []int{78}
+	return file_panelarr_source_v1_source_plugin_proto_rawDescGZIP(), []int{88}
 }
 
 func (x *Solver) GetType() SolverType {
@@ -5474,7 +6023,7 @@ type UserAgent struct {
 
 func (x *UserAgent) Reset() {
 	*x = UserAgent{}
-	mi := &file_panelarr_source_v1_source_plugin_proto_msgTypes[79]
+	mi := &file_panelarr_source_v1_source_plugin_proto_msgTypes[89]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -5486,7 +6035,7 @@ func (x *UserAgent) String() string {
 func (*UserAgent) ProtoMessage() {}
 
 func (x *UserAgent) ProtoReflect() protoreflect.Message {
-	mi := &file_panelarr_source_v1_source_plugin_proto_msgTypes[79]
+	mi := &file_panelarr_source_v1_source_plugin_proto_msgTypes[89]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -5499,7 +6048,7 @@ func (x *UserAgent) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use UserAgent.ProtoReflect.Descriptor instead.
 func (*UserAgent) Descriptor() ([]byte, []int) {
-	return file_panelarr_source_v1_source_plugin_proto_rawDescGZIP(), []int{79}
+	return file_panelarr_source_v1_source_plugin_proto_rawDescGZIP(), []int{89}
 }
 
 func (x *UserAgent) GetMode() isUserAgent_Mode {
@@ -5573,7 +6122,7 @@ type Timeouts struct {
 
 func (x *Timeouts) Reset() {
 	*x = Timeouts{}
-	mi := &file_panelarr_source_v1_source_plugin_proto_msgTypes[80]
+	mi := &file_panelarr_source_v1_source_plugin_proto_msgTypes[90]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -5585,7 +6134,7 @@ func (x *Timeouts) String() string {
 func (*Timeouts) ProtoMessage() {}
 
 func (x *Timeouts) ProtoReflect() protoreflect.Message {
-	mi := &file_panelarr_source_v1_source_plugin_proto_msgTypes[80]
+	mi := &file_panelarr_source_v1_source_plugin_proto_msgTypes[90]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -5598,7 +6147,7 @@ func (x *Timeouts) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Timeouts.ProtoReflect.Descriptor instead.
 func (*Timeouts) Descriptor() ([]byte, []int) {
-	return file_panelarr_source_v1_source_plugin_proto_rawDescGZIP(), []int{80}
+	return file_panelarr_source_v1_source_plugin_proto_rawDescGZIP(), []int{90}
 }
 
 func (x *Timeouts) GetConnect() *durationpb.Duration {
@@ -5630,7 +6179,7 @@ type ListJobsRequest struct {
 
 func (x *ListJobsRequest) Reset() {
 	*x = ListJobsRequest{}
-	mi := &file_panelarr_source_v1_source_plugin_proto_msgTypes[81]
+	mi := &file_panelarr_source_v1_source_plugin_proto_msgTypes[91]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -5642,7 +6191,7 @@ func (x *ListJobsRequest) String() string {
 func (*ListJobsRequest) ProtoMessage() {}
 
 func (x *ListJobsRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_panelarr_source_v1_source_plugin_proto_msgTypes[81]
+	mi := &file_panelarr_source_v1_source_plugin_proto_msgTypes[91]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -5655,7 +6204,7 @@ func (x *ListJobsRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListJobsRequest.ProtoReflect.Descriptor instead.
 func (*ListJobsRequest) Descriptor() ([]byte, []int) {
-	return file_panelarr_source_v1_source_plugin_proto_rawDescGZIP(), []int{81}
+	return file_panelarr_source_v1_source_plugin_proto_rawDescGZIP(), []int{91}
 }
 
 type ListJobsResponse struct {
@@ -5667,7 +6216,7 @@ type ListJobsResponse struct {
 
 func (x *ListJobsResponse) Reset() {
 	*x = ListJobsResponse{}
-	mi := &file_panelarr_source_v1_source_plugin_proto_msgTypes[82]
+	mi := &file_panelarr_source_v1_source_plugin_proto_msgTypes[92]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -5679,7 +6228,7 @@ func (x *ListJobsResponse) String() string {
 func (*ListJobsResponse) ProtoMessage() {}
 
 func (x *ListJobsResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_panelarr_source_v1_source_plugin_proto_msgTypes[82]
+	mi := &file_panelarr_source_v1_source_plugin_proto_msgTypes[92]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -5692,7 +6241,7 @@ func (x *ListJobsResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListJobsResponse.ProtoReflect.Descriptor instead.
 func (*ListJobsResponse) Descriptor() ([]byte, []int) {
-	return file_panelarr_source_v1_source_plugin_proto_rawDescGZIP(), []int{82}
+	return file_panelarr_source_v1_source_plugin_proto_rawDescGZIP(), []int{92}
 }
 
 func (x *ListJobsResponse) GetJobs() []*v1.Job {
@@ -5711,7 +6260,7 @@ type GetJobRequest struct {
 
 func (x *GetJobRequest) Reset() {
 	*x = GetJobRequest{}
-	mi := &file_panelarr_source_v1_source_plugin_proto_msgTypes[83]
+	mi := &file_panelarr_source_v1_source_plugin_proto_msgTypes[93]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -5723,7 +6272,7 @@ func (x *GetJobRequest) String() string {
 func (*GetJobRequest) ProtoMessage() {}
 
 func (x *GetJobRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_panelarr_source_v1_source_plugin_proto_msgTypes[83]
+	mi := &file_panelarr_source_v1_source_plugin_proto_msgTypes[93]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -5736,7 +6285,7 @@ func (x *GetJobRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetJobRequest.ProtoReflect.Descriptor instead.
 func (*GetJobRequest) Descriptor() ([]byte, []int) {
-	return file_panelarr_source_v1_source_plugin_proto_rawDescGZIP(), []int{83}
+	return file_panelarr_source_v1_source_plugin_proto_rawDescGZIP(), []int{93}
 }
 
 func (x *GetJobRequest) GetJobId() string {
@@ -5755,7 +6304,7 @@ type GetJobResponse struct {
 
 func (x *GetJobResponse) Reset() {
 	*x = GetJobResponse{}
-	mi := &file_panelarr_source_v1_source_plugin_proto_msgTypes[84]
+	mi := &file_panelarr_source_v1_source_plugin_proto_msgTypes[94]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -5767,7 +6316,7 @@ func (x *GetJobResponse) String() string {
 func (*GetJobResponse) ProtoMessage() {}
 
 func (x *GetJobResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_panelarr_source_v1_source_plugin_proto_msgTypes[84]
+	mi := &file_panelarr_source_v1_source_plugin_proto_msgTypes[94]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -5780,7 +6329,7 @@ func (x *GetJobResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetJobResponse.ProtoReflect.Descriptor instead.
 func (*GetJobResponse) Descriptor() ([]byte, []int) {
-	return file_panelarr_source_v1_source_plugin_proto_rawDescGZIP(), []int{84}
+	return file_panelarr_source_v1_source_plugin_proto_rawDescGZIP(), []int{94}
 }
 
 func (x *GetJobResponse) GetJob() *v1.Job {
@@ -5805,7 +6354,7 @@ type ListJobRunsRequest struct {
 
 func (x *ListJobRunsRequest) Reset() {
 	*x = ListJobRunsRequest{}
-	mi := &file_panelarr_source_v1_source_plugin_proto_msgTypes[85]
+	mi := &file_panelarr_source_v1_source_plugin_proto_msgTypes[95]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -5817,7 +6366,7 @@ func (x *ListJobRunsRequest) String() string {
 func (*ListJobRunsRequest) ProtoMessage() {}
 
 func (x *ListJobRunsRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_panelarr_source_v1_source_plugin_proto_msgTypes[85]
+	mi := &file_panelarr_source_v1_source_plugin_proto_msgTypes[95]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -5830,7 +6379,7 @@ func (x *ListJobRunsRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListJobRunsRequest.ProtoReflect.Descriptor instead.
 func (*ListJobRunsRequest) Descriptor() ([]byte, []int) {
-	return file_panelarr_source_v1_source_plugin_proto_rawDescGZIP(), []int{85}
+	return file_panelarr_source_v1_source_plugin_proto_rawDescGZIP(), []int{95}
 }
 
 func (x *ListJobRunsRequest) GetJobId() string {
@@ -5872,7 +6421,7 @@ type ListJobRunsResponse struct {
 
 func (x *ListJobRunsResponse) Reset() {
 	*x = ListJobRunsResponse{}
-	mi := &file_panelarr_source_v1_source_plugin_proto_msgTypes[86]
+	mi := &file_panelarr_source_v1_source_plugin_proto_msgTypes[96]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -5884,7 +6433,7 @@ func (x *ListJobRunsResponse) String() string {
 func (*ListJobRunsResponse) ProtoMessage() {}
 
 func (x *ListJobRunsResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_panelarr_source_v1_source_plugin_proto_msgTypes[86]
+	mi := &file_panelarr_source_v1_source_plugin_proto_msgTypes[96]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -5897,7 +6446,7 @@ func (x *ListJobRunsResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListJobRunsResponse.ProtoReflect.Descriptor instead.
 func (*ListJobRunsResponse) Descriptor() ([]byte, []int) {
-	return file_panelarr_source_v1_source_plugin_proto_rawDescGZIP(), []int{86}
+	return file_panelarr_source_v1_source_plugin_proto_rawDescGZIP(), []int{96}
 }
 
 func (x *ListJobRunsResponse) GetRuns() []*v1.JobRunSummary {
@@ -5923,7 +6472,7 @@ type GetJobRunRequest struct {
 
 func (x *GetJobRunRequest) Reset() {
 	*x = GetJobRunRequest{}
-	mi := &file_panelarr_source_v1_source_plugin_proto_msgTypes[87]
+	mi := &file_panelarr_source_v1_source_plugin_proto_msgTypes[97]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -5935,7 +6484,7 @@ func (x *GetJobRunRequest) String() string {
 func (*GetJobRunRequest) ProtoMessage() {}
 
 func (x *GetJobRunRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_panelarr_source_v1_source_plugin_proto_msgTypes[87]
+	mi := &file_panelarr_source_v1_source_plugin_proto_msgTypes[97]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -5948,7 +6497,7 @@ func (x *GetJobRunRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetJobRunRequest.ProtoReflect.Descriptor instead.
 func (*GetJobRunRequest) Descriptor() ([]byte, []int) {
-	return file_panelarr_source_v1_source_plugin_proto_rawDescGZIP(), []int{87}
+	return file_panelarr_source_v1_source_plugin_proto_rawDescGZIP(), []int{97}
 }
 
 func (x *GetJobRunRequest) GetRunId() string {
@@ -5967,7 +6516,7 @@ type GetJobRunResponse struct {
 
 func (x *GetJobRunResponse) Reset() {
 	*x = GetJobRunResponse{}
-	mi := &file_panelarr_source_v1_source_plugin_proto_msgTypes[88]
+	mi := &file_panelarr_source_v1_source_plugin_proto_msgTypes[98]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -5979,7 +6528,7 @@ func (x *GetJobRunResponse) String() string {
 func (*GetJobRunResponse) ProtoMessage() {}
 
 func (x *GetJobRunResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_panelarr_source_v1_source_plugin_proto_msgTypes[88]
+	mi := &file_panelarr_source_v1_source_plugin_proto_msgTypes[98]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -5992,7 +6541,7 @@ func (x *GetJobRunResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetJobRunResponse.ProtoReflect.Descriptor instead.
 func (*GetJobRunResponse) Descriptor() ([]byte, []int) {
-	return file_panelarr_source_v1_source_plugin_proto_rawDescGZIP(), []int{88}
+	return file_panelarr_source_v1_source_plugin_proto_rawDescGZIP(), []int{98}
 }
 
 func (x *GetJobRunResponse) GetRun() *v1.JobRun {
@@ -6017,7 +6566,7 @@ type RunJobRequest struct {
 
 func (x *RunJobRequest) Reset() {
 	*x = RunJobRequest{}
-	mi := &file_panelarr_source_v1_source_plugin_proto_msgTypes[89]
+	mi := &file_panelarr_source_v1_source_plugin_proto_msgTypes[99]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -6029,7 +6578,7 @@ func (x *RunJobRequest) String() string {
 func (*RunJobRequest) ProtoMessage() {}
 
 func (x *RunJobRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_panelarr_source_v1_source_plugin_proto_msgTypes[89]
+	mi := &file_panelarr_source_v1_source_plugin_proto_msgTypes[99]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -6042,7 +6591,7 @@ func (x *RunJobRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RunJobRequest.ProtoReflect.Descriptor instead.
 func (*RunJobRequest) Descriptor() ([]byte, []int) {
-	return file_panelarr_source_v1_source_plugin_proto_rawDescGZIP(), []int{89}
+	return file_panelarr_source_v1_source_plugin_proto_rawDescGZIP(), []int{99}
 }
 
 func (x *RunJobRequest) GetJobId() string {
@@ -6075,7 +6624,7 @@ type RunJobResponse struct {
 
 func (x *RunJobResponse) Reset() {
 	*x = RunJobResponse{}
-	mi := &file_panelarr_source_v1_source_plugin_proto_msgTypes[90]
+	mi := &file_panelarr_source_v1_source_plugin_proto_msgTypes[100]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -6087,7 +6636,7 @@ func (x *RunJobResponse) String() string {
 func (*RunJobResponse) ProtoMessage() {}
 
 func (x *RunJobResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_panelarr_source_v1_source_plugin_proto_msgTypes[90]
+	mi := &file_panelarr_source_v1_source_plugin_proto_msgTypes[100]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -6100,7 +6649,7 @@ func (x *RunJobResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RunJobResponse.ProtoReflect.Descriptor instead.
 func (*RunJobResponse) Descriptor() ([]byte, []int) {
-	return file_panelarr_source_v1_source_plugin_proto_rawDescGZIP(), []int{90}
+	return file_panelarr_source_v1_source_plugin_proto_rawDescGZIP(), []int{100}
 }
 
 func (x *RunJobResponse) GetRun() *v1.JobRunSummary {
@@ -6119,7 +6668,7 @@ type CancelJobRunRequest struct {
 
 func (x *CancelJobRunRequest) Reset() {
 	*x = CancelJobRunRequest{}
-	mi := &file_panelarr_source_v1_source_plugin_proto_msgTypes[91]
+	mi := &file_panelarr_source_v1_source_plugin_proto_msgTypes[101]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -6131,7 +6680,7 @@ func (x *CancelJobRunRequest) String() string {
 func (*CancelJobRunRequest) ProtoMessage() {}
 
 func (x *CancelJobRunRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_panelarr_source_v1_source_plugin_proto_msgTypes[91]
+	mi := &file_panelarr_source_v1_source_plugin_proto_msgTypes[101]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -6144,7 +6693,7 @@ func (x *CancelJobRunRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CancelJobRunRequest.ProtoReflect.Descriptor instead.
 func (*CancelJobRunRequest) Descriptor() ([]byte, []int) {
-	return file_panelarr_source_v1_source_plugin_proto_rawDescGZIP(), []int{91}
+	return file_panelarr_source_v1_source_plugin_proto_rawDescGZIP(), []int{101}
 }
 
 func (x *CancelJobRunRequest) GetRunId() string {
@@ -6163,7 +6712,7 @@ type CancelJobRunResponse struct {
 
 func (x *CancelJobRunResponse) Reset() {
 	*x = CancelJobRunResponse{}
-	mi := &file_panelarr_source_v1_source_plugin_proto_msgTypes[92]
+	mi := &file_panelarr_source_v1_source_plugin_proto_msgTypes[102]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -6175,7 +6724,7 @@ func (x *CancelJobRunResponse) String() string {
 func (*CancelJobRunResponse) ProtoMessage() {}
 
 func (x *CancelJobRunResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_panelarr_source_v1_source_plugin_proto_msgTypes[92]
+	mi := &file_panelarr_source_v1_source_plugin_proto_msgTypes[102]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -6188,7 +6737,7 @@ func (x *CancelJobRunResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CancelJobRunResponse.ProtoReflect.Descriptor instead.
 func (*CancelJobRunResponse) Descriptor() ([]byte, []int) {
-	return file_panelarr_source_v1_source_plugin_proto_rawDescGZIP(), []int{92}
+	return file_panelarr_source_v1_source_plugin_proto_rawDescGZIP(), []int{102}
 }
 
 func (x *CancelJobRunResponse) GetRun() *v1.JobRunSummary {
@@ -6396,7 +6945,7 @@ const file_panelarr_source_v1_source_plugin_proto_rawDesc = "" +
 	"\x04part\"Y\n" +
 	"\rImageMetadata\x12!\n" +
 	"\fcontent_type\x18\x01 \x01(\tR\vcontentType\x12%\n" +
-	"\x0econtent_length\x18\x02 \x01(\x04R\rcontentLength\"\xa4\x04\n" +
+	"\x0econtent_length\x18\x02 \x01(\x04R\rcontentLength\"\xe2\x04\n" +
 	"\aPackage\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x12\n" +
 	"\x04name\x18\x02 \x01(\tR\x04name\x12\x14\n" +
@@ -6412,7 +6961,23 @@ const file_panelarr_source_v1_source_plugin_proto_rawDesc = "" +
 	"\asources\x18\v \x03(\v2!.panelarr.source.v1.PackageSourceR\asources\x12?\n" +
 	"\bsettings\x18\f \x01(\v2#.panelarr.source.v1.PackageSettingsR\bsettings\x12\x19\n" +
 	"\bicon_url\x18\r \x01(\tR\aiconUrl\x12\x14\n" +
-	"\x05error\x18\x0e \x01(\tR\x05error\"\x84\x01\n" +
+	"\x05error\x18\x0e \x01(\tR\x05error\x12<\n" +
+	"\adetails\x18\x0f \x01(\v2\".panelarr.source.v1.PackageDetailsR\adetails\"\xd6\x01\n" +
+	"\x0ePackageDetails\x12/\n" +
+	"\x13signing_fingerprint\x18\x01 \x01(\tR\x12signingFingerprint\x12\x1f\n" +
+	"\vapi_version\x18\x02 \x01(\tR\n" +
+	"apiVersion\x12=\n" +
+	"\finstalled_at\x18\x03 \x01(\v2\x1a.google.protobuf.TimestampR\vinstalledAt\x12\x16\n" +
+	"\x06sha256\x18\x04 \x01(\tR\x06sha256\x12\x1b\n" +
+	"\torigin_id\x18\x05 \x01(\tR\boriginId\"\xf0\x01\n" +
+	"\x06Origin\x12\x0e\n" +
+	"\x02id\x18\x01 \x01(\tR\x02id\x12\x12\n" +
+	"\x04name\x18\x02 \x01(\tR\x04name\x12\x10\n" +
+	"\x03url\x18\x03 \x01(\tR\x03url\x12=\n" +
+	"\frefreshed_at\x18\x04 \x01(\v2\x1a.google.protobuf.TimestampR\vrefreshedAt\x12\x14\n" +
+	"\x05error\x18\x05 \x01(\tR\x05error\x12#\n" +
+	"\rpackage_count\x18\x06 \x01(\rR\fpackageCount\x126\n" +
+	"\x17signing_key_fingerprint\x18\a \x01(\tR\x15signingKeyFingerprint\"\x84\x01\n" +
 	"\fPackageOffer\x12\x1b\n" +
 	"\torigin_id\x18\x01 \x01(\tR\boriginId\x12\x1f\n" +
 	"\vorigin_name\x18\x02 \x01(\tR\n" +
@@ -6461,7 +7026,24 @@ const file_panelarr_source_v1_source_plugin_proto_rawDesc = "" +
 	"\x19SetPackageSettingsRequest\x12\x1d\n" +
 	"\n" +
 	"package_id\x18\x01 \x01(\tR\tpackageId\x12?\n" +
-	"\bsettings\x18\x02 \x01(\v2#.panelarr.source.v1.PackageSettingsR\bsettings\"S\n" +
+	"\bsettings\x18\x02 \x01(\v2#.panelarr.source.v1.PackageSettingsR\bsettings\"\x14\n" +
+	"\x12ListOriginsRequest\"K\n" +
+	"\x13ListOriginsResponse\x124\n" +
+	"\aorigins\x18\x01 \x03(\v2\x1a.panelarr.source.v1.OriginR\aorigins\"3\n" +
+	"\x14RefreshOriginRequest\x12\x1b\n" +
+	"\torigin_id\x18\x01 \x01(\tR\boriginId\"K\n" +
+	"\x15RefreshOriginResponse\x122\n" +
+	"\x06origin\x18\x01 \x01(\v2\x1a.panelarr.source.v1.OriginR\x06origin\"5\n" +
+	"\x14ReloadPackageRequest\x12\x1d\n" +
+	"\n" +
+	"package_id\x18\x01 \x01(\tR\tpackageId\"N\n" +
+	"\x15ReloadPackageResponse\x125\n" +
+	"\apackage\x18\x01 \x01(\v2\x1b.panelarr.source.v1.PackageR\apackage\"T\n" +
+	"\x1bSetSourceHealthCheckRequest\x12\x1b\n" +
+	"\tsource_id\x18\x01 \x01(\tR\bsourceId\x12\x18\n" +
+	"\aenabled\x18\x02 \x01(\bR\aenabled\"R\n" +
+	"\x1cSetSourceHealthCheckResponse\x122\n" +
+	"\x06source\x18\x01 \x01(\v2\x1a.panelarr.source.v1.SourceR\x06source\"S\n" +
 	"\x1aSetPackageSettingsResponse\x125\n" +
 	"\apackage\x18\x01 \x01(\v2\x1b.panelarr.source.v1.PackageR\apackage\"7\n" +
 	"\x18GetSettingsSchemaRequest\x12\x1b\n" +
@@ -6558,13 +7140,14 @@ const file_panelarr_source_v1_source_plugin_proto_rawDesc = "" +
 	"\x13CancelJobRunRequest\x12\x15\n" +
 	"\x06run_id\x18\x01 \x01(\tR\x05runId\"I\n" +
 	"\x14CancelJobRunResponse\x121\n" +
-	"\x03run\x18\x01 \x01(\v2\x1f.panelarr.jobs.v1.JobRunSummaryR\x03run*\xc0\x01\n" +
+	"\x03run\x18\x01 \x01(\v2\x1f.panelarr.jobs.v1.JobRunSummaryR\x03run*\xe5\x01\n" +
 	"\x10PluginCapability\x12!\n" +
 	"\x1dPLUGIN_CAPABILITY_UNSPECIFIED\x10\x00\x12&\n" +
 	"\"PLUGIN_CAPABILITY_NETWORK_PROFILES\x10\x01\x12%\n" +
 	"!PLUGIN_CAPABILITY_DYNAMIC_SOURCES\x10\x02\x12\x1e\n" +
 	"\x1aPLUGIN_CAPABILITY_PACKAGES\x10\x03\x12\x1a\n" +
-	"\x16PLUGIN_CAPABILITY_JOBS\x10\x04*n\n" +
+	"\x16PLUGIN_CAPABILITY_JOBS\x10\x04\x12#\n" +
+	"\x1fPLUGIN_CAPABILITY_HEALTH_CHECKS\x10\x05*n\n" +
 	"\rCommonService\x12\x1e\n" +
 	"\x1aCOMMON_SERVICE_UNSPECIFIED\x10\x00\x12\"\n" +
 	"\x1eCOMMON_SERVICE_NETWORK_PROFILE\x10\x01\x12\x19\n" +
@@ -6629,7 +7212,7 @@ const file_panelarr_source_v1_source_plugin_proto_rawDesc = "" +
 	"SolverType\x12\x1b\n" +
 	"\x17SOLVER_TYPE_UNSPECIFIED\x10\x00\x12\x1c\n" +
 	"\x18SOLVER_TYPE_FLARESOLVERR\x10\x01\x12\x16\n" +
-	"\x12SOLVER_TYPE_BYPARR\x10\x022\xd2 \n" +
+	"\x12SOLVER_TYPE_BYPARR\x10\x022\x9b%\n" +
 	"\x13SourcePluginService\x12d\n" +
 	"\aGetInfo\x12\".panelarr.source.v1.GetInfoRequest\x1a#.panelarr.source.v1.GetInfoResponse\"\x10\x82\xd3\xe4\x93\x02\n" +
 	"\x12\b/v1/info\x12l\n" +
@@ -6662,7 +7245,11 @@ const file_panelarr_source_v1_source_plugin_proto_rawDesc = "" +
 	"\x0eInstallPackage\x12).panelarr.source.v1.InstallPackageRequest\x1a*.panelarr.source.v1.InstallPackageResponse\",\x82\xd3\xe4\x93\x02&:\x01*\"!/v1/packages/{package_id}:install\x12\x91\x01\n" +
 	"\rUpdatePackage\x12(.panelarr.source.v1.UpdatePackageRequest\x1a).panelarr.source.v1.UpdatePackageResponse\"+\x82\xd3\xe4\x93\x02%:\x01*\" /v1/packages/{package_id}:update\x12\x9d\x01\n" +
 	"\x10UninstallPackage\x12+.panelarr.source.v1.UninstallPackageRequest\x1a,.panelarr.source.v1.UninstallPackageResponse\".\x82\xd3\xe4\x93\x02(:\x01*\"#/v1/packages/{package_id}:uninstall\x12\xa2\x01\n" +
-	"\x12SetPackageSettings\x12-.panelarr.source.v1.SetPackageSettingsRequest\x1a..panelarr.source.v1.SetPackageSettingsResponse\"-\x82\xd3\xe4\x93\x02':\x01*2\"/v1/packages/{package_id}/settings\x12\xa1\x01\n" +
+	"\x12SetPackageSettings\x12-.panelarr.source.v1.SetPackageSettingsRequest\x1a..panelarr.source.v1.SetPackageSettingsResponse\"-\x82\xd3\xe4\x93\x02':\x01*2\"/v1/packages/{package_id}/settings\x12s\n" +
+	"\vListOrigins\x12&.panelarr.source.v1.ListOriginsRequest\x1a'.panelarr.source.v1.ListOriginsResponse\"\x13\x82\xd3\xe4\x93\x02\r\x12\v/v1/origins\x12\x90\x01\n" +
+	"\rRefreshOrigin\x12(.panelarr.source.v1.RefreshOriginRequest\x1a).panelarr.source.v1.RefreshOriginResponse\"*\x82\xd3\xe4\x93\x02$:\x01*\"\x1f/v1/origins/{origin_id}:refresh\x12\x91\x01\n" +
+	"\rReloadPackage\x12(.panelarr.source.v1.ReloadPackageRequest\x1a).panelarr.source.v1.ReloadPackageResponse\"+\x82\xd3\xe4\x93\x02%:\x01*\" /v1/packages/{package_id}:reload\x12\xaa\x01\n" +
+	"\x14SetSourceHealthCheck\x12/.panelarr.source.v1.SetSourceHealthCheckRequest\x1a0.panelarr.source.v1.SetSourceHealthCheckResponse\"/\x82\xd3\xe4\x93\x02):\x01*\x1a$/v1/sources/{source_id}/health-check\x12\xa1\x01\n" +
 	"\x11GetNetworkProfile\x12,.panelarr.source.v1.GetNetworkProfileRequest\x1a-.panelarr.source.v1.GetNetworkProfileResponse\"/\x82\xd3\xe4\x93\x02)\x12'/v1/sources/{source_id}/network-profile\x12\xa4\x01\n" +
 	"\x11SetNetworkProfile\x12,.panelarr.source.v1.SetNetworkProfileRequest\x1a-.panelarr.source.v1.SetNetworkProfileResponse\"2\x82\xd3\xe4\x93\x02,:\x01*\x1a'/v1/sources/{source_id}/network-profile\x12g\n" +
 	"\bListJobs\x12#.panelarr.source.v1.ListJobsRequest\x1a$.panelarr.source.v1.ListJobsResponse\"\x10\x82\xd3\xe4\x93\x02\n" +
@@ -6687,143 +7274,153 @@ func file_panelarr_source_v1_source_plugin_proto_rawDescGZIP() []byte {
 }
 
 var file_panelarr_source_v1_source_plugin_proto_enumTypes = make([]protoimpl.EnumInfo, 12)
-var file_panelarr_source_v1_source_plugin_proto_msgTypes = make([]protoimpl.MessageInfo, 95)
+var file_panelarr_source_v1_source_plugin_proto_msgTypes = make([]protoimpl.MessageInfo, 105)
 var file_panelarr_source_v1_source_plugin_proto_goTypes = []any{
-	(PluginCapability)(0),              // 0: panelarr.source.v1.PluginCapability
-	(CommonService)(0),                 // 1: panelarr.source.v1.CommonService
-	(RateLimitScope)(0),                // 2: panelarr.source.v1.RateLimitScope
-	(HealthStatus)(0),                  // 3: panelarr.source.v1.HealthStatus
-	(ErrorReason)(0),                   // 4: panelarr.source.v1.ErrorReason
-	(SourceHealthStatus)(0),            // 5: panelarr.source.v1.SourceHealthStatus
-	(SourceCapability)(0),              // 6: panelarr.source.v1.SourceCapability
-	(ContentRating)(0),                 // 7: panelarr.source.v1.ContentRating
-	(TriState)(0),                      // 8: panelarr.source.v1.TriState
-	(SeriesStatus)(0),                  // 9: panelarr.source.v1.SeriesStatus
-	(NetworkProfileOrigin)(0),          // 10: panelarr.source.v1.NetworkProfileOrigin
-	(SolverType)(0),                    // 11: panelarr.source.v1.SolverType
-	(*GetInfoRequest)(nil),             // 12: panelarr.source.v1.GetInfoRequest
-	(*GetInfoResponse)(nil),            // 13: panelarr.source.v1.GetInfoResponse
-	(*PluginInfo)(nil),                 // 14: panelarr.source.v1.PluginInfo
-	(*Limits)(nil),                     // 15: panelarr.source.v1.Limits
-	(*RateLimit)(nil),                  // 16: panelarr.source.v1.RateLimit
-	(*GetConfigRequest)(nil),           // 17: panelarr.source.v1.GetConfigRequest
-	(*GetConfigResponse)(nil),          // 18: panelarr.source.v1.GetConfigResponse
-	(*SetConfigRequest)(nil),           // 19: panelarr.source.v1.SetConfigRequest
-	(*SetConfigResponse)(nil),          // 20: panelarr.source.v1.SetConfigResponse
-	(*HealthRequest)(nil),              // 21: panelarr.source.v1.HealthRequest
-	(*HealthResponse)(nil),             // 22: panelarr.source.v1.HealthResponse
-	(*Source)(nil),                     // 23: panelarr.source.v1.Source
-	(*SourceHealth)(nil),               // 24: panelarr.source.v1.SourceHealth
-	(*ListSourcesRequest)(nil),         // 25: panelarr.source.v1.ListSourcesRequest
-	(*ListSourcesResponse)(nil),        // 26: panelarr.source.v1.ListSourcesResponse
-	(*GetSourceRequest)(nil),           // 27: panelarr.source.v1.GetSourceRequest
-	(*GetSourceResponse)(nil),          // 28: panelarr.source.v1.GetSourceResponse
-	(*GetFiltersRequest)(nil),          // 29: panelarr.source.v1.GetFiltersRequest
-	(*GetFiltersResponse)(nil),         // 30: panelarr.source.v1.GetFiltersResponse
-	(*Filter)(nil),                     // 31: panelarr.source.v1.Filter
-	(*HeaderFilter)(nil),               // 32: panelarr.source.v1.HeaderFilter
-	(*SeparatorFilter)(nil),            // 33: panelarr.source.v1.SeparatorFilter
-	(*TextFilter)(nil),                 // 34: panelarr.source.v1.TextFilter
-	(*CheckboxFilter)(nil),             // 35: panelarr.source.v1.CheckboxFilter
-	(*TriStateFilter)(nil),             // 36: panelarr.source.v1.TriStateFilter
-	(*SelectFilter)(nil),               // 37: panelarr.source.v1.SelectFilter
-	(*SortFilter)(nil),                 // 38: panelarr.source.v1.SortFilter
-	(*SortSelection)(nil),              // 39: panelarr.source.v1.SortSelection
-	(*GroupFilter)(nil),                // 40: panelarr.source.v1.GroupFilter
-	(*FilterValue)(nil),                // 41: panelarr.source.v1.FilterValue
-	(*Series)(nil),                     // 42: panelarr.source.v1.Series
-	(*PopularRequest)(nil),             // 43: panelarr.source.v1.PopularRequest
-	(*PopularResponse)(nil),            // 44: panelarr.source.v1.PopularResponse
-	(*LatestRequest)(nil),              // 45: panelarr.source.v1.LatestRequest
-	(*LatestResponse)(nil),             // 46: panelarr.source.v1.LatestResponse
-	(*SearchRequest)(nil),              // 47: panelarr.source.v1.SearchRequest
-	(*SearchResponse)(nil),             // 48: panelarr.source.v1.SearchResponse
-	(*ResolveUrlRequest)(nil),          // 49: panelarr.source.v1.ResolveUrlRequest
-	(*ResolveUrlResponse)(nil),         // 50: panelarr.source.v1.ResolveUrlResponse
-	(*GetSeriesRequest)(nil),           // 51: panelarr.source.v1.GetSeriesRequest
-	(*GetSeriesResponse)(nil),          // 52: panelarr.source.v1.GetSeriesResponse
-	(*Chapter)(nil),                    // 53: panelarr.source.v1.Chapter
-	(*ListChaptersRequest)(nil),        // 54: panelarr.source.v1.ListChaptersRequest
-	(*ListChaptersResponse)(nil),       // 55: panelarr.source.v1.ListChaptersResponse
-	(*Page)(nil),                       // 56: panelarr.source.v1.Page
-	(*ListPagesRequest)(nil),           // 57: panelarr.source.v1.ListPagesRequest
-	(*ListPagesResponse)(nil),          // 58: panelarr.source.v1.ListPagesResponse
-	(*FetchImageRequest)(nil),          // 59: panelarr.source.v1.FetchImageRequest
-	(*FetchImageResponse)(nil),         // 60: panelarr.source.v1.FetchImageResponse
-	(*ImageMetadata)(nil),              // 61: panelarr.source.v1.ImageMetadata
-	(*Package)(nil),                    // 62: panelarr.source.v1.Package
-	(*PackageOffer)(nil),               // 63: panelarr.source.v1.PackageOffer
-	(*PackageSource)(nil),              // 64: panelarr.source.v1.PackageSource
-	(*PackageSettings)(nil),            // 65: panelarr.source.v1.PackageSettings
-	(*ListPackagesRequest)(nil),        // 66: panelarr.source.v1.ListPackagesRequest
-	(*ListPackagesResponse)(nil),       // 67: panelarr.source.v1.ListPackagesResponse
-	(*GetPackageRequest)(nil),          // 68: panelarr.source.v1.GetPackageRequest
-	(*GetPackageResponse)(nil),         // 69: panelarr.source.v1.GetPackageResponse
-	(*InstallPackageRequest)(nil),      // 70: panelarr.source.v1.InstallPackageRequest
-	(*InstallPackageResponse)(nil),     // 71: panelarr.source.v1.InstallPackageResponse
-	(*UpdatePackageRequest)(nil),       // 72: panelarr.source.v1.UpdatePackageRequest
-	(*UpdatePackageResponse)(nil),      // 73: panelarr.source.v1.UpdatePackageResponse
-	(*UninstallPackageRequest)(nil),    // 74: panelarr.source.v1.UninstallPackageRequest
-	(*UninstallPackageResponse)(nil),   // 75: panelarr.source.v1.UninstallPackageResponse
-	(*SetPackageSettingsRequest)(nil),  // 76: panelarr.source.v1.SetPackageSettingsRequest
-	(*SetPackageSettingsResponse)(nil), // 77: panelarr.source.v1.SetPackageSettingsResponse
-	(*GetSettingsSchemaRequest)(nil),   // 78: panelarr.source.v1.GetSettingsSchemaRequest
-	(*GetSettingsSchemaResponse)(nil),  // 79: panelarr.source.v1.GetSettingsSchemaResponse
-	(*GetSettingsRequest)(nil),         // 80: panelarr.source.v1.GetSettingsRequest
-	(*GetSettingsResponse)(nil),        // 81: panelarr.source.v1.GetSettingsResponse
-	(*SetSettingsRequest)(nil),         // 82: panelarr.source.v1.SetSettingsRequest
-	(*SetSettingsResponse)(nil),        // 83: panelarr.source.v1.SetSettingsResponse
-	(*SetNetworkProfileRequest)(nil),   // 84: panelarr.source.v1.SetNetworkProfileRequest
-	(*SetNetworkProfileResponse)(nil),  // 85: panelarr.source.v1.SetNetworkProfileResponse
-	(*GetNetworkProfileRequest)(nil),   // 86: panelarr.source.v1.GetNetworkProfileRequest
-	(*GetNetworkProfileResponse)(nil),  // 87: panelarr.source.v1.GetNetworkProfileResponse
-	(*NetworkProfile)(nil),             // 88: panelarr.source.v1.NetworkProfile
-	(*Proxy)(nil),                      // 89: panelarr.source.v1.Proxy
-	(*Solver)(nil),                     // 90: panelarr.source.v1.Solver
-	(*UserAgent)(nil),                  // 91: panelarr.source.v1.UserAgent
-	(*Timeouts)(nil),                   // 92: panelarr.source.v1.Timeouts
-	(*ListJobsRequest)(nil),            // 93: panelarr.source.v1.ListJobsRequest
-	(*ListJobsResponse)(nil),           // 94: panelarr.source.v1.ListJobsResponse
-	(*GetJobRequest)(nil),              // 95: panelarr.source.v1.GetJobRequest
-	(*GetJobResponse)(nil),             // 96: panelarr.source.v1.GetJobResponse
-	(*ListJobRunsRequest)(nil),         // 97: panelarr.source.v1.ListJobRunsRequest
-	(*ListJobRunsResponse)(nil),        // 98: panelarr.source.v1.ListJobRunsResponse
-	(*GetJobRunRequest)(nil),           // 99: panelarr.source.v1.GetJobRunRequest
-	(*GetJobRunResponse)(nil),          // 100: panelarr.source.v1.GetJobRunResponse
-	(*RunJobRequest)(nil),              // 101: panelarr.source.v1.RunJobRequest
-	(*RunJobResponse)(nil),             // 102: panelarr.source.v1.RunJobResponse
-	(*CancelJobRunRequest)(nil),        // 103: panelarr.source.v1.CancelJobRunRequest
-	(*CancelJobRunResponse)(nil),       // 104: panelarr.source.v1.CancelJobRunResponse
-	nil,                                // 105: panelarr.source.v1.NetworkProfile.HeadersEntry
-	nil,                                // 106: panelarr.source.v1.RunJobRequest.ParamsEntry
-	(*structpb.Struct)(nil),            // 107: google.protobuf.Struct
-	(*durationpb.Duration)(nil),        // 108: google.protobuf.Duration
-	(*timestamppb.Timestamp)(nil),      // 109: google.protobuf.Timestamp
-	(*v1.Job)(nil),                     // 110: panelarr.jobs.v1.Job
-	(v1.JobRunStatus)(0),               // 111: panelarr.jobs.v1.JobRunStatus
-	(*v1.JobRunSummary)(nil),           // 112: panelarr.jobs.v1.JobRunSummary
-	(*v1.JobRun)(nil),                  // 113: panelarr.jobs.v1.JobRun
+	(PluginCapability)(0),                // 0: panelarr.source.v1.PluginCapability
+	(CommonService)(0),                   // 1: panelarr.source.v1.CommonService
+	(RateLimitScope)(0),                  // 2: panelarr.source.v1.RateLimitScope
+	(HealthStatus)(0),                    // 3: panelarr.source.v1.HealthStatus
+	(ErrorReason)(0),                     // 4: panelarr.source.v1.ErrorReason
+	(SourceHealthStatus)(0),              // 5: panelarr.source.v1.SourceHealthStatus
+	(SourceCapability)(0),                // 6: panelarr.source.v1.SourceCapability
+	(ContentRating)(0),                   // 7: panelarr.source.v1.ContentRating
+	(TriState)(0),                        // 8: panelarr.source.v1.TriState
+	(SeriesStatus)(0),                    // 9: panelarr.source.v1.SeriesStatus
+	(NetworkProfileOrigin)(0),            // 10: panelarr.source.v1.NetworkProfileOrigin
+	(SolverType)(0),                      // 11: panelarr.source.v1.SolverType
+	(*GetInfoRequest)(nil),               // 12: panelarr.source.v1.GetInfoRequest
+	(*GetInfoResponse)(nil),              // 13: panelarr.source.v1.GetInfoResponse
+	(*PluginInfo)(nil),                   // 14: panelarr.source.v1.PluginInfo
+	(*Limits)(nil),                       // 15: panelarr.source.v1.Limits
+	(*RateLimit)(nil),                    // 16: panelarr.source.v1.RateLimit
+	(*GetConfigRequest)(nil),             // 17: panelarr.source.v1.GetConfigRequest
+	(*GetConfigResponse)(nil),            // 18: panelarr.source.v1.GetConfigResponse
+	(*SetConfigRequest)(nil),             // 19: panelarr.source.v1.SetConfigRequest
+	(*SetConfigResponse)(nil),            // 20: panelarr.source.v1.SetConfigResponse
+	(*HealthRequest)(nil),                // 21: panelarr.source.v1.HealthRequest
+	(*HealthResponse)(nil),               // 22: panelarr.source.v1.HealthResponse
+	(*Source)(nil),                       // 23: panelarr.source.v1.Source
+	(*SourceHealth)(nil),                 // 24: panelarr.source.v1.SourceHealth
+	(*ListSourcesRequest)(nil),           // 25: panelarr.source.v1.ListSourcesRequest
+	(*ListSourcesResponse)(nil),          // 26: panelarr.source.v1.ListSourcesResponse
+	(*GetSourceRequest)(nil),             // 27: panelarr.source.v1.GetSourceRequest
+	(*GetSourceResponse)(nil),            // 28: panelarr.source.v1.GetSourceResponse
+	(*GetFiltersRequest)(nil),            // 29: panelarr.source.v1.GetFiltersRequest
+	(*GetFiltersResponse)(nil),           // 30: panelarr.source.v1.GetFiltersResponse
+	(*Filter)(nil),                       // 31: panelarr.source.v1.Filter
+	(*HeaderFilter)(nil),                 // 32: panelarr.source.v1.HeaderFilter
+	(*SeparatorFilter)(nil),              // 33: panelarr.source.v1.SeparatorFilter
+	(*TextFilter)(nil),                   // 34: panelarr.source.v1.TextFilter
+	(*CheckboxFilter)(nil),               // 35: panelarr.source.v1.CheckboxFilter
+	(*TriStateFilter)(nil),               // 36: panelarr.source.v1.TriStateFilter
+	(*SelectFilter)(nil),                 // 37: panelarr.source.v1.SelectFilter
+	(*SortFilter)(nil),                   // 38: panelarr.source.v1.SortFilter
+	(*SortSelection)(nil),                // 39: panelarr.source.v1.SortSelection
+	(*GroupFilter)(nil),                  // 40: panelarr.source.v1.GroupFilter
+	(*FilterValue)(nil),                  // 41: panelarr.source.v1.FilterValue
+	(*Series)(nil),                       // 42: panelarr.source.v1.Series
+	(*PopularRequest)(nil),               // 43: panelarr.source.v1.PopularRequest
+	(*PopularResponse)(nil),              // 44: panelarr.source.v1.PopularResponse
+	(*LatestRequest)(nil),                // 45: panelarr.source.v1.LatestRequest
+	(*LatestResponse)(nil),               // 46: panelarr.source.v1.LatestResponse
+	(*SearchRequest)(nil),                // 47: panelarr.source.v1.SearchRequest
+	(*SearchResponse)(nil),               // 48: panelarr.source.v1.SearchResponse
+	(*ResolveUrlRequest)(nil),            // 49: panelarr.source.v1.ResolveUrlRequest
+	(*ResolveUrlResponse)(nil),           // 50: panelarr.source.v1.ResolveUrlResponse
+	(*GetSeriesRequest)(nil),             // 51: panelarr.source.v1.GetSeriesRequest
+	(*GetSeriesResponse)(nil),            // 52: panelarr.source.v1.GetSeriesResponse
+	(*Chapter)(nil),                      // 53: panelarr.source.v1.Chapter
+	(*ListChaptersRequest)(nil),          // 54: panelarr.source.v1.ListChaptersRequest
+	(*ListChaptersResponse)(nil),         // 55: panelarr.source.v1.ListChaptersResponse
+	(*Page)(nil),                         // 56: panelarr.source.v1.Page
+	(*ListPagesRequest)(nil),             // 57: panelarr.source.v1.ListPagesRequest
+	(*ListPagesResponse)(nil),            // 58: panelarr.source.v1.ListPagesResponse
+	(*FetchImageRequest)(nil),            // 59: panelarr.source.v1.FetchImageRequest
+	(*FetchImageResponse)(nil),           // 60: panelarr.source.v1.FetchImageResponse
+	(*ImageMetadata)(nil),                // 61: panelarr.source.v1.ImageMetadata
+	(*Package)(nil),                      // 62: panelarr.source.v1.Package
+	(*PackageDetails)(nil),               // 63: panelarr.source.v1.PackageDetails
+	(*Origin)(nil),                       // 64: panelarr.source.v1.Origin
+	(*PackageOffer)(nil),                 // 65: panelarr.source.v1.PackageOffer
+	(*PackageSource)(nil),                // 66: panelarr.source.v1.PackageSource
+	(*PackageSettings)(nil),              // 67: panelarr.source.v1.PackageSettings
+	(*ListPackagesRequest)(nil),          // 68: panelarr.source.v1.ListPackagesRequest
+	(*ListPackagesResponse)(nil),         // 69: panelarr.source.v1.ListPackagesResponse
+	(*GetPackageRequest)(nil),            // 70: panelarr.source.v1.GetPackageRequest
+	(*GetPackageResponse)(nil),           // 71: panelarr.source.v1.GetPackageResponse
+	(*InstallPackageRequest)(nil),        // 72: panelarr.source.v1.InstallPackageRequest
+	(*InstallPackageResponse)(nil),       // 73: panelarr.source.v1.InstallPackageResponse
+	(*UpdatePackageRequest)(nil),         // 74: panelarr.source.v1.UpdatePackageRequest
+	(*UpdatePackageResponse)(nil),        // 75: panelarr.source.v1.UpdatePackageResponse
+	(*UninstallPackageRequest)(nil),      // 76: panelarr.source.v1.UninstallPackageRequest
+	(*UninstallPackageResponse)(nil),     // 77: panelarr.source.v1.UninstallPackageResponse
+	(*SetPackageSettingsRequest)(nil),    // 78: panelarr.source.v1.SetPackageSettingsRequest
+	(*ListOriginsRequest)(nil),           // 79: panelarr.source.v1.ListOriginsRequest
+	(*ListOriginsResponse)(nil),          // 80: panelarr.source.v1.ListOriginsResponse
+	(*RefreshOriginRequest)(nil),         // 81: panelarr.source.v1.RefreshOriginRequest
+	(*RefreshOriginResponse)(nil),        // 82: panelarr.source.v1.RefreshOriginResponse
+	(*ReloadPackageRequest)(nil),         // 83: panelarr.source.v1.ReloadPackageRequest
+	(*ReloadPackageResponse)(nil),        // 84: panelarr.source.v1.ReloadPackageResponse
+	(*SetSourceHealthCheckRequest)(nil),  // 85: panelarr.source.v1.SetSourceHealthCheckRequest
+	(*SetSourceHealthCheckResponse)(nil), // 86: panelarr.source.v1.SetSourceHealthCheckResponse
+	(*SetPackageSettingsResponse)(nil),   // 87: panelarr.source.v1.SetPackageSettingsResponse
+	(*GetSettingsSchemaRequest)(nil),     // 88: panelarr.source.v1.GetSettingsSchemaRequest
+	(*GetSettingsSchemaResponse)(nil),    // 89: panelarr.source.v1.GetSettingsSchemaResponse
+	(*GetSettingsRequest)(nil),           // 90: panelarr.source.v1.GetSettingsRequest
+	(*GetSettingsResponse)(nil),          // 91: panelarr.source.v1.GetSettingsResponse
+	(*SetSettingsRequest)(nil),           // 92: panelarr.source.v1.SetSettingsRequest
+	(*SetSettingsResponse)(nil),          // 93: panelarr.source.v1.SetSettingsResponse
+	(*SetNetworkProfileRequest)(nil),     // 94: panelarr.source.v1.SetNetworkProfileRequest
+	(*SetNetworkProfileResponse)(nil),    // 95: panelarr.source.v1.SetNetworkProfileResponse
+	(*GetNetworkProfileRequest)(nil),     // 96: panelarr.source.v1.GetNetworkProfileRequest
+	(*GetNetworkProfileResponse)(nil),    // 97: panelarr.source.v1.GetNetworkProfileResponse
+	(*NetworkProfile)(nil),               // 98: panelarr.source.v1.NetworkProfile
+	(*Proxy)(nil),                        // 99: panelarr.source.v1.Proxy
+	(*Solver)(nil),                       // 100: panelarr.source.v1.Solver
+	(*UserAgent)(nil),                    // 101: panelarr.source.v1.UserAgent
+	(*Timeouts)(nil),                     // 102: panelarr.source.v1.Timeouts
+	(*ListJobsRequest)(nil),              // 103: panelarr.source.v1.ListJobsRequest
+	(*ListJobsResponse)(nil),             // 104: panelarr.source.v1.ListJobsResponse
+	(*GetJobRequest)(nil),                // 105: panelarr.source.v1.GetJobRequest
+	(*GetJobResponse)(nil),               // 106: panelarr.source.v1.GetJobResponse
+	(*ListJobRunsRequest)(nil),           // 107: panelarr.source.v1.ListJobRunsRequest
+	(*ListJobRunsResponse)(nil),          // 108: panelarr.source.v1.ListJobRunsResponse
+	(*GetJobRunRequest)(nil),             // 109: panelarr.source.v1.GetJobRunRequest
+	(*GetJobRunResponse)(nil),            // 110: panelarr.source.v1.GetJobRunResponse
+	(*RunJobRequest)(nil),                // 111: panelarr.source.v1.RunJobRequest
+	(*RunJobResponse)(nil),               // 112: panelarr.source.v1.RunJobResponse
+	(*CancelJobRunRequest)(nil),          // 113: panelarr.source.v1.CancelJobRunRequest
+	(*CancelJobRunResponse)(nil),         // 114: panelarr.source.v1.CancelJobRunResponse
+	nil,                                  // 115: panelarr.source.v1.NetworkProfile.HeadersEntry
+	nil,                                  // 116: panelarr.source.v1.RunJobRequest.ParamsEntry
+	(*structpb.Struct)(nil),              // 117: google.protobuf.Struct
+	(*durationpb.Duration)(nil),          // 118: google.protobuf.Duration
+	(*timestamppb.Timestamp)(nil),        // 119: google.protobuf.Timestamp
+	(*v1.Job)(nil),                       // 120: panelarr.jobs.v1.Job
+	(v1.JobRunStatus)(0),                 // 121: panelarr.jobs.v1.JobRunStatus
+	(*v1.JobRunSummary)(nil),             // 122: panelarr.jobs.v1.JobRunSummary
+	(*v1.JobRun)(nil),                    // 123: panelarr.jobs.v1.JobRun
 }
 var file_panelarr_source_v1_source_plugin_proto_depIdxs = []int32{
 	14,  // 0: panelarr.source.v1.GetInfoResponse.info:type_name -> panelarr.source.v1.PluginInfo
 	0,   // 1: panelarr.source.v1.PluginInfo.capabilities:type_name -> panelarr.source.v1.PluginCapability
 	15,  // 2: panelarr.source.v1.PluginInfo.limits:type_name -> panelarr.source.v1.Limits
-	107, // 3: panelarr.source.v1.PluginInfo.config_schema:type_name -> google.protobuf.Struct
+	117, // 3: panelarr.source.v1.PluginInfo.config_schema:type_name -> google.protobuf.Struct
 	1,   // 4: panelarr.source.v1.PluginInfo.common_services:type_name -> panelarr.source.v1.CommonService
 	16,  // 5: panelarr.source.v1.Limits.default_rate_limit:type_name -> panelarr.source.v1.RateLimit
 	16,  // 6: panelarr.source.v1.Limits.image_rate_limit:type_name -> panelarr.source.v1.RateLimit
-	108, // 7: panelarr.source.v1.RateLimit.period:type_name -> google.protobuf.Duration
+	118, // 7: panelarr.source.v1.RateLimit.period:type_name -> google.protobuf.Duration
 	2,   // 8: panelarr.source.v1.RateLimit.scope:type_name -> panelarr.source.v1.RateLimitScope
-	107, // 9: panelarr.source.v1.GetConfigResponse.values:type_name -> google.protobuf.Struct
-	107, // 10: panelarr.source.v1.SetConfigRequest.values:type_name -> google.protobuf.Struct
-	107, // 11: panelarr.source.v1.SetConfigResponse.values:type_name -> google.protobuf.Struct
+	117, // 9: panelarr.source.v1.GetConfigResponse.values:type_name -> google.protobuf.Struct
+	117, // 10: panelarr.source.v1.SetConfigRequest.values:type_name -> google.protobuf.Struct
+	117, // 11: panelarr.source.v1.SetConfigResponse.values:type_name -> google.protobuf.Struct
 	3,   // 12: panelarr.source.v1.HealthResponse.status:type_name -> panelarr.source.v1.HealthStatus
 	7,   // 13: panelarr.source.v1.Source.content_rating:type_name -> panelarr.source.v1.ContentRating
 	6,   // 14: panelarr.source.v1.Source.capabilities:type_name -> panelarr.source.v1.SourceCapability
 	24,  // 15: panelarr.source.v1.Source.health:type_name -> panelarr.source.v1.SourceHealth
 	5,   // 16: panelarr.source.v1.SourceHealth.status:type_name -> panelarr.source.v1.SourceHealthStatus
-	108, // 17: panelarr.source.v1.SourceHealth.latency:type_name -> google.protobuf.Duration
-	109, // 18: panelarr.source.v1.SourceHealth.checked_at:type_name -> google.protobuf.Timestamp
+	118, // 17: panelarr.source.v1.SourceHealth.latency:type_name -> google.protobuf.Duration
+	119, // 18: panelarr.source.v1.SourceHealth.checked_at:type_name -> google.protobuf.Timestamp
 	23,  // 19: panelarr.source.v1.ListSourcesResponse.sources:type_name -> panelarr.source.v1.Source
 	23,  // 20: panelarr.source.v1.GetSourceResponse.source:type_name -> panelarr.source.v1.Source
 	31,  // 21: panelarr.source.v1.GetFiltersResponse.filters:type_name -> panelarr.source.v1.Filter
@@ -6847,116 +7444,131 @@ var file_panelarr_source_v1_source_plugin_proto_depIdxs = []int32{
 	42,  // 39: panelarr.source.v1.SearchResponse.series:type_name -> panelarr.source.v1.Series
 	42,  // 40: panelarr.source.v1.ResolveUrlResponse.series:type_name -> panelarr.source.v1.Series
 	42,  // 41: panelarr.source.v1.GetSeriesResponse.series:type_name -> panelarr.source.v1.Series
-	109, // 42: panelarr.source.v1.Chapter.uploaded_at:type_name -> google.protobuf.Timestamp
+	119, // 42: panelarr.source.v1.Chapter.uploaded_at:type_name -> google.protobuf.Timestamp
 	53,  // 43: panelarr.source.v1.ListChaptersResponse.chapters:type_name -> panelarr.source.v1.Chapter
 	56,  // 44: panelarr.source.v1.ListPagesResponse.pages:type_name -> panelarr.source.v1.Page
 	61,  // 45: panelarr.source.v1.FetchImageResponse.metadata:type_name -> panelarr.source.v1.ImageMetadata
 	7,   // 46: panelarr.source.v1.Package.content_rating:type_name -> panelarr.source.v1.ContentRating
-	63,  // 47: panelarr.source.v1.Package.offers:type_name -> panelarr.source.v1.PackageOffer
-	64,  // 48: panelarr.source.v1.Package.sources:type_name -> panelarr.source.v1.PackageSource
-	65,  // 49: panelarr.source.v1.Package.settings:type_name -> panelarr.source.v1.PackageSettings
-	62,  // 50: panelarr.source.v1.ListPackagesResponse.packages:type_name -> panelarr.source.v1.Package
-	62,  // 51: panelarr.source.v1.GetPackageResponse.package:type_name -> panelarr.source.v1.Package
-	62,  // 52: panelarr.source.v1.InstallPackageResponse.package:type_name -> panelarr.source.v1.Package
-	62,  // 53: panelarr.source.v1.UpdatePackageResponse.package:type_name -> panelarr.source.v1.Package
-	65,  // 54: panelarr.source.v1.SetPackageSettingsRequest.settings:type_name -> panelarr.source.v1.PackageSettings
-	62,  // 55: panelarr.source.v1.SetPackageSettingsResponse.package:type_name -> panelarr.source.v1.Package
-	107, // 56: panelarr.source.v1.GetSettingsSchemaResponse.schema:type_name -> google.protobuf.Struct
-	107, // 57: panelarr.source.v1.GetSettingsResponse.values:type_name -> google.protobuf.Struct
-	107, // 58: panelarr.source.v1.SetSettingsRequest.values:type_name -> google.protobuf.Struct
-	107, // 59: panelarr.source.v1.SetSettingsResponse.values:type_name -> google.protobuf.Struct
-	88,  // 60: panelarr.source.v1.SetNetworkProfileRequest.profile:type_name -> panelarr.source.v1.NetworkProfile
-	88,  // 61: panelarr.source.v1.GetNetworkProfileResponse.profile:type_name -> panelarr.source.v1.NetworkProfile
-	10,  // 62: panelarr.source.v1.GetNetworkProfileResponse.origin:type_name -> panelarr.source.v1.NetworkProfileOrigin
-	89,  // 63: panelarr.source.v1.NetworkProfile.proxy:type_name -> panelarr.source.v1.Proxy
-	90,  // 64: panelarr.source.v1.NetworkProfile.solver:type_name -> panelarr.source.v1.Solver
-	16,  // 65: panelarr.source.v1.NetworkProfile.rate_limit:type_name -> panelarr.source.v1.RateLimit
-	91,  // 66: panelarr.source.v1.NetworkProfile.user_agent:type_name -> panelarr.source.v1.UserAgent
-	105, // 67: panelarr.source.v1.NetworkProfile.headers:type_name -> panelarr.source.v1.NetworkProfile.HeadersEntry
-	92,  // 68: panelarr.source.v1.NetworkProfile.timeouts:type_name -> panelarr.source.v1.Timeouts
-	11,  // 69: panelarr.source.v1.Solver.type:type_name -> panelarr.source.v1.SolverType
-	108, // 70: panelarr.source.v1.Solver.session_ttl:type_name -> google.protobuf.Duration
-	108, // 71: panelarr.source.v1.Solver.max_timeout:type_name -> google.protobuf.Duration
-	108, // 72: panelarr.source.v1.Timeouts.connect:type_name -> google.protobuf.Duration
-	108, // 73: panelarr.source.v1.Timeouts.read:type_name -> google.protobuf.Duration
-	108, // 74: panelarr.source.v1.Timeouts.call:type_name -> google.protobuf.Duration
-	110, // 75: panelarr.source.v1.ListJobsResponse.jobs:type_name -> panelarr.jobs.v1.Job
-	110, // 76: panelarr.source.v1.GetJobResponse.job:type_name -> panelarr.jobs.v1.Job
-	111, // 77: panelarr.source.v1.ListJobRunsRequest.status:type_name -> panelarr.jobs.v1.JobRunStatus
-	112, // 78: panelarr.source.v1.ListJobRunsResponse.runs:type_name -> panelarr.jobs.v1.JobRunSummary
-	113, // 79: panelarr.source.v1.GetJobRunResponse.run:type_name -> panelarr.jobs.v1.JobRun
-	106, // 80: panelarr.source.v1.RunJobRequest.params:type_name -> panelarr.source.v1.RunJobRequest.ParamsEntry
-	112, // 81: panelarr.source.v1.RunJobResponse.run:type_name -> panelarr.jobs.v1.JobRunSummary
-	112, // 82: panelarr.source.v1.CancelJobRunResponse.run:type_name -> panelarr.jobs.v1.JobRunSummary
-	12,  // 83: panelarr.source.v1.SourcePluginService.GetInfo:input_type -> panelarr.source.v1.GetInfoRequest
-	17,  // 84: panelarr.source.v1.SourcePluginService.GetConfig:input_type -> panelarr.source.v1.GetConfigRequest
-	19,  // 85: panelarr.source.v1.SourcePluginService.SetConfig:input_type -> panelarr.source.v1.SetConfigRequest
-	21,  // 86: panelarr.source.v1.SourcePluginService.Health:input_type -> panelarr.source.v1.HealthRequest
-	25,  // 87: panelarr.source.v1.SourcePluginService.ListSources:input_type -> panelarr.source.v1.ListSourcesRequest
-	27,  // 88: panelarr.source.v1.SourcePluginService.GetSource:input_type -> panelarr.source.v1.GetSourceRequest
-	29,  // 89: panelarr.source.v1.SourcePluginService.GetFilters:input_type -> panelarr.source.v1.GetFiltersRequest
-	43,  // 90: panelarr.source.v1.SourcePluginService.Popular:input_type -> panelarr.source.v1.PopularRequest
-	45,  // 91: panelarr.source.v1.SourcePluginService.Latest:input_type -> panelarr.source.v1.LatestRequest
-	47,  // 92: panelarr.source.v1.SourcePluginService.Search:input_type -> panelarr.source.v1.SearchRequest
-	49,  // 93: panelarr.source.v1.SourcePluginService.ResolveUrl:input_type -> panelarr.source.v1.ResolveUrlRequest
-	51,  // 94: panelarr.source.v1.SourcePluginService.GetSeries:input_type -> panelarr.source.v1.GetSeriesRequest
-	54,  // 95: panelarr.source.v1.SourcePluginService.ListChapters:input_type -> panelarr.source.v1.ListChaptersRequest
-	57,  // 96: panelarr.source.v1.SourcePluginService.ListPages:input_type -> panelarr.source.v1.ListPagesRequest
-	59,  // 97: panelarr.source.v1.SourcePluginService.FetchImage:input_type -> panelarr.source.v1.FetchImageRequest
-	78,  // 98: panelarr.source.v1.SourcePluginService.GetSettingsSchema:input_type -> panelarr.source.v1.GetSettingsSchemaRequest
-	80,  // 99: panelarr.source.v1.SourcePluginService.GetSettings:input_type -> panelarr.source.v1.GetSettingsRequest
-	82,  // 100: panelarr.source.v1.SourcePluginService.SetSettings:input_type -> panelarr.source.v1.SetSettingsRequest
-	66,  // 101: panelarr.source.v1.SourcePluginService.ListPackages:input_type -> panelarr.source.v1.ListPackagesRequest
-	68,  // 102: panelarr.source.v1.SourcePluginService.GetPackage:input_type -> panelarr.source.v1.GetPackageRequest
-	70,  // 103: panelarr.source.v1.SourcePluginService.InstallPackage:input_type -> panelarr.source.v1.InstallPackageRequest
-	72,  // 104: panelarr.source.v1.SourcePluginService.UpdatePackage:input_type -> panelarr.source.v1.UpdatePackageRequest
-	74,  // 105: panelarr.source.v1.SourcePluginService.UninstallPackage:input_type -> panelarr.source.v1.UninstallPackageRequest
-	76,  // 106: panelarr.source.v1.SourcePluginService.SetPackageSettings:input_type -> panelarr.source.v1.SetPackageSettingsRequest
-	86,  // 107: panelarr.source.v1.SourcePluginService.GetNetworkProfile:input_type -> panelarr.source.v1.GetNetworkProfileRequest
-	84,  // 108: panelarr.source.v1.SourcePluginService.SetNetworkProfile:input_type -> panelarr.source.v1.SetNetworkProfileRequest
-	93,  // 109: panelarr.source.v1.SourcePluginService.ListJobs:input_type -> panelarr.source.v1.ListJobsRequest
-	95,  // 110: panelarr.source.v1.SourcePluginService.GetJob:input_type -> panelarr.source.v1.GetJobRequest
-	97,  // 111: panelarr.source.v1.SourcePluginService.ListJobRuns:input_type -> panelarr.source.v1.ListJobRunsRequest
-	99,  // 112: panelarr.source.v1.SourcePluginService.GetJobRun:input_type -> panelarr.source.v1.GetJobRunRequest
-	101, // 113: panelarr.source.v1.SourcePluginService.RunJob:input_type -> panelarr.source.v1.RunJobRequest
-	103, // 114: panelarr.source.v1.SourcePluginService.CancelJobRun:input_type -> panelarr.source.v1.CancelJobRunRequest
-	13,  // 115: panelarr.source.v1.SourcePluginService.GetInfo:output_type -> panelarr.source.v1.GetInfoResponse
-	18,  // 116: panelarr.source.v1.SourcePluginService.GetConfig:output_type -> panelarr.source.v1.GetConfigResponse
-	20,  // 117: panelarr.source.v1.SourcePluginService.SetConfig:output_type -> panelarr.source.v1.SetConfigResponse
-	22,  // 118: panelarr.source.v1.SourcePluginService.Health:output_type -> panelarr.source.v1.HealthResponse
-	26,  // 119: panelarr.source.v1.SourcePluginService.ListSources:output_type -> panelarr.source.v1.ListSourcesResponse
-	28,  // 120: panelarr.source.v1.SourcePluginService.GetSource:output_type -> panelarr.source.v1.GetSourceResponse
-	30,  // 121: panelarr.source.v1.SourcePluginService.GetFilters:output_type -> panelarr.source.v1.GetFiltersResponse
-	44,  // 122: panelarr.source.v1.SourcePluginService.Popular:output_type -> panelarr.source.v1.PopularResponse
-	46,  // 123: panelarr.source.v1.SourcePluginService.Latest:output_type -> panelarr.source.v1.LatestResponse
-	48,  // 124: panelarr.source.v1.SourcePluginService.Search:output_type -> panelarr.source.v1.SearchResponse
-	50,  // 125: panelarr.source.v1.SourcePluginService.ResolveUrl:output_type -> panelarr.source.v1.ResolveUrlResponse
-	52,  // 126: panelarr.source.v1.SourcePluginService.GetSeries:output_type -> panelarr.source.v1.GetSeriesResponse
-	55,  // 127: panelarr.source.v1.SourcePluginService.ListChapters:output_type -> panelarr.source.v1.ListChaptersResponse
-	58,  // 128: panelarr.source.v1.SourcePluginService.ListPages:output_type -> panelarr.source.v1.ListPagesResponse
-	60,  // 129: panelarr.source.v1.SourcePluginService.FetchImage:output_type -> panelarr.source.v1.FetchImageResponse
-	79,  // 130: panelarr.source.v1.SourcePluginService.GetSettingsSchema:output_type -> panelarr.source.v1.GetSettingsSchemaResponse
-	81,  // 131: panelarr.source.v1.SourcePluginService.GetSettings:output_type -> panelarr.source.v1.GetSettingsResponse
-	83,  // 132: panelarr.source.v1.SourcePluginService.SetSettings:output_type -> panelarr.source.v1.SetSettingsResponse
-	67,  // 133: panelarr.source.v1.SourcePluginService.ListPackages:output_type -> panelarr.source.v1.ListPackagesResponse
-	69,  // 134: panelarr.source.v1.SourcePluginService.GetPackage:output_type -> panelarr.source.v1.GetPackageResponse
-	71,  // 135: panelarr.source.v1.SourcePluginService.InstallPackage:output_type -> panelarr.source.v1.InstallPackageResponse
-	73,  // 136: panelarr.source.v1.SourcePluginService.UpdatePackage:output_type -> panelarr.source.v1.UpdatePackageResponse
-	75,  // 137: panelarr.source.v1.SourcePluginService.UninstallPackage:output_type -> panelarr.source.v1.UninstallPackageResponse
-	77,  // 138: panelarr.source.v1.SourcePluginService.SetPackageSettings:output_type -> panelarr.source.v1.SetPackageSettingsResponse
-	87,  // 139: panelarr.source.v1.SourcePluginService.GetNetworkProfile:output_type -> panelarr.source.v1.GetNetworkProfileResponse
-	85,  // 140: panelarr.source.v1.SourcePluginService.SetNetworkProfile:output_type -> panelarr.source.v1.SetNetworkProfileResponse
-	94,  // 141: panelarr.source.v1.SourcePluginService.ListJobs:output_type -> panelarr.source.v1.ListJobsResponse
-	96,  // 142: panelarr.source.v1.SourcePluginService.GetJob:output_type -> panelarr.source.v1.GetJobResponse
-	98,  // 143: panelarr.source.v1.SourcePluginService.ListJobRuns:output_type -> panelarr.source.v1.ListJobRunsResponse
-	100, // 144: panelarr.source.v1.SourcePluginService.GetJobRun:output_type -> panelarr.source.v1.GetJobRunResponse
-	102, // 145: panelarr.source.v1.SourcePluginService.RunJob:output_type -> panelarr.source.v1.RunJobResponse
-	104, // 146: panelarr.source.v1.SourcePluginService.CancelJobRun:output_type -> panelarr.source.v1.CancelJobRunResponse
-	115, // [115:147] is the sub-list for method output_type
-	83,  // [83:115] is the sub-list for method input_type
-	83,  // [83:83] is the sub-list for extension type_name
-	83,  // [83:83] is the sub-list for extension extendee
-	0,   // [0:83] is the sub-list for field type_name
+	65,  // 47: panelarr.source.v1.Package.offers:type_name -> panelarr.source.v1.PackageOffer
+	66,  // 48: panelarr.source.v1.Package.sources:type_name -> panelarr.source.v1.PackageSource
+	67,  // 49: panelarr.source.v1.Package.settings:type_name -> panelarr.source.v1.PackageSettings
+	63,  // 50: panelarr.source.v1.Package.details:type_name -> panelarr.source.v1.PackageDetails
+	119, // 51: panelarr.source.v1.PackageDetails.installed_at:type_name -> google.protobuf.Timestamp
+	119, // 52: panelarr.source.v1.Origin.refreshed_at:type_name -> google.protobuf.Timestamp
+	62,  // 53: panelarr.source.v1.ListPackagesResponse.packages:type_name -> panelarr.source.v1.Package
+	62,  // 54: panelarr.source.v1.GetPackageResponse.package:type_name -> panelarr.source.v1.Package
+	62,  // 55: panelarr.source.v1.InstallPackageResponse.package:type_name -> panelarr.source.v1.Package
+	62,  // 56: panelarr.source.v1.UpdatePackageResponse.package:type_name -> panelarr.source.v1.Package
+	67,  // 57: panelarr.source.v1.SetPackageSettingsRequest.settings:type_name -> panelarr.source.v1.PackageSettings
+	64,  // 58: panelarr.source.v1.ListOriginsResponse.origins:type_name -> panelarr.source.v1.Origin
+	64,  // 59: panelarr.source.v1.RefreshOriginResponse.origin:type_name -> panelarr.source.v1.Origin
+	62,  // 60: panelarr.source.v1.ReloadPackageResponse.package:type_name -> panelarr.source.v1.Package
+	23,  // 61: panelarr.source.v1.SetSourceHealthCheckResponse.source:type_name -> panelarr.source.v1.Source
+	62,  // 62: panelarr.source.v1.SetPackageSettingsResponse.package:type_name -> panelarr.source.v1.Package
+	117, // 63: panelarr.source.v1.GetSettingsSchemaResponse.schema:type_name -> google.protobuf.Struct
+	117, // 64: panelarr.source.v1.GetSettingsResponse.values:type_name -> google.protobuf.Struct
+	117, // 65: panelarr.source.v1.SetSettingsRequest.values:type_name -> google.protobuf.Struct
+	117, // 66: panelarr.source.v1.SetSettingsResponse.values:type_name -> google.protobuf.Struct
+	98,  // 67: panelarr.source.v1.SetNetworkProfileRequest.profile:type_name -> panelarr.source.v1.NetworkProfile
+	98,  // 68: panelarr.source.v1.GetNetworkProfileResponse.profile:type_name -> panelarr.source.v1.NetworkProfile
+	10,  // 69: panelarr.source.v1.GetNetworkProfileResponse.origin:type_name -> panelarr.source.v1.NetworkProfileOrigin
+	99,  // 70: panelarr.source.v1.NetworkProfile.proxy:type_name -> panelarr.source.v1.Proxy
+	100, // 71: panelarr.source.v1.NetworkProfile.solver:type_name -> panelarr.source.v1.Solver
+	16,  // 72: panelarr.source.v1.NetworkProfile.rate_limit:type_name -> panelarr.source.v1.RateLimit
+	101, // 73: panelarr.source.v1.NetworkProfile.user_agent:type_name -> panelarr.source.v1.UserAgent
+	115, // 74: panelarr.source.v1.NetworkProfile.headers:type_name -> panelarr.source.v1.NetworkProfile.HeadersEntry
+	102, // 75: panelarr.source.v1.NetworkProfile.timeouts:type_name -> panelarr.source.v1.Timeouts
+	11,  // 76: panelarr.source.v1.Solver.type:type_name -> panelarr.source.v1.SolverType
+	118, // 77: panelarr.source.v1.Solver.session_ttl:type_name -> google.protobuf.Duration
+	118, // 78: panelarr.source.v1.Solver.max_timeout:type_name -> google.protobuf.Duration
+	118, // 79: panelarr.source.v1.Timeouts.connect:type_name -> google.protobuf.Duration
+	118, // 80: panelarr.source.v1.Timeouts.read:type_name -> google.protobuf.Duration
+	118, // 81: panelarr.source.v1.Timeouts.call:type_name -> google.protobuf.Duration
+	120, // 82: panelarr.source.v1.ListJobsResponse.jobs:type_name -> panelarr.jobs.v1.Job
+	120, // 83: panelarr.source.v1.GetJobResponse.job:type_name -> panelarr.jobs.v1.Job
+	121, // 84: panelarr.source.v1.ListJobRunsRequest.status:type_name -> panelarr.jobs.v1.JobRunStatus
+	122, // 85: panelarr.source.v1.ListJobRunsResponse.runs:type_name -> panelarr.jobs.v1.JobRunSummary
+	123, // 86: panelarr.source.v1.GetJobRunResponse.run:type_name -> panelarr.jobs.v1.JobRun
+	116, // 87: panelarr.source.v1.RunJobRequest.params:type_name -> panelarr.source.v1.RunJobRequest.ParamsEntry
+	122, // 88: panelarr.source.v1.RunJobResponse.run:type_name -> panelarr.jobs.v1.JobRunSummary
+	122, // 89: panelarr.source.v1.CancelJobRunResponse.run:type_name -> panelarr.jobs.v1.JobRunSummary
+	12,  // 90: panelarr.source.v1.SourcePluginService.GetInfo:input_type -> panelarr.source.v1.GetInfoRequest
+	17,  // 91: panelarr.source.v1.SourcePluginService.GetConfig:input_type -> panelarr.source.v1.GetConfigRequest
+	19,  // 92: panelarr.source.v1.SourcePluginService.SetConfig:input_type -> panelarr.source.v1.SetConfigRequest
+	21,  // 93: panelarr.source.v1.SourcePluginService.Health:input_type -> panelarr.source.v1.HealthRequest
+	25,  // 94: panelarr.source.v1.SourcePluginService.ListSources:input_type -> panelarr.source.v1.ListSourcesRequest
+	27,  // 95: panelarr.source.v1.SourcePluginService.GetSource:input_type -> panelarr.source.v1.GetSourceRequest
+	29,  // 96: panelarr.source.v1.SourcePluginService.GetFilters:input_type -> panelarr.source.v1.GetFiltersRequest
+	43,  // 97: panelarr.source.v1.SourcePluginService.Popular:input_type -> panelarr.source.v1.PopularRequest
+	45,  // 98: panelarr.source.v1.SourcePluginService.Latest:input_type -> panelarr.source.v1.LatestRequest
+	47,  // 99: panelarr.source.v1.SourcePluginService.Search:input_type -> panelarr.source.v1.SearchRequest
+	49,  // 100: panelarr.source.v1.SourcePluginService.ResolveUrl:input_type -> panelarr.source.v1.ResolveUrlRequest
+	51,  // 101: panelarr.source.v1.SourcePluginService.GetSeries:input_type -> panelarr.source.v1.GetSeriesRequest
+	54,  // 102: panelarr.source.v1.SourcePluginService.ListChapters:input_type -> panelarr.source.v1.ListChaptersRequest
+	57,  // 103: panelarr.source.v1.SourcePluginService.ListPages:input_type -> panelarr.source.v1.ListPagesRequest
+	59,  // 104: panelarr.source.v1.SourcePluginService.FetchImage:input_type -> panelarr.source.v1.FetchImageRequest
+	88,  // 105: panelarr.source.v1.SourcePluginService.GetSettingsSchema:input_type -> panelarr.source.v1.GetSettingsSchemaRequest
+	90,  // 106: panelarr.source.v1.SourcePluginService.GetSettings:input_type -> panelarr.source.v1.GetSettingsRequest
+	92,  // 107: panelarr.source.v1.SourcePluginService.SetSettings:input_type -> panelarr.source.v1.SetSettingsRequest
+	68,  // 108: panelarr.source.v1.SourcePluginService.ListPackages:input_type -> panelarr.source.v1.ListPackagesRequest
+	70,  // 109: panelarr.source.v1.SourcePluginService.GetPackage:input_type -> panelarr.source.v1.GetPackageRequest
+	72,  // 110: panelarr.source.v1.SourcePluginService.InstallPackage:input_type -> panelarr.source.v1.InstallPackageRequest
+	74,  // 111: panelarr.source.v1.SourcePluginService.UpdatePackage:input_type -> panelarr.source.v1.UpdatePackageRequest
+	76,  // 112: panelarr.source.v1.SourcePluginService.UninstallPackage:input_type -> panelarr.source.v1.UninstallPackageRequest
+	78,  // 113: panelarr.source.v1.SourcePluginService.SetPackageSettings:input_type -> panelarr.source.v1.SetPackageSettingsRequest
+	79,  // 114: panelarr.source.v1.SourcePluginService.ListOrigins:input_type -> panelarr.source.v1.ListOriginsRequest
+	81,  // 115: panelarr.source.v1.SourcePluginService.RefreshOrigin:input_type -> panelarr.source.v1.RefreshOriginRequest
+	83,  // 116: panelarr.source.v1.SourcePluginService.ReloadPackage:input_type -> panelarr.source.v1.ReloadPackageRequest
+	85,  // 117: panelarr.source.v1.SourcePluginService.SetSourceHealthCheck:input_type -> panelarr.source.v1.SetSourceHealthCheckRequest
+	96,  // 118: panelarr.source.v1.SourcePluginService.GetNetworkProfile:input_type -> panelarr.source.v1.GetNetworkProfileRequest
+	94,  // 119: panelarr.source.v1.SourcePluginService.SetNetworkProfile:input_type -> panelarr.source.v1.SetNetworkProfileRequest
+	103, // 120: panelarr.source.v1.SourcePluginService.ListJobs:input_type -> panelarr.source.v1.ListJobsRequest
+	105, // 121: panelarr.source.v1.SourcePluginService.GetJob:input_type -> panelarr.source.v1.GetJobRequest
+	107, // 122: panelarr.source.v1.SourcePluginService.ListJobRuns:input_type -> panelarr.source.v1.ListJobRunsRequest
+	109, // 123: panelarr.source.v1.SourcePluginService.GetJobRun:input_type -> panelarr.source.v1.GetJobRunRequest
+	111, // 124: panelarr.source.v1.SourcePluginService.RunJob:input_type -> panelarr.source.v1.RunJobRequest
+	113, // 125: panelarr.source.v1.SourcePluginService.CancelJobRun:input_type -> panelarr.source.v1.CancelJobRunRequest
+	13,  // 126: panelarr.source.v1.SourcePluginService.GetInfo:output_type -> panelarr.source.v1.GetInfoResponse
+	18,  // 127: panelarr.source.v1.SourcePluginService.GetConfig:output_type -> panelarr.source.v1.GetConfigResponse
+	20,  // 128: panelarr.source.v1.SourcePluginService.SetConfig:output_type -> panelarr.source.v1.SetConfigResponse
+	22,  // 129: panelarr.source.v1.SourcePluginService.Health:output_type -> panelarr.source.v1.HealthResponse
+	26,  // 130: panelarr.source.v1.SourcePluginService.ListSources:output_type -> panelarr.source.v1.ListSourcesResponse
+	28,  // 131: panelarr.source.v1.SourcePluginService.GetSource:output_type -> panelarr.source.v1.GetSourceResponse
+	30,  // 132: panelarr.source.v1.SourcePluginService.GetFilters:output_type -> panelarr.source.v1.GetFiltersResponse
+	44,  // 133: panelarr.source.v1.SourcePluginService.Popular:output_type -> panelarr.source.v1.PopularResponse
+	46,  // 134: panelarr.source.v1.SourcePluginService.Latest:output_type -> panelarr.source.v1.LatestResponse
+	48,  // 135: panelarr.source.v1.SourcePluginService.Search:output_type -> panelarr.source.v1.SearchResponse
+	50,  // 136: panelarr.source.v1.SourcePluginService.ResolveUrl:output_type -> panelarr.source.v1.ResolveUrlResponse
+	52,  // 137: panelarr.source.v1.SourcePluginService.GetSeries:output_type -> panelarr.source.v1.GetSeriesResponse
+	55,  // 138: panelarr.source.v1.SourcePluginService.ListChapters:output_type -> panelarr.source.v1.ListChaptersResponse
+	58,  // 139: panelarr.source.v1.SourcePluginService.ListPages:output_type -> panelarr.source.v1.ListPagesResponse
+	60,  // 140: panelarr.source.v1.SourcePluginService.FetchImage:output_type -> panelarr.source.v1.FetchImageResponse
+	89,  // 141: panelarr.source.v1.SourcePluginService.GetSettingsSchema:output_type -> panelarr.source.v1.GetSettingsSchemaResponse
+	91,  // 142: panelarr.source.v1.SourcePluginService.GetSettings:output_type -> panelarr.source.v1.GetSettingsResponse
+	93,  // 143: panelarr.source.v1.SourcePluginService.SetSettings:output_type -> panelarr.source.v1.SetSettingsResponse
+	69,  // 144: panelarr.source.v1.SourcePluginService.ListPackages:output_type -> panelarr.source.v1.ListPackagesResponse
+	71,  // 145: panelarr.source.v1.SourcePluginService.GetPackage:output_type -> panelarr.source.v1.GetPackageResponse
+	73,  // 146: panelarr.source.v1.SourcePluginService.InstallPackage:output_type -> panelarr.source.v1.InstallPackageResponse
+	75,  // 147: panelarr.source.v1.SourcePluginService.UpdatePackage:output_type -> panelarr.source.v1.UpdatePackageResponse
+	77,  // 148: panelarr.source.v1.SourcePluginService.UninstallPackage:output_type -> panelarr.source.v1.UninstallPackageResponse
+	87,  // 149: panelarr.source.v1.SourcePluginService.SetPackageSettings:output_type -> panelarr.source.v1.SetPackageSettingsResponse
+	80,  // 150: panelarr.source.v1.SourcePluginService.ListOrigins:output_type -> panelarr.source.v1.ListOriginsResponse
+	82,  // 151: panelarr.source.v1.SourcePluginService.RefreshOrigin:output_type -> panelarr.source.v1.RefreshOriginResponse
+	84,  // 152: panelarr.source.v1.SourcePluginService.ReloadPackage:output_type -> panelarr.source.v1.ReloadPackageResponse
+	86,  // 153: panelarr.source.v1.SourcePluginService.SetSourceHealthCheck:output_type -> panelarr.source.v1.SetSourceHealthCheckResponse
+	97,  // 154: panelarr.source.v1.SourcePluginService.GetNetworkProfile:output_type -> panelarr.source.v1.GetNetworkProfileResponse
+	95,  // 155: panelarr.source.v1.SourcePluginService.SetNetworkProfile:output_type -> panelarr.source.v1.SetNetworkProfileResponse
+	104, // 156: panelarr.source.v1.SourcePluginService.ListJobs:output_type -> panelarr.source.v1.ListJobsResponse
+	106, // 157: panelarr.source.v1.SourcePluginService.GetJob:output_type -> panelarr.source.v1.GetJobResponse
+	108, // 158: panelarr.source.v1.SourcePluginService.ListJobRuns:output_type -> panelarr.source.v1.ListJobRunsResponse
+	110, // 159: panelarr.source.v1.SourcePluginService.GetJobRun:output_type -> panelarr.source.v1.GetJobRunResponse
+	112, // 160: panelarr.source.v1.SourcePluginService.RunJob:output_type -> panelarr.source.v1.RunJobResponse
+	114, // 161: panelarr.source.v1.SourcePluginService.CancelJobRun:output_type -> panelarr.source.v1.CancelJobRunResponse
+	126, // [126:162] is the sub-list for method output_type
+	90,  // [90:126] is the sub-list for method input_type
+	90,  // [90:90] is the sub-list for extension type_name
+	90,  // [90:90] is the sub-list for extension extendee
+	0,   // [0:90] is the sub-list for field type_name
 }
 
 func init() { file_panelarr_source_v1_source_plugin_proto_init() }
@@ -6986,7 +7598,7 @@ func file_panelarr_source_v1_source_plugin_proto_init() {
 		(*FetchImageResponse_Metadata)(nil),
 		(*FetchImageResponse_Chunk)(nil),
 	}
-	file_panelarr_source_v1_source_plugin_proto_msgTypes[79].OneofWrappers = []any{
+	file_panelarr_source_v1_source_plugin_proto_msgTypes[89].OneofWrappers = []any{
 		(*UserAgent_Fixed)(nil),
 		(*UserAgent_RandomDesktop)(nil),
 		(*UserAgent_FromSolver)(nil),
@@ -6997,7 +7609,7 @@ func file_panelarr_source_v1_source_plugin_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_panelarr_source_v1_source_plugin_proto_rawDesc), len(file_panelarr_source_v1_source_plugin_proto_rawDesc)),
 			NumEnums:      12,
-			NumMessages:   95,
+			NumMessages:   105,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

@@ -57,6 +57,11 @@ type Client interface {
 	UpdatePackage(ctx context.Context, req *sourcev1.UpdatePackageRequest) (*sourcev1.UpdatePackageResponse, error)
 	UninstallPackage(ctx context.Context, req *sourcev1.UninstallPackageRequest) (*sourcev1.UninstallPackageResponse, error)
 	SetPackageSettings(ctx context.Context, req *sourcev1.SetPackageSettingsRequest) (*sourcev1.SetPackageSettingsResponse, error)
+	ListOrigins(ctx context.Context, req *sourcev1.ListOriginsRequest) (*sourcev1.ListOriginsResponse, error)
+	RefreshOrigin(ctx context.Context, req *sourcev1.RefreshOriginRequest) (*sourcev1.RefreshOriginResponse, error)
+	ReloadPackage(ctx context.Context, req *sourcev1.ReloadPackageRequest) (*sourcev1.ReloadPackageResponse, error)
+	// SetSourceHealthCheck (plugins with the HEALTH_CHECKS capability).
+	SetSourceHealthCheck(ctx context.Context, req *sourcev1.SetSourceHealthCheckRequest) (*sourcev1.SetSourceHealthCheckResponse, error)
 	// The job calls (plugins with the JOBS capability). RunJob returns once the
 	// run has started; follow it with GetJobRun.
 	ListJobs(ctx context.Context, req *sourcev1.ListJobsRequest) (*sourcev1.ListJobsResponse, error)
@@ -323,6 +328,22 @@ func (r *remoteClient) CancelJobRun(ctx context.Context, req *sourcev1.CancelJob
 	return callConnect(ctx, req, r.c.CancelJobRun)
 }
 
+func (r *remoteClient) ListOrigins(ctx context.Context, req *sourcev1.ListOriginsRequest) (*sourcev1.ListOriginsResponse, error) {
+	return callConnect(ctx, req, r.c.ListOrigins)
+}
+
+func (r *remoteClient) RefreshOrigin(ctx context.Context, req *sourcev1.RefreshOriginRequest) (*sourcev1.RefreshOriginResponse, error) {
+	return callConnect(ctx, req, r.c.RefreshOrigin)
+}
+
+func (r *remoteClient) ReloadPackage(ctx context.Context, req *sourcev1.ReloadPackageRequest) (*sourcev1.ReloadPackageResponse, error) {
+	return callConnect(ctx, req, r.c.ReloadPackage)
+}
+
+func (r *remoteClient) SetSourceHealthCheck(ctx context.Context, req *sourcev1.SetSourceHealthCheckRequest) (*sourcev1.SetSourceHealthCheckResponse, error) {
+	return callConnect(ctx, req, r.c.SetSourceHealthCheck)
+}
+
 func (r *remoteClient) FetchImage(ctx context.Context, req *sourcev1.FetchImageRequest) (ImageStream, error) {
 	s, err := r.c.FetchImage(ctx, connect.NewRequest(req))
 	if err != nil {
@@ -549,6 +570,22 @@ func (g *grpcClient) RunJob(ctx context.Context, req *sourcev1.RunJobRequest) (*
 
 func (g *grpcClient) CancelJobRun(ctx context.Context, req *sourcev1.CancelJobRunRequest) (*sourcev1.CancelJobRunResponse, error) {
 	return callGRPC(ctx, req, g.c.CancelJobRun)
+}
+
+func (g *grpcClient) ListOrigins(ctx context.Context, req *sourcev1.ListOriginsRequest) (*sourcev1.ListOriginsResponse, error) {
+	return callGRPC(ctx, req, g.c.ListOrigins)
+}
+
+func (g *grpcClient) RefreshOrigin(ctx context.Context, req *sourcev1.RefreshOriginRequest) (*sourcev1.RefreshOriginResponse, error) {
+	return callGRPC(ctx, req, g.c.RefreshOrigin)
+}
+
+func (g *grpcClient) ReloadPackage(ctx context.Context, req *sourcev1.ReloadPackageRequest) (*sourcev1.ReloadPackageResponse, error) {
+	return callGRPC(ctx, req, g.c.ReloadPackage)
+}
+
+func (g *grpcClient) SetSourceHealthCheck(ctx context.Context, req *sourcev1.SetSourceHealthCheckRequest) (*sourcev1.SetSourceHealthCheckResponse, error) {
+	return callGRPC(ctx, req, g.c.SetSourceHealthCheck)
 }
 
 func (g *grpcClient) FetchImage(ctx context.Context, req *sourcev1.FetchImageRequest) (ImageStream, error) {

@@ -39,8 +39,16 @@ func checkPackages(ctx context.Context, rep *Report, c client.Client, info *sour
 	}
 	checkSourcesMatchPackages(ctx, rep, c, byID)
 	checkPackageFilters(ctx, rep, c, res.GetPackages())
+	checkOrigins(ctx, rep, c, res.GetPackages())
 	if _, err := c.GetPackage(ctx, &sourcev1.GetPackageRequest{PackageId: "conformance.no-such-package"}); plugin.ErrorCode(err) != plugin.CodeNotFound {
 		rep.problem("GetPackage: an unknown package must be NOT_FOUND, got %v", err)
+	}
+	switch _, err := c.ReloadPackage(ctx, &sourcev1.ReloadPackageRequest{PackageId: "conformance.no-such-package"}); plugin.ErrorCode(err) {
+	case plugin.CodeNotFound:
+	case plugin.CodeUnimplemented:
+		rep.warn("ReloadPackage: not implemented, so hosts can't reload a package")
+	default:
+		rep.problem("ReloadPackage: an unknown package must be NOT_FOUND, got %v", err)
 	}
 	if packageID != "" {
 		p := byID[packageID]
@@ -62,6 +70,9 @@ func checkPackage(rep *Report, at string, p *sourcev1.Package) {
 	if p.GetInstalled() && p.GetInstalledVersion() == "" {
 		rep.problem("%s (%s): installed without an installed version", at, p.GetId())
 	}
+	if p.GetDetails() != nil && !p.GetInstalled() {
+		rep.problem("%s (%s): details are for installed packages", at, p.GetId())
+	}
 	if p.GetUpdateAvailable() && !p.GetInstalled() {
 		rep.problem("%s (%s): an update is available but it isn't installed", at, p.GetId())
 	}
@@ -82,6 +93,43 @@ func checkPackage(rep *Report, at string, p *sourcev1.Package) {
 		if !slices.Contains(p.GetLangs(), l) {
 			rep.problem("%s (%s): enabled language %q isn't among the package's languages", at, p.GetId(), l)
 		}
+	}
+}
+
+// checkOrigins: ListOrigins lists every origin the packages' offers name.
+func checkOrigins(ctx context.Context, rep *Report, c client.Client, pkgs []*sourcev1.Package) {
+	res, err := c.ListOrigins(ctx, &sourcev1.ListOriginsRequest{})
+	if plugin.ErrorCode(err) == plugin.CodeUnimplemented {
+		rep.warn("ListOrigins: not implemented, so hosts can't show where packages come from")
+		return
+	}
+	if err != nil {
+		rep.problem("ListOrigins: %v", err)
+		return
+	}
+	ids := map[string]bool{}
+	for i, o := range res.GetOrigins() {
+		if !plugin.PackageIDPattern.MatchString(o.GetId()) {
+			rep.problem("ListOrigins: origin %d: id %q must match %s", i, o.GetId(), plugin.PackageIDPattern)
+		}
+		if o.GetName() == "" {
+			rep.problem("ListOrigins: origin %d (%s): no name", i, o.GetId())
+		}
+		if ids[o.GetId()] {
+			rep.problem("ListOrigins: origin id %q appears twice", o.GetId())
+		}
+		ids[o.GetId()] = true
+	}
+	for _, p := range pkgs {
+		for _, o := range p.GetOffers() {
+			if !ids[o.GetOriginId()] {
+				rep.problem("ListOrigins: origin %q, which offers package %q, isn't listed", o.GetOriginId(), p.GetId())
+				ids[o.GetOriginId()] = true // once is enough
+			}
+		}
+	}
+	if _, err := c.RefreshOrigin(ctx, &sourcev1.RefreshOriginRequest{OriginId: "conformance.no-such-origin"}); plugin.ErrorCode(err) != plugin.CodeNotFound {
+		rep.problem("RefreshOrigin: an unknown origin must be NOT_FOUND, got %v", err)
 	}
 }
 
@@ -215,6 +263,19 @@ func (w *packageWalk) run() {
 			}
 		}
 		return fmt.Sprintf("%d sources", len(listed)), nil
+	})
+	w.step("ReloadPackage", func() (string, error) {
+		res, err := w.c.ReloadPackage(w.ctx, &sourcev1.ReloadPackageRequest{PackageId: id})
+		if plugin.ErrorCode(err) == plugin.CodeUnimplemented {
+			return "not implemented", nil
+		}
+		if err != nil {
+			return "", err
+		}
+		if !res.GetPackage().GetInstalled() {
+			w.rep.problem("ReloadPackage (%s): the package isn't installed afterwards", id)
+		}
+		return "version " + res.GetPackage().GetInstalledVersion(), nil
 	})
 	if langs := installed.GetLangs(); len(langs) > 1 {
 		w.step("Narrow languages", func() (string, error) {

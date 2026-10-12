@@ -107,6 +107,18 @@ const (
 	// SourcePluginServiceSetPackageSettingsProcedure is the fully-qualified name of the
 	// SourcePluginService's SetPackageSettings RPC.
 	SourcePluginServiceSetPackageSettingsProcedure = "/panelarr.source.v1.SourcePluginService/SetPackageSettings"
+	// SourcePluginServiceListOriginsProcedure is the fully-qualified name of the SourcePluginService's
+	// ListOrigins RPC.
+	SourcePluginServiceListOriginsProcedure = "/panelarr.source.v1.SourcePluginService/ListOrigins"
+	// SourcePluginServiceRefreshOriginProcedure is the fully-qualified name of the
+	// SourcePluginService's RefreshOrigin RPC.
+	SourcePluginServiceRefreshOriginProcedure = "/panelarr.source.v1.SourcePluginService/RefreshOrigin"
+	// SourcePluginServiceReloadPackageProcedure is the fully-qualified name of the
+	// SourcePluginService's ReloadPackage RPC.
+	SourcePluginServiceReloadPackageProcedure = "/panelarr.source.v1.SourcePluginService/ReloadPackage"
+	// SourcePluginServiceSetSourceHealthCheckProcedure is the fully-qualified name of the
+	// SourcePluginService's SetSourceHealthCheck RPC.
+	SourcePluginServiceSetSourceHealthCheckProcedure = "/panelarr.source.v1.SourcePluginService/SetSourceHealthCheck"
 	// SourcePluginServiceGetNetworkProfileProcedure is the fully-qualified name of the
 	// SourcePluginService's GetNetworkProfile RPC.
 	SourcePluginServiceGetNetworkProfileProcedure = "/panelarr.source.v1.SourcePluginService/GetNetworkProfile"
@@ -204,6 +216,22 @@ type SourcePluginServiceClient interface {
 	// SetPackageSettings replaces a package's settings, e.g. its enabled languages. It
 	// returns the package as it is after the change.
 	SetPackageSettings(context.Context, *connect.Request[v1.SetPackageSettingsRequest]) (*connect.Response[v1.SetPackageSettingsResponse], error)
+	// ListOrigins lists where packages come from, e.g. extension stores (with the
+	// PACKAGES capability). PackageOffer.origin_id names one of them.
+	ListOrigins(context.Context, *connect.Request[v1.ListOriginsRequest]) (*connect.Response[v1.ListOriginsResponse], error)
+	// RefreshOrigin fetches an origin's list of packages again and returns the origin.
+	// When that fails, the call fails (STORE_FETCH_FAILED or STORE_INVALID) and the
+	// origin's `error` says why until a refresh works.
+	RefreshOrigin(context.Context, *connect.Request[v1.RefreshOriginRequest]) (*connect.Response[v1.RefreshOriginResponse], error)
+	// ReloadPackage loads an installed package again from what is installed, without
+	// downloading anything: to retry a package that failed to load, or to apply settings
+	// the package only reads when it starts. UpdatePackage doesn't do that when the
+	// package is up to date. Returns the package as it is after loading.
+	ReloadPackage(context.Context, *connect.Request[v1.ReloadPackageRequest]) (*connect.Response[v1.ReloadPackageResponse], error)
+	// SetSourceHealthCheck turns the plugin's scheduled health checks of one source on
+	// or off (with the HEALTH_CHECKS capability). SourceHealth.checks_disabled shows the
+	// setting. Returns the source. Plugins without the capability answer UNIMPLEMENTED.
+	SetSourceHealthCheck(context.Context, *connect.Request[v1.SetSourceHealthCheckRequest]) (*connect.Response[v1.SetSourceHealthCheckResponse], error)
 	// GetNetworkProfile returns the network profile a source uses now and where it comes
 	// from, so a host can show it. Proxy passwords come back empty. Optional: plugins that
 	// don't implement it answer UNIMPLEMENTED.
@@ -386,6 +414,30 @@ func NewSourcePluginServiceClient(httpClient connect.HTTPClient, baseURL string,
 			connect.WithSchema(sourcePluginServiceMethods.ByName("SetPackageSettings")),
 			connect.WithClientOptions(opts...),
 		),
+		listOrigins: connect.NewClient[v1.ListOriginsRequest, v1.ListOriginsResponse](
+			httpClient,
+			baseURL+SourcePluginServiceListOriginsProcedure,
+			connect.WithSchema(sourcePluginServiceMethods.ByName("ListOrigins")),
+			connect.WithClientOptions(opts...),
+		),
+		refreshOrigin: connect.NewClient[v1.RefreshOriginRequest, v1.RefreshOriginResponse](
+			httpClient,
+			baseURL+SourcePluginServiceRefreshOriginProcedure,
+			connect.WithSchema(sourcePluginServiceMethods.ByName("RefreshOrigin")),
+			connect.WithClientOptions(opts...),
+		),
+		reloadPackage: connect.NewClient[v1.ReloadPackageRequest, v1.ReloadPackageResponse](
+			httpClient,
+			baseURL+SourcePluginServiceReloadPackageProcedure,
+			connect.WithSchema(sourcePluginServiceMethods.ByName("ReloadPackage")),
+			connect.WithClientOptions(opts...),
+		),
+		setSourceHealthCheck: connect.NewClient[v1.SetSourceHealthCheckRequest, v1.SetSourceHealthCheckResponse](
+			httpClient,
+			baseURL+SourcePluginServiceSetSourceHealthCheckProcedure,
+			connect.WithSchema(sourcePluginServiceMethods.ByName("SetSourceHealthCheck")),
+			connect.WithClientOptions(opts...),
+		),
 		getNetworkProfile: connect.NewClient[v1.GetNetworkProfileRequest, v1.GetNetworkProfileResponse](
 			httpClient,
 			baseURL+SourcePluginServiceGetNetworkProfileProcedure,
@@ -439,38 +491,42 @@ func NewSourcePluginServiceClient(httpClient connect.HTTPClient, baseURL string,
 
 // sourcePluginServiceClient implements SourcePluginServiceClient.
 type sourcePluginServiceClient struct {
-	getInfo            *connect.Client[v1.GetInfoRequest, v1.GetInfoResponse]
-	getConfig          *connect.Client[v1.GetConfigRequest, v1.GetConfigResponse]
-	setConfig          *connect.Client[v1.SetConfigRequest, v1.SetConfigResponse]
-	health             *connect.Client[v1.HealthRequest, v1.HealthResponse]
-	listSources        *connect.Client[v1.ListSourcesRequest, v1.ListSourcesResponse]
-	getSource          *connect.Client[v1.GetSourceRequest, v1.GetSourceResponse]
-	getFilters         *connect.Client[v1.GetFiltersRequest, v1.GetFiltersResponse]
-	popular            *connect.Client[v1.PopularRequest, v1.PopularResponse]
-	latest             *connect.Client[v1.LatestRequest, v1.LatestResponse]
-	search             *connect.Client[v1.SearchRequest, v1.SearchResponse]
-	resolveUrl         *connect.Client[v1.ResolveUrlRequest, v1.ResolveUrlResponse]
-	getSeries          *connect.Client[v1.GetSeriesRequest, v1.GetSeriesResponse]
-	listChapters       *connect.Client[v1.ListChaptersRequest, v1.ListChaptersResponse]
-	listPages          *connect.Client[v1.ListPagesRequest, v1.ListPagesResponse]
-	fetchImage         *connect.Client[v1.FetchImageRequest, v1.FetchImageResponse]
-	getSettingsSchema  *connect.Client[v1.GetSettingsSchemaRequest, v1.GetSettingsSchemaResponse]
-	getSettings        *connect.Client[v1.GetSettingsRequest, v1.GetSettingsResponse]
-	setSettings        *connect.Client[v1.SetSettingsRequest, v1.SetSettingsResponse]
-	listPackages       *connect.Client[v1.ListPackagesRequest, v1.ListPackagesResponse]
-	getPackage         *connect.Client[v1.GetPackageRequest, v1.GetPackageResponse]
-	installPackage     *connect.Client[v1.InstallPackageRequest, v1.InstallPackageResponse]
-	updatePackage      *connect.Client[v1.UpdatePackageRequest, v1.UpdatePackageResponse]
-	uninstallPackage   *connect.Client[v1.UninstallPackageRequest, v1.UninstallPackageResponse]
-	setPackageSettings *connect.Client[v1.SetPackageSettingsRequest, v1.SetPackageSettingsResponse]
-	getNetworkProfile  *connect.Client[v1.GetNetworkProfileRequest, v1.GetNetworkProfileResponse]
-	setNetworkProfile  *connect.Client[v1.SetNetworkProfileRequest, v1.SetNetworkProfileResponse]
-	listJobs           *connect.Client[v1.ListJobsRequest, v1.ListJobsResponse]
-	getJob             *connect.Client[v1.GetJobRequest, v1.GetJobResponse]
-	listJobRuns        *connect.Client[v1.ListJobRunsRequest, v1.ListJobRunsResponse]
-	getJobRun          *connect.Client[v1.GetJobRunRequest, v1.GetJobRunResponse]
-	runJob             *connect.Client[v1.RunJobRequest, v1.RunJobResponse]
-	cancelJobRun       *connect.Client[v1.CancelJobRunRequest, v1.CancelJobRunResponse]
+	getInfo              *connect.Client[v1.GetInfoRequest, v1.GetInfoResponse]
+	getConfig            *connect.Client[v1.GetConfigRequest, v1.GetConfigResponse]
+	setConfig            *connect.Client[v1.SetConfigRequest, v1.SetConfigResponse]
+	health               *connect.Client[v1.HealthRequest, v1.HealthResponse]
+	listSources          *connect.Client[v1.ListSourcesRequest, v1.ListSourcesResponse]
+	getSource            *connect.Client[v1.GetSourceRequest, v1.GetSourceResponse]
+	getFilters           *connect.Client[v1.GetFiltersRequest, v1.GetFiltersResponse]
+	popular              *connect.Client[v1.PopularRequest, v1.PopularResponse]
+	latest               *connect.Client[v1.LatestRequest, v1.LatestResponse]
+	search               *connect.Client[v1.SearchRequest, v1.SearchResponse]
+	resolveUrl           *connect.Client[v1.ResolveUrlRequest, v1.ResolveUrlResponse]
+	getSeries            *connect.Client[v1.GetSeriesRequest, v1.GetSeriesResponse]
+	listChapters         *connect.Client[v1.ListChaptersRequest, v1.ListChaptersResponse]
+	listPages            *connect.Client[v1.ListPagesRequest, v1.ListPagesResponse]
+	fetchImage           *connect.Client[v1.FetchImageRequest, v1.FetchImageResponse]
+	getSettingsSchema    *connect.Client[v1.GetSettingsSchemaRequest, v1.GetSettingsSchemaResponse]
+	getSettings          *connect.Client[v1.GetSettingsRequest, v1.GetSettingsResponse]
+	setSettings          *connect.Client[v1.SetSettingsRequest, v1.SetSettingsResponse]
+	listPackages         *connect.Client[v1.ListPackagesRequest, v1.ListPackagesResponse]
+	getPackage           *connect.Client[v1.GetPackageRequest, v1.GetPackageResponse]
+	installPackage       *connect.Client[v1.InstallPackageRequest, v1.InstallPackageResponse]
+	updatePackage        *connect.Client[v1.UpdatePackageRequest, v1.UpdatePackageResponse]
+	uninstallPackage     *connect.Client[v1.UninstallPackageRequest, v1.UninstallPackageResponse]
+	setPackageSettings   *connect.Client[v1.SetPackageSettingsRequest, v1.SetPackageSettingsResponse]
+	listOrigins          *connect.Client[v1.ListOriginsRequest, v1.ListOriginsResponse]
+	refreshOrigin        *connect.Client[v1.RefreshOriginRequest, v1.RefreshOriginResponse]
+	reloadPackage        *connect.Client[v1.ReloadPackageRequest, v1.ReloadPackageResponse]
+	setSourceHealthCheck *connect.Client[v1.SetSourceHealthCheckRequest, v1.SetSourceHealthCheckResponse]
+	getNetworkProfile    *connect.Client[v1.GetNetworkProfileRequest, v1.GetNetworkProfileResponse]
+	setNetworkProfile    *connect.Client[v1.SetNetworkProfileRequest, v1.SetNetworkProfileResponse]
+	listJobs             *connect.Client[v1.ListJobsRequest, v1.ListJobsResponse]
+	getJob               *connect.Client[v1.GetJobRequest, v1.GetJobResponse]
+	listJobRuns          *connect.Client[v1.ListJobRunsRequest, v1.ListJobRunsResponse]
+	getJobRun            *connect.Client[v1.GetJobRunRequest, v1.GetJobRunResponse]
+	runJob               *connect.Client[v1.RunJobRequest, v1.RunJobResponse]
+	cancelJobRun         *connect.Client[v1.CancelJobRunRequest, v1.CancelJobRunResponse]
 }
 
 // GetInfo calls panelarr.source.v1.SourcePluginService.GetInfo.
@@ -593,6 +649,26 @@ func (c *sourcePluginServiceClient) SetPackageSettings(ctx context.Context, req 
 	return c.setPackageSettings.CallUnary(ctx, req)
 }
 
+// ListOrigins calls panelarr.source.v1.SourcePluginService.ListOrigins.
+func (c *sourcePluginServiceClient) ListOrigins(ctx context.Context, req *connect.Request[v1.ListOriginsRequest]) (*connect.Response[v1.ListOriginsResponse], error) {
+	return c.listOrigins.CallUnary(ctx, req)
+}
+
+// RefreshOrigin calls panelarr.source.v1.SourcePluginService.RefreshOrigin.
+func (c *sourcePluginServiceClient) RefreshOrigin(ctx context.Context, req *connect.Request[v1.RefreshOriginRequest]) (*connect.Response[v1.RefreshOriginResponse], error) {
+	return c.refreshOrigin.CallUnary(ctx, req)
+}
+
+// ReloadPackage calls panelarr.source.v1.SourcePluginService.ReloadPackage.
+func (c *sourcePluginServiceClient) ReloadPackage(ctx context.Context, req *connect.Request[v1.ReloadPackageRequest]) (*connect.Response[v1.ReloadPackageResponse], error) {
+	return c.reloadPackage.CallUnary(ctx, req)
+}
+
+// SetSourceHealthCheck calls panelarr.source.v1.SourcePluginService.SetSourceHealthCheck.
+func (c *sourcePluginServiceClient) SetSourceHealthCheck(ctx context.Context, req *connect.Request[v1.SetSourceHealthCheckRequest]) (*connect.Response[v1.SetSourceHealthCheckResponse], error) {
+	return c.setSourceHealthCheck.CallUnary(ctx, req)
+}
+
 // GetNetworkProfile calls panelarr.source.v1.SourcePluginService.GetNetworkProfile.
 func (c *sourcePluginServiceClient) GetNetworkProfile(ctx context.Context, req *connect.Request[v1.GetNetworkProfileRequest]) (*connect.Response[v1.GetNetworkProfileResponse], error) {
 	return c.getNetworkProfile.CallUnary(ctx, req)
@@ -705,6 +781,22 @@ type SourcePluginServiceHandler interface {
 	// SetPackageSettings replaces a package's settings, e.g. its enabled languages. It
 	// returns the package as it is after the change.
 	SetPackageSettings(context.Context, *connect.Request[v1.SetPackageSettingsRequest]) (*connect.Response[v1.SetPackageSettingsResponse], error)
+	// ListOrigins lists where packages come from, e.g. extension stores (with the
+	// PACKAGES capability). PackageOffer.origin_id names one of them.
+	ListOrigins(context.Context, *connect.Request[v1.ListOriginsRequest]) (*connect.Response[v1.ListOriginsResponse], error)
+	// RefreshOrigin fetches an origin's list of packages again and returns the origin.
+	// When that fails, the call fails (STORE_FETCH_FAILED or STORE_INVALID) and the
+	// origin's `error` says why until a refresh works.
+	RefreshOrigin(context.Context, *connect.Request[v1.RefreshOriginRequest]) (*connect.Response[v1.RefreshOriginResponse], error)
+	// ReloadPackage loads an installed package again from what is installed, without
+	// downloading anything: to retry a package that failed to load, or to apply settings
+	// the package only reads when it starts. UpdatePackage doesn't do that when the
+	// package is up to date. Returns the package as it is after loading.
+	ReloadPackage(context.Context, *connect.Request[v1.ReloadPackageRequest]) (*connect.Response[v1.ReloadPackageResponse], error)
+	// SetSourceHealthCheck turns the plugin's scheduled health checks of one source on
+	// or off (with the HEALTH_CHECKS capability). SourceHealth.checks_disabled shows the
+	// setting. Returns the source. Plugins without the capability answer UNIMPLEMENTED.
+	SetSourceHealthCheck(context.Context, *connect.Request[v1.SetSourceHealthCheckRequest]) (*connect.Response[v1.SetSourceHealthCheckResponse], error)
 	// GetNetworkProfile returns the network profile a source uses now and where it comes
 	// from, so a host can show it. Proxy passwords come back empty. Optional: plugins that
 	// don't implement it answer UNIMPLEMENTED.
@@ -883,6 +975,30 @@ func NewSourcePluginServiceHandler(svc SourcePluginServiceHandler, opts ...conne
 		connect.WithSchema(sourcePluginServiceMethods.ByName("SetPackageSettings")),
 		connect.WithHandlerOptions(opts...),
 	)
+	sourcePluginServiceListOriginsHandler := connect.NewUnaryHandler(
+		SourcePluginServiceListOriginsProcedure,
+		svc.ListOrigins,
+		connect.WithSchema(sourcePluginServiceMethods.ByName("ListOrigins")),
+		connect.WithHandlerOptions(opts...),
+	)
+	sourcePluginServiceRefreshOriginHandler := connect.NewUnaryHandler(
+		SourcePluginServiceRefreshOriginProcedure,
+		svc.RefreshOrigin,
+		connect.WithSchema(sourcePluginServiceMethods.ByName("RefreshOrigin")),
+		connect.WithHandlerOptions(opts...),
+	)
+	sourcePluginServiceReloadPackageHandler := connect.NewUnaryHandler(
+		SourcePluginServiceReloadPackageProcedure,
+		svc.ReloadPackage,
+		connect.WithSchema(sourcePluginServiceMethods.ByName("ReloadPackage")),
+		connect.WithHandlerOptions(opts...),
+	)
+	sourcePluginServiceSetSourceHealthCheckHandler := connect.NewUnaryHandler(
+		SourcePluginServiceSetSourceHealthCheckProcedure,
+		svc.SetSourceHealthCheck,
+		connect.WithSchema(sourcePluginServiceMethods.ByName("SetSourceHealthCheck")),
+		connect.WithHandlerOptions(opts...),
+	)
 	sourcePluginServiceGetNetworkProfileHandler := connect.NewUnaryHandler(
 		SourcePluginServiceGetNetworkProfileProcedure,
 		svc.GetNetworkProfile,
@@ -981,6 +1097,14 @@ func NewSourcePluginServiceHandler(svc SourcePluginServiceHandler, opts ...conne
 			sourcePluginServiceUninstallPackageHandler.ServeHTTP(w, r)
 		case SourcePluginServiceSetPackageSettingsProcedure:
 			sourcePluginServiceSetPackageSettingsHandler.ServeHTTP(w, r)
+		case SourcePluginServiceListOriginsProcedure:
+			sourcePluginServiceListOriginsHandler.ServeHTTP(w, r)
+		case SourcePluginServiceRefreshOriginProcedure:
+			sourcePluginServiceRefreshOriginHandler.ServeHTTP(w, r)
+		case SourcePluginServiceReloadPackageProcedure:
+			sourcePluginServiceReloadPackageHandler.ServeHTTP(w, r)
+		case SourcePluginServiceSetSourceHealthCheckProcedure:
+			sourcePluginServiceSetSourceHealthCheckHandler.ServeHTTP(w, r)
 		case SourcePluginServiceGetNetworkProfileProcedure:
 			sourcePluginServiceGetNetworkProfileHandler.ServeHTTP(w, r)
 		case SourcePluginServiceSetNetworkProfileProcedure:
@@ -1100,6 +1224,22 @@ func (UnimplementedSourcePluginServiceHandler) UninstallPackage(context.Context,
 
 func (UnimplementedSourcePluginServiceHandler) SetPackageSettings(context.Context, *connect.Request[v1.SetPackageSettingsRequest]) (*connect.Response[v1.SetPackageSettingsResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("panelarr.source.v1.SourcePluginService.SetPackageSettings is not implemented"))
+}
+
+func (UnimplementedSourcePluginServiceHandler) ListOrigins(context.Context, *connect.Request[v1.ListOriginsRequest]) (*connect.Response[v1.ListOriginsResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("panelarr.source.v1.SourcePluginService.ListOrigins is not implemented"))
+}
+
+func (UnimplementedSourcePluginServiceHandler) RefreshOrigin(context.Context, *connect.Request[v1.RefreshOriginRequest]) (*connect.Response[v1.RefreshOriginResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("panelarr.source.v1.SourcePluginService.RefreshOrigin is not implemented"))
+}
+
+func (UnimplementedSourcePluginServiceHandler) ReloadPackage(context.Context, *connect.Request[v1.ReloadPackageRequest]) (*connect.Response[v1.ReloadPackageResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("panelarr.source.v1.SourcePluginService.ReloadPackage is not implemented"))
+}
+
+func (UnimplementedSourcePluginServiceHandler) SetSourceHealthCheck(context.Context, *connect.Request[v1.SetSourceHealthCheckRequest]) (*connect.Response[v1.SetSourceHealthCheckResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("panelarr.source.v1.SourcePluginService.SetSourceHealthCheck is not implemented"))
 }
 
 func (UnimplementedSourcePluginServiceHandler) GetNetworkProfile(context.Context, *connect.Request[v1.GetNetworkProfileRequest]) (*connect.Response[v1.GetNetworkProfileResponse], error) {

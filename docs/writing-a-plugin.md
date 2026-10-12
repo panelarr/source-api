@@ -42,7 +42,7 @@ Standalone plugins use ports from 8903 up. `plugin.WithRoutes(plugin.Route{Patte
 
 ## Packages
 
-A plugin that installs things that provide sources (extensions) declares `PLUGIN_CAPABILITY_PACKAGES` and implements the package calls (see [protos.md](protos.md#packages-and-languages)). Keep install and update idempotent and all-or-nothing, set `Source.package_id` on listed sources, list only sources whose language is enabled at the plugin's and the package's level, and answer `NOT_FOUND` for the others. If the plugin's configuration has a languages field, say in its description that `"all"`/`"multi"` must be listed to keep multi-language sources. `plugintest.New()` shows a complete fake.
+A plugin that installs things that provide sources (extensions) declares `PLUGIN_CAPABILITY_PACKAGES` and implements the package calls (see [protos.md](protos.md#packages-and-languages)). Keep install and update idempotent and all-or-nothing, set `Source.package_id` on listed sources, list only sources whose language is enabled at the plugin's and the package's level, and answer `NOT_FOUND` for the others. If the plugin's configuration has a languages field, say in its description that `"all"`/`"multi"` must be listed to keep multi-language sources. Answer `ListOrigins` and `RefreshOrigin` for the places packages come from, fill `Package.details` for installed packages, and implement `ReloadPackage` if packages can be loaded again without a download. A plugin that checks its sources on a schedule declares `PLUGIN_CAPABILITY_HEALTH_CHECKS`, reports results in `Source.health` and implements `SetSourceHealthCheck`. `plugintest.New()` shows a complete fake.
 
 ## Jobs
 

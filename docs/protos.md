@@ -20,6 +20,13 @@ Plugins that host many sites (Mihon extensions, say) declare the `PACKAGES` capa
 - **Languages** decide which sources exist, at two levels: the plugin's own setting (part of its configuration) and each package's `enabled_langs`. Empty means all at that level. A source is listed only when its language passes both, and calls to any other source answer `NOT_FOUND`. `"all"` and `"multi"` are languages like any other: name them to keep multi-language sources.
 - `Source.package_id` names the package a listed source comes from; `PackageSource.available` says whether a package's source passes the languages.
 - Failures of the package's origin carry `STORE_FETCH_FAILED` (UNAVAILABLE) or `STORE_INVALID` (FAILED_PRECONDITION).
+- **Origins** are where packages come from (extension stores, say): `ListOrigins` shows each with its URL, last refresh, error, package count and pinned signing key, and `RefreshOrigin` fetches one again. `PackageOffer.origin_id` names them, and their IDs follow the package ID rule.
+- **Package details:** an installed package can carry `details` for an admin to check: signing fingerprint, the plugin API version it was built against, when and from which origin it was installed, and its file's SHA-256. Why it doesn't work is in `error`.
+- **`ReloadPackage`** loads an installed package again without downloading anything: it retries a package that failed to load and applies settings the package reads only at start. `UpdatePackage` doesn't, when the package is up to date.
+
+## Health checks
+
+Plugins that check their sources on a schedule declare `HEALTH_CHECKS`. They report each source's last check in `Source.health`, and `SetSourceHealthCheck(source_id, enabled)` turns a source's scheduled checks off or on again (`SourceHealth.checks_disabled` shows it). Checking now, and the schedule, are the plugin's jobs, when it has the `JOBS` capability.
 
 ## Jobs
 

@@ -63,6 +63,13 @@ type Plugin interface {
 	UpdatePackage(ctx context.Context, req *sourcev1.UpdatePackageRequest) (*sourcev1.UpdatePackageResponse, error)
 	UninstallPackage(ctx context.Context, req *sourcev1.UninstallPackageRequest) (*sourcev1.UninstallPackageResponse, error)
 	SetPackageSettings(ctx context.Context, req *sourcev1.SetPackageSettingsRequest) (*sourcev1.SetPackageSettingsResponse, error)
+	// ListOrigins, RefreshOrigin and ReloadPackage are package calls too.
+	ListOrigins(ctx context.Context, req *sourcev1.ListOriginsRequest) (*sourcev1.ListOriginsResponse, error)
+	RefreshOrigin(ctx context.Context, req *sourcev1.RefreshOriginRequest) (*sourcev1.RefreshOriginResponse, error)
+	ReloadPackage(ctx context.Context, req *sourcev1.ReloadPackageRequest) (*sourcev1.ReloadPackageResponse, error)
+	// SetSourceHealthCheck turns a source's scheduled checks on or off, for
+	// plugins with the HEALTH_CHECKS capability.
+	SetSourceHealthCheck(ctx context.Context, req *sourcev1.SetSourceHealthCheckRequest) (*sourcev1.SetSourceHealthCheckResponse, error)
 	// GetNetworkProfile returns the profile a source uses and where it comes
 	// from (optional).
 	GetNetworkProfile(ctx context.Context, req *sourcev1.GetNetworkProfileRequest) (*sourcev1.GetNetworkProfileResponse, error)
@@ -217,6 +224,22 @@ func (Unimplemented) RunJob(context.Context, *sourcev1.RunJobRequest) (*sourcev1
 
 func (Unimplemented) CancelJobRun(context.Context, *sourcev1.CancelJobRunRequest) (*sourcev1.CancelJobRunResponse, error) {
 	return nil, ErrUnimplemented("CancelJobRun")
+}
+
+func (Unimplemented) ListOrigins(context.Context, *sourcev1.ListOriginsRequest) (*sourcev1.ListOriginsResponse, error) {
+	return nil, ErrUnimplemented("ListOrigins")
+}
+
+func (Unimplemented) RefreshOrigin(context.Context, *sourcev1.RefreshOriginRequest) (*sourcev1.RefreshOriginResponse, error) {
+	return nil, ErrUnimplemented("RefreshOrigin")
+}
+
+func (Unimplemented) ReloadPackage(context.Context, *sourcev1.ReloadPackageRequest) (*sourcev1.ReloadPackageResponse, error) {
+	return nil, ErrUnimplemented("ReloadPackage")
+}
+
+func (Unimplemented) SetSourceHealthCheck(context.Context, *sourcev1.SetSourceHealthCheckRequest) (*sourcev1.SetSourceHealthCheckResponse, error) {
+	return nil, ErrUnimplemented("SetSourceHealthCheck")
 }
 
 // PackageIDPattern is what package IDs look like: no ':', which HTTP paths

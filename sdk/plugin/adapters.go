@@ -157,6 +157,22 @@ func (s *connectServer) CancelJobRun(ctx context.Context, r *connect.Request[sou
 	return unaryConnect(ctx, r, s.p.CancelJobRun)
 }
 
+func (s *connectServer) ListOrigins(ctx context.Context, r *connect.Request[sourcev1.ListOriginsRequest]) (*connect.Response[sourcev1.ListOriginsResponse], error) {
+	return unaryConnect(ctx, r, s.p.ListOrigins)
+}
+
+func (s *connectServer) RefreshOrigin(ctx context.Context, r *connect.Request[sourcev1.RefreshOriginRequest]) (*connect.Response[sourcev1.RefreshOriginResponse], error) {
+	return unaryConnect(ctx, r, s.p.RefreshOrigin)
+}
+
+func (s *connectServer) ReloadPackage(ctx context.Context, r *connect.Request[sourcev1.ReloadPackageRequest]) (*connect.Response[sourcev1.ReloadPackageResponse], error) {
+	return unaryConnect(ctx, r, s.p.ReloadPackage)
+}
+
+func (s *connectServer) SetSourceHealthCheck(ctx context.Context, r *connect.Request[sourcev1.SetSourceHealthCheckRequest]) (*connect.Response[sourcev1.SetSourceHealthCheckResponse], error) {
+	return unaryConnect(ctx, r, s.p.SetSourceHealthCheck)
+}
+
 func (s *connectServer) FetchImage(ctx context.Context, r *connect.Request[sourcev1.FetchImageRequest], stream *connect.ServerStream[sourcev1.FetchImageResponse]) error {
 	return ToConnectError(s.p.FetchImage(ctx, r.Msg, stream.Send))
 }
@@ -309,6 +325,22 @@ func (s *grpcServer) RunJob(ctx context.Context, r *sourcev1.RunJobRequest) (*so
 
 func (s *grpcServer) CancelJobRun(ctx context.Context, r *sourcev1.CancelJobRunRequest) (*sourcev1.CancelJobRunResponse, error) {
 	return unaryGRPC(ctx, r, s.p.CancelJobRun)
+}
+
+func (s *grpcServer) ListOrigins(ctx context.Context, r *sourcev1.ListOriginsRequest) (*sourcev1.ListOriginsResponse, error) {
+	return unaryGRPC(ctx, r, s.p.ListOrigins)
+}
+
+func (s *grpcServer) RefreshOrigin(ctx context.Context, r *sourcev1.RefreshOriginRequest) (*sourcev1.RefreshOriginResponse, error) {
+	return unaryGRPC(ctx, r, s.p.RefreshOrigin)
+}
+
+func (s *grpcServer) ReloadPackage(ctx context.Context, r *sourcev1.ReloadPackageRequest) (*sourcev1.ReloadPackageResponse, error) {
+	return unaryGRPC(ctx, r, s.p.ReloadPackage)
+}
+
+func (s *grpcServer) SetSourceHealthCheck(ctx context.Context, r *sourcev1.SetSourceHealthCheckRequest) (*sourcev1.SetSourceHealthCheckResponse, error) {
+	return unaryGRPC(ctx, r, s.p.SetSourceHealthCheck)
 }
 
 func (s *grpcServer) FetchImage(r *sourcev1.FetchImageRequest, stream grpc.ServerStreamingServer[sourcev1.FetchImageResponse]) error {

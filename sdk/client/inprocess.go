@@ -178,6 +178,22 @@ func (c *inProcess) CancelJobRun(ctx context.Context, req *sourcev1.CancelJobRun
 	return call(ctx, req, c.p.CancelJobRun)
 }
 
+func (c *inProcess) ListOrigins(ctx context.Context, req *sourcev1.ListOriginsRequest) (*sourcev1.ListOriginsResponse, error) {
+	return call(ctx, req, c.p.ListOrigins)
+}
+
+func (c *inProcess) RefreshOrigin(ctx context.Context, req *sourcev1.RefreshOriginRequest) (*sourcev1.RefreshOriginResponse, error) {
+	return call(ctx, req, c.p.RefreshOrigin)
+}
+
+func (c *inProcess) ReloadPackage(ctx context.Context, req *sourcev1.ReloadPackageRequest) (*sourcev1.ReloadPackageResponse, error) {
+	return call(ctx, req, c.p.ReloadPackage)
+}
+
+func (c *inProcess) SetSourceHealthCheck(ctx context.Context, req *sourcev1.SetSourceHealthCheckRequest) (*sourcev1.SetSourceHealthCheckResponse, error) {
+	return call(ctx, req, c.p.SetSourceHealthCheck)
+}
+
 func (c *inProcess) GetNetworkProfile(ctx context.Context, sourceID string) (*sourcev1.GetNetworkProfileResponse, error) {
 	return call(ctx, &sourcev1.GetNetworkProfileRequest{SourceId: sourceID}, c.p.GetNetworkProfile)
 }

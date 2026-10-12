@@ -58,6 +58,9 @@ type Fake struct {
 	settings map[string]map[string]any
 	calls    map[string]int
 	release  chan struct{}
+	origins  map[string]*originState
+	// checksOff are the sources whose health checks are turned off.
+	checksOff map[string]bool
 }
 
 // Source is a fake source and its catalogue.
@@ -283,11 +286,7 @@ func (f *Fake) ListSources(_ context.Context, r *sourcev1.ListSourcesRequest) (*
 	res := &sourcev1.ListSourcesResponse{}
 	for _, s := range f.Sources {
 		if (r.GetLang() == "" || r.GetLang() == s.Source.GetLang()) && f.listed(s) {
-			src := proto.Clone(s.Source).(*sourcev1.Source)
-			if p := f.packageOf(s.Source.GetId()); p != nil {
-				src.PackageId = p.Package.GetId()
-			}
-			res.Sources = append(res.Sources, src)
+			res.Sources = append(res.Sources, f.sourceView(s))
 		}
 	}
 	return res, nil
@@ -299,7 +298,7 @@ func (f *Fake) GetSource(_ context.Context, r *sourcev1.GetSourceRequest) (*sour
 	if err != nil {
 		return nil, err
 	}
-	return &sourcev1.GetSourceResponse{Source: s.Source}, nil
+	return &sourcev1.GetSourceResponse{Source: f.sourceView(s)}, nil
 }
 
 func (f *Fake) GetFilters(_ context.Context, r *sourcev1.GetFiltersRequest) (*sourcev1.GetFiltersResponse, error) {

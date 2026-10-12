@@ -1034,6 +1034,20 @@ components:
           title: jobs
       title: ListJobsResponse
       additionalProperties: false
+    panelarr.source.v1.ListOriginsRequest:
+      type: object
+      title: ListOriginsRequest
+      additionalProperties: false
+    panelarr.source.v1.ListOriginsResponse:
+      type: object
+      properties:
+        origins:
+          type: array
+          items:
+            $ref: '#/components/schemas/panelarr.source.v1.Origin'
+          title: origins
+      title: ListOriginsResponse
+      additionalProperties: false
     panelarr.source.v1.ListPackagesRequest:
       type: object
       properties:
@@ -1182,6 +1196,41 @@ components:
         - NETWORK_PROFILE_ORIGIN_PLUGIN
         - NETWORK_PROFILE_ORIGIN_NONE
       description: NetworkProfileOrigin is where the profile a source uses comes from.
+    panelarr.source.v1.Origin:
+      type: object
+      properties:
+        id:
+          type: string
+          title: id
+          description: Matches `^[A-Za-z0-9][A-Za-z0-9._-]*$`, like package IDs.
+        name:
+          type: string
+          title: name
+        url:
+          type: string
+          title: url
+        refreshedAt:
+          allOf:
+            - $ref: '#/components/schemas/google.protobuf.Timestamp'
+          title: refreshed_at
+          description: When its list of packages was last fetched successfully.
+        error:
+          type: string
+          title: error
+          description: Why the last refresh failed. Empty when it worked.
+        packageCount:
+          type: integer
+          title: package_count
+          description: How many packages it offers.
+        signingKeyFingerprint:
+          type: string
+          title: signing_key_fingerprint
+          description: |-
+            SHA-256 (hex, lowercase) of the signing key pinned for the origin. Empty when it
+             has none.
+      title: Origin
+      additionalProperties: false
+      description: Origin is where packages come from, e.g. an extension store.
     panelarr.source.v1.Package:
       type: object
       properties:
@@ -1251,9 +1300,46 @@ components:
           type: string
           title: error
           description: Why an installed package isn't working (e.g. it failed to load). Empty when fine.
+        details:
+          allOf:
+            - $ref: '#/components/schemas/panelarr.source.v1.PackageDetails'
+          title: details
+          description: |-
+            More about the installed package, when the plugin knows it. Unset when not
+             installed.
       title: Package
       additionalProperties: false
       description: Package is something a plugin can install that provides sources, e.g. an extension.
+    panelarr.source.v1.PackageDetails:
+      type: object
+      properties:
+        signingFingerprint:
+          type: string
+          title: signing_fingerprint
+          description: SHA-256 (hex, lowercase) of the key the package is signed with. Empty when unsigned.
+        apiVersion:
+          type: string
+          title: api_version
+          description: |-
+            The version of the plugin's API the package was built against, e.g. an
+             extension's library version.
+        installedAt:
+          allOf:
+            - $ref: '#/components/schemas/google.protobuf.Timestamp'
+          title: installed_at
+        sha256:
+          type: string
+          title: sha256
+          description: SHA-256 (hex, lowercase) of the installed file.
+        originId:
+          type: string
+          title: origin_id
+          description: |-
+            The origin it was installed from. Empty when installed another way, e.g. from a
+             file.
+      title: PackageDetails
+      additionalProperties: false
+      description: PackageDetails describes an installed package, for an admin to check.
     panelarr.source.v1.PackageOffer:
       type: object
       properties:
@@ -1336,6 +1422,7 @@ components:
         - PLUGIN_CAPABILITY_DYNAMIC_SOURCES
         - PLUGIN_CAPABILITY_PACKAGES
         - PLUGIN_CAPABILITY_JOBS
+        - PLUGIN_CAPABILITY_HEALTH_CHECKS
     panelarr.source.v1.PluginInfo:
       type: object
       properties:
@@ -1453,6 +1540,40 @@ components:
         - RATE_LIMIT_SCOPE_UNSPECIFIED
         - RATE_LIMIT_SCOPE_SOURCE
         - RATE_LIMIT_SCOPE_HOST
+    panelarr.source.v1.RefreshOriginRequest:
+      type: object
+      properties:
+        originId:
+          type: string
+          title: origin_id
+      title: RefreshOriginRequest
+      additionalProperties: false
+    panelarr.source.v1.RefreshOriginResponse:
+      type: object
+      properties:
+        origin:
+          allOf:
+            - $ref: '#/components/schemas/panelarr.source.v1.Origin'
+          title: origin
+      title: RefreshOriginResponse
+      additionalProperties: false
+    panelarr.source.v1.ReloadPackageRequest:
+      type: object
+      properties:
+        packageId:
+          type: string
+          title: package_id
+      title: ReloadPackageRequest
+      additionalProperties: false
+    panelarr.source.v1.ReloadPackageResponse:
+      type: object
+      properties:
+        package:
+          allOf:
+            - $ref: '#/components/schemas/panelarr.source.v1.Package'
+          title: package
+      title: ReloadPackageResponse
+      additionalProperties: false
     panelarr.source.v1.ResolveUrlRequest:
       type: object
       properties:
@@ -1708,6 +1829,26 @@ components:
             - $ref: '#/components/schemas/google.protobuf.Struct'
           title: values
       title: SetSettingsResponse
+      additionalProperties: false
+    panelarr.source.v1.SetSourceHealthCheckRequest:
+      type: object
+      properties:
+        sourceId:
+          type: string
+          title: source_id
+        enabled:
+          type: boolean
+          title: enabled
+      title: SetSourceHealthCheckRequest
+      additionalProperties: false
+    panelarr.source.v1.SetSourceHealthCheckResponse:
+      type: object
+      properties:
+        source:
+          allOf:
+            - $ref: '#/components/schemas/panelarr.source.v1.Source'
+          title: source
+      title: SetSourceHealthCheckResponse
       additionalProperties: false
     panelarr.source.v1.Solver:
       type: object
@@ -2233,6 +2374,47 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/panelarr.source.v1.RunJobResponse'
+  /v1/origins:
+    get:
+      tags:
+        - SourcePluginService
+      summary: ListOrigins
+      description: |-
+        ListOrigins lists where packages come from, e.g. extension stores (with the
+         PACKAGES capability). PackageOffer.origin_id names one of them.
+      operationId: SourcePluginService_ListOrigins
+      responses:
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/panelarr.source.v1.ListOriginsResponse'
+  /v1/origins/{originId}:refresh:
+    post:
+      tags:
+        - SourcePluginService
+      summary: RefreshOrigin
+      description: |-
+        RefreshOrigin fetches an origin's list of packages again and returns the origin.
+         When that fails, the call fails (STORE_FETCH_FAILED or STORE_INVALID) and the
+         origin's `error` says why until a refresh works.
+      operationId: SourcePluginService_RefreshOrigin
+      parameters:
+        - name: originId
+          in: path
+          description: The originId path parameter.
+          required: true
+          schema:
+            type: string
+            title: origin_id
+      responses:
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/panelarr.source.v1.RefreshOriginResponse'
   /v1/packages:
     get:
       tags:
@@ -2394,6 +2576,32 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/panelarr.source.v1.InstallPackageResponse'
+  /v1/packages/{packageId}:reload:
+    post:
+      tags:
+        - SourcePluginService
+      summary: ReloadPackage
+      description: |-
+        ReloadPackage loads an installed package again from what is installed, without
+         downloading anything: to retry a package that failed to load, or to apply settings
+         the package only reads when it starts. UpdatePackage doesn't do that when the
+         package is up to date. Returns the package as it is after loading.
+      operationId: SourcePluginService_ReloadPackage
+      parameters:
+        - name: packageId
+          in: path
+          description: The packageId path parameter.
+          required: true
+          schema:
+            type: string
+            title: package_id
+      responses:
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/panelarr.source.v1.ReloadPackageResponse'
   /v1/packages/{packageId}:uninstall:
     post:
       tags:
@@ -2567,6 +2775,43 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/panelarr.source.v1.GetFiltersResponse'
+  /v1/sources/{sourceId}/health-check:
+    put:
+      tags:
+        - SourcePluginService
+      summary: SetSourceHealthCheck
+      description: |-
+        SetSourceHealthCheck turns the plugin's scheduled health checks of one source on
+         or off (with the HEALTH_CHECKS capability). SourceHealth.checks_disabled shows the
+         setting. Returns the source. Plugins without the capability answer UNIMPLEMENTED.
+      operationId: SourcePluginService_SetSourceHealthCheck
+      parameters:
+        - name: sourceId
+          in: path
+          description: The sourceId path parameter.
+          required: true
+          schema:
+            type: string
+            title: source_id
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                enabled:
+                  type: boolean
+                  title: enabled
+              title: SetSourceHealthCheckRequest
+              additionalProperties: false
+        required: true
+      responses:
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/panelarr.source.v1.SetSourceHealthCheckResponse'
   /v1/sources/{sourceId}/latest:
     get:
       tags:

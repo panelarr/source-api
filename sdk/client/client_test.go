@@ -301,7 +301,7 @@ func TestExtraRoutes(t *testing.T) {
 func TestPackagesConformance(t *testing.T) {
 	f := plugintest.New()
 	rep := conformance.Run(t, remote(t, f, "k"), conformance.Options{PackageID: "multi.comics"})
-	if rep.Packages != 3 || len(rep.PackageSteps) != 6 {
+	if rep.Packages != 3 || len(rep.PackageSteps) != 7 {
 		t.Fatalf("packages %d, steps %+v", rep.Packages, rep.PackageSteps)
 	}
 	for _, st := range rep.PackageSteps {
@@ -464,6 +464,46 @@ func TestJobsOverEveryTransport(t *testing.T) {
 		run, err := c.GetJobRun(ctx, &sourcev1.GetJobRunRequest{RunId: held.GetRun().GetId()})
 		if err != nil || run.GetRun().GetSummary().GetStatus() != jobsv1.JobRunStatus_JOB_RUN_STATUS_CANCELLED || run.GetRun().GetSummary().GetTriggeredBy() != "tester" {
 			t.Errorf("%s: run: %v, %v", name, run, err)
+		}
+	}
+}
+
+func TestOriginsDetailsReloadAndHealthChecks(t *testing.T) {
+	f := plugintest.New()
+	clients := map[string]client.Client{
+		"in-process": client.InProcess(f),
+		"grpc":       remote(t, f, ""),
+		"connect":    client.Remote(serve(t, f, ""), client.RemoteOptions{Connect: true}),
+	}
+	ctx := context.Background()
+	for name, c := range clients {
+		origins, err := c.ListOrigins(ctx, &sourcev1.ListOriginsRequest{})
+		if err != nil || len(origins.GetOrigins()) != 2 || origins.GetOrigins()[0].GetPackageCount() != 3 {
+			t.Fatalf("%s: origins %v, %v", name, origins, err)
+		}
+		f.BreakOrigin("store-b", true)
+		_, err = c.RefreshOrigin(ctx, &sourcev1.RefreshOriginRequest{OriginId: "store-b"})
+		if plugin.ErrorCode(err) != plugin.CodeUnavailable || plugin.ErrorReason(err) != plugin.ReasonStoreFetchFailed {
+			t.Errorf("%s: broken refresh: %v", name, err)
+		}
+		f.BreakOrigin("store-b", false)
+		if o, err := c.RefreshOrigin(ctx, &sourcev1.RefreshOriginRequest{OriginId: "store-b"}); err != nil || o.GetOrigin().GetError() != "" {
+			t.Errorf("%s: refresh: %v, %v", name, o, err)
+		}
+		pkg, err := c.ReloadPackage(ctx, &sourcev1.ReloadPackageRequest{PackageId: "example.comics"})
+		if err != nil || pkg.GetPackage().GetDetails().GetOriginId() != "store-a" || pkg.GetPackage().GetDetails().GetSigningFingerprint() == "" {
+			t.Errorf("%s: reload: %v, %v", name, pkg, err)
+		}
+		if _, err := c.ReloadPackage(ctx, &sourcev1.ReloadPackageRequest{PackageId: "multi.comics"}); plugin.ErrorCode(err) != plugin.CodeFailedPrecondition {
+			t.Errorf("%s: reload a package that isn't installed: %v", name, err)
+		}
+		off, err := c.SetSourceHealthCheck(ctx, &sourcev1.SetSourceHealthCheckRequest{SourceId: "1001"})
+		if err != nil || !off.GetSource().GetHealth().GetChecksDisabled() {
+			t.Errorf("%s: checks off: %v, %v", name, off, err)
+		}
+		on, err := c.SetSourceHealthCheck(ctx, &sourcev1.SetSourceHealthCheckRequest{SourceId: "1001", Enabled: true})
+		if err != nil || on.GetSource().GetHealth().GetChecksDisabled() {
+			t.Errorf("%s: checks on: %v, %v", name, on, err)
 		}
 	}
 }

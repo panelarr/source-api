@@ -6,6 +6,9 @@ import (
 	"context"
 	"slices"
 	"strings"
+	"time"
+
+	"google.golang.org/protobuf/types/known/timestamppb"
 
 	sourcev1 "github.com/panelarr/source-api/gen/panelarr/source/v1"
 	"github.com/panelarr/source-api/sdk/plugin"
@@ -49,8 +52,10 @@ func (p *Package) Installed(version string) *Package {
 
 // packageState is what changes while serving.
 type packageState struct {
-	installed string
-	langs     []string
+	installed   string
+	langs       []string
+	from        string
+	installedAt time.Time
 }
 
 func (f *Fake) state(p *Package) *packageState {
@@ -59,7 +64,10 @@ func (f *Fake) state(p *Package) *packageState {
 	}
 	st, ok := f.pkgState[p.Package.GetId()]
 	if !ok {
-		st = &packageState{installed: p.installed}
+		st = &packageState{installed: p.installed, installedAt: fakeEpoch}
+		if offers := p.Package.GetOffers(); len(offers) > 0 && p.installed != "" {
+			st.from = offers[0].GetOriginId()
+		}
 		f.pkgState[p.Package.GetId()] = st
 	}
 	return st
@@ -73,6 +81,7 @@ func (f *Fake) capabilities() []sourcev1.PluginCapability {
 	if f.Jobs != nil {
 		caps = append(caps, sourcev1.PluginCapability_PLUGIN_CAPABILITY_JOBS)
 	}
+	caps = append(caps, sourcev1.PluginCapability_PLUGIN_CAPABILITY_HEALTH_CHECKS)
 	return caps
 }
 
@@ -127,6 +136,15 @@ func (f *Fake) view(p *Package) *sourcev1.Package {
 		Settings: &sourcev1.PackageSettings{EnabledLangs: slices.Clone(st.langs)},
 	}
 	out.UpdateAvailable = out.Installed && st.installed != p.Package.GetVersion()
+	if out.Installed {
+		out.Details = &sourcev1.PackageDetails{
+			SigningFingerprint: digest("signer", p.Package.GetId()),
+			ApiVersion:         "1.0",
+			InstalledAt:        timestamppb.New(st.installedAt),
+			Sha256:             digest(p.Package.GetId(), st.installed),
+			OriginId:           st.from,
+		}
+	}
 	for _, s := range p.Sources {
 		out.Sources = append(out.Sources, &sourcev1.PackageSource{
 			Id: s.Source.GetId(), Name: s.Source.GetName(), Lang: s.Source.GetLang(),
@@ -185,9 +203,16 @@ func (f *Fake) InstallPackage(_ context.Context, r *sourcev1.InstallPackageReque
 		}
 		version = p.Package.GetOffers()[i].GetVersion()
 	}
+	from := r.GetOriginId()
+	if offers := p.Package.GetOffers(); from == "" && len(offers) > 0 {
+		from = offers[0].GetOriginId()
+	}
 	f.mu.Lock()
 	defer f.mu.Unlock()
-	f.state(p).installed = version
+	st := f.state(p)
+	if st.installed != version {
+		st.installed, st.from, st.installedAt = version, from, time.Now().UTC()
+	}
 	return &sourcev1.InstallPackageResponse{Package: f.view(p)}, nil
 }
 
@@ -203,7 +228,9 @@ func (f *Fake) UpdatePackage(_ context.Context, r *sourcev1.UpdatePackageRequest
 	if st.installed == "" {
 		return nil, plugin.Errorf(plugin.CodeFailedPrecondition, "package %q isn't installed", r.GetPackageId())
 	}
-	st.installed = p.Package.GetVersion()
+	if st.installed != p.Package.GetVersion() {
+		st.installed, st.installedAt = p.Package.GetVersion(), time.Now().UTC()
+	}
 	return &sourcev1.UpdatePackageResponse{Package: f.view(p)}, nil
 }
 

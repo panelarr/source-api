@@ -189,6 +189,43 @@ service SourcePluginService {
     };
   }
 
+  // ListOrigins lists where packages come from, e.g. extension stores (with the
+  // PACKAGES capability). PackageOffer.origin_id names one of them.
+  rpc ListOrigins(ListOriginsRequest) returns (ListOriginsResponse) {
+    option (google.api.http) = {get: "/v1/origins"};
+  }
+
+  // RefreshOrigin fetches an origin's list of packages again and returns the origin.
+  // When that fails, the call fails (STORE_FETCH_FAILED or STORE_INVALID) and the
+  // origin's `error` says why until a refresh works.
+  rpc RefreshOrigin(RefreshOriginRequest) returns (RefreshOriginResponse) {
+    option (google.api.http) = {
+      post: "/v1/origins/{origin_id}:refresh"
+      body: "*"
+    };
+  }
+
+  // ReloadPackage loads an installed package again from what is installed, without
+  // downloading anything: to retry a package that failed to load, or to apply settings
+  // the package only reads when it starts. UpdatePackage doesn't do that when the
+  // package is up to date. Returns the package as it is after loading.
+  rpc ReloadPackage(ReloadPackageRequest) returns (ReloadPackageResponse) {
+    option (google.api.http) = {
+      post: "/v1/packages/{package_id}:reload"
+      body: "*"
+    };
+  }
+
+  // SetSourceHealthCheck turns the plugin's scheduled health checks of one source on
+  // or off (with the HEALTH_CHECKS capability). SourceHealth.checks_disabled shows the
+  // setting. Returns the source. Plugins without the capability answer UNIMPLEMENTED.
+  rpc SetSourceHealthCheck(SetSourceHealthCheckRequest) returns (SetSourceHealthCheckResponse) {
+    option (google.api.http) = {
+      put: "/v1/sources/{source_id}/health-check"
+      body: "*"
+    };
+  }
+
   // GetNetworkProfile returns the network profile a source uses now and where it comes
   // from, so a host can show it. Proxy passwords come back empty. Optional: plugins that
   // don't implement it answer UNIMPLEMENTED.
@@ -290,6 +327,9 @@ enum PluginCapability {
   // The plugin has background jobs that hosts can list, run and cancel (ListJobs and
   // the other job calls).
   PLUGIN_CAPABILITY_JOBS = 4;
+  // The plugin checks its sources on a schedule, reports the results in Source.health,
+  // and lets hosts turn the checks off per source (SetSourceHealthCheck).
+  PLUGIN_CAPABILITY_HEALTH_CHECKS = 5;
 }
 
 // CommonService is a service a host can offer to plugins.
@@ -778,6 +818,41 @@ message Package {
   string icon_url = 13;
   // Why an installed package isn't working (e.g. it failed to load). Empty when fine.
   string error = 14;
+  // More about the installed package, when the plugin knows it. Unset when not
+  // installed.
+  PackageDetails details = 15;
+}
+
+// PackageDetails describes an installed package, for an admin to check.
+message PackageDetails {
+  // SHA-256 (hex, lowercase) of the key the package is signed with. Empty when unsigned.
+  string signing_fingerprint = 1;
+  // The version of the plugin's API the package was built against, e.g. an
+  // extension's library version.
+  string api_version = 2;
+  google.protobuf.Timestamp installed_at = 3;
+  // SHA-256 (hex, lowercase) of the installed file.
+  string sha256 = 4;
+  // The origin it was installed from. Empty when installed another way, e.g. from a
+  // file.
+  string origin_id = 5;
+}
+
+// Origin is where packages come from, e.g. an extension store.
+message Origin {
+  // Matches `^[A-Za-z0-9][A-Za-z0-9._-]*$`, like package IDs.
+  string id = 1;
+  string name = 2;
+  string url = 3;
+  // When its list of packages was last fetched successfully.
+  google.protobuf.Timestamp refreshed_at = 4;
+  // Why the last refresh failed. Empty when it worked.
+  string error = 5;
+  // How many packages it offers.
+  uint32 package_count = 6;
+  // SHA-256 (hex, lowercase) of the signing key pinned for the origin. Empty when it
+  // has none.
+  string signing_key_fingerprint = 7;
 }
 
 message PackageOffer {
@@ -863,6 +938,37 @@ message UninstallPackageResponse {}
 message SetPackageSettingsRequest {
   string package_id = 1;
   PackageSettings settings = 2;
+}
+
+message ListOriginsRequest {}
+
+message ListOriginsResponse {
+  repeated Origin origins = 1;
+}
+
+message RefreshOriginRequest {
+  string origin_id = 1;
+}
+
+message RefreshOriginResponse {
+  Origin origin = 1;
+}
+
+message ReloadPackageRequest {
+  string package_id = 1;
+}
+
+message ReloadPackageResponse {
+  Package package = 1;
+}
+
+message SetSourceHealthCheckRequest {
+  string source_id = 1;
+  bool enabled = 2;
+}
+
+message SetSourceHealthCheckResponse {
+  Source source = 1;
 }
 
 message SetPackageSettingsResponse {

@@ -21,38 +21,42 @@ import (
 const _ = grpc.SupportPackageIsVersion9
 
 const (
-	SourcePluginService_GetInfo_FullMethodName            = "/panelarr.source.v1.SourcePluginService/GetInfo"
-	SourcePluginService_GetConfig_FullMethodName          = "/panelarr.source.v1.SourcePluginService/GetConfig"
-	SourcePluginService_SetConfig_FullMethodName          = "/panelarr.source.v1.SourcePluginService/SetConfig"
-	SourcePluginService_Health_FullMethodName             = "/panelarr.source.v1.SourcePluginService/Health"
-	SourcePluginService_ListSources_FullMethodName        = "/panelarr.source.v1.SourcePluginService/ListSources"
-	SourcePluginService_GetSource_FullMethodName          = "/panelarr.source.v1.SourcePluginService/GetSource"
-	SourcePluginService_GetFilters_FullMethodName         = "/panelarr.source.v1.SourcePluginService/GetFilters"
-	SourcePluginService_Popular_FullMethodName            = "/panelarr.source.v1.SourcePluginService/Popular"
-	SourcePluginService_Latest_FullMethodName             = "/panelarr.source.v1.SourcePluginService/Latest"
-	SourcePluginService_Search_FullMethodName             = "/panelarr.source.v1.SourcePluginService/Search"
-	SourcePluginService_ResolveUrl_FullMethodName         = "/panelarr.source.v1.SourcePluginService/ResolveUrl"
-	SourcePluginService_GetSeries_FullMethodName          = "/panelarr.source.v1.SourcePluginService/GetSeries"
-	SourcePluginService_ListChapters_FullMethodName       = "/panelarr.source.v1.SourcePluginService/ListChapters"
-	SourcePluginService_ListPages_FullMethodName          = "/panelarr.source.v1.SourcePluginService/ListPages"
-	SourcePluginService_FetchImage_FullMethodName         = "/panelarr.source.v1.SourcePluginService/FetchImage"
-	SourcePluginService_GetSettingsSchema_FullMethodName  = "/panelarr.source.v1.SourcePluginService/GetSettingsSchema"
-	SourcePluginService_GetSettings_FullMethodName        = "/panelarr.source.v1.SourcePluginService/GetSettings"
-	SourcePluginService_SetSettings_FullMethodName        = "/panelarr.source.v1.SourcePluginService/SetSettings"
-	SourcePluginService_ListPackages_FullMethodName       = "/panelarr.source.v1.SourcePluginService/ListPackages"
-	SourcePluginService_GetPackage_FullMethodName         = "/panelarr.source.v1.SourcePluginService/GetPackage"
-	SourcePluginService_InstallPackage_FullMethodName     = "/panelarr.source.v1.SourcePluginService/InstallPackage"
-	SourcePluginService_UpdatePackage_FullMethodName      = "/panelarr.source.v1.SourcePluginService/UpdatePackage"
-	SourcePluginService_UninstallPackage_FullMethodName   = "/panelarr.source.v1.SourcePluginService/UninstallPackage"
-	SourcePluginService_SetPackageSettings_FullMethodName = "/panelarr.source.v1.SourcePluginService/SetPackageSettings"
-	SourcePluginService_GetNetworkProfile_FullMethodName  = "/panelarr.source.v1.SourcePluginService/GetNetworkProfile"
-	SourcePluginService_SetNetworkProfile_FullMethodName  = "/panelarr.source.v1.SourcePluginService/SetNetworkProfile"
-	SourcePluginService_ListJobs_FullMethodName           = "/panelarr.source.v1.SourcePluginService/ListJobs"
-	SourcePluginService_GetJob_FullMethodName             = "/panelarr.source.v1.SourcePluginService/GetJob"
-	SourcePluginService_ListJobRuns_FullMethodName        = "/panelarr.source.v1.SourcePluginService/ListJobRuns"
-	SourcePluginService_GetJobRun_FullMethodName          = "/panelarr.source.v1.SourcePluginService/GetJobRun"
-	SourcePluginService_RunJob_FullMethodName             = "/panelarr.source.v1.SourcePluginService/RunJob"
-	SourcePluginService_CancelJobRun_FullMethodName       = "/panelarr.source.v1.SourcePluginService/CancelJobRun"
+	SourcePluginService_GetInfo_FullMethodName              = "/panelarr.source.v1.SourcePluginService/GetInfo"
+	SourcePluginService_GetConfig_FullMethodName            = "/panelarr.source.v1.SourcePluginService/GetConfig"
+	SourcePluginService_SetConfig_FullMethodName            = "/panelarr.source.v1.SourcePluginService/SetConfig"
+	SourcePluginService_Health_FullMethodName               = "/panelarr.source.v1.SourcePluginService/Health"
+	SourcePluginService_ListSources_FullMethodName          = "/panelarr.source.v1.SourcePluginService/ListSources"
+	SourcePluginService_GetSource_FullMethodName            = "/panelarr.source.v1.SourcePluginService/GetSource"
+	SourcePluginService_GetFilters_FullMethodName           = "/panelarr.source.v1.SourcePluginService/GetFilters"
+	SourcePluginService_Popular_FullMethodName              = "/panelarr.source.v1.SourcePluginService/Popular"
+	SourcePluginService_Latest_FullMethodName               = "/panelarr.source.v1.SourcePluginService/Latest"
+	SourcePluginService_Search_FullMethodName               = "/panelarr.source.v1.SourcePluginService/Search"
+	SourcePluginService_ResolveUrl_FullMethodName           = "/panelarr.source.v1.SourcePluginService/ResolveUrl"
+	SourcePluginService_GetSeries_FullMethodName            = "/panelarr.source.v1.SourcePluginService/GetSeries"
+	SourcePluginService_ListChapters_FullMethodName         = "/panelarr.source.v1.SourcePluginService/ListChapters"
+	SourcePluginService_ListPages_FullMethodName            = "/panelarr.source.v1.SourcePluginService/ListPages"
+	SourcePluginService_FetchImage_FullMethodName           = "/panelarr.source.v1.SourcePluginService/FetchImage"
+	SourcePluginService_GetSettingsSchema_FullMethodName    = "/panelarr.source.v1.SourcePluginService/GetSettingsSchema"
+	SourcePluginService_GetSettings_FullMethodName          = "/panelarr.source.v1.SourcePluginService/GetSettings"
+	SourcePluginService_SetSettings_FullMethodName          = "/panelarr.source.v1.SourcePluginService/SetSettings"
+	SourcePluginService_ListPackages_FullMethodName         = "/panelarr.source.v1.SourcePluginService/ListPackages"
+	SourcePluginService_GetPackage_FullMethodName           = "/panelarr.source.v1.SourcePluginService/GetPackage"
+	SourcePluginService_InstallPackage_FullMethodName       = "/panelarr.source.v1.SourcePluginService/InstallPackage"
+	SourcePluginService_UpdatePackage_FullMethodName        = "/panelarr.source.v1.SourcePluginService/UpdatePackage"
+	SourcePluginService_UninstallPackage_FullMethodName     = "/panelarr.source.v1.SourcePluginService/UninstallPackage"
+	SourcePluginService_SetPackageSettings_FullMethodName   = "/panelarr.source.v1.SourcePluginService/SetPackageSettings"
+	SourcePluginService_ListOrigins_FullMethodName          = "/panelarr.source.v1.SourcePluginService/ListOrigins"
+	SourcePluginService_RefreshOrigin_FullMethodName        = "/panelarr.source.v1.SourcePluginService/RefreshOrigin"
+	SourcePluginService_ReloadPackage_FullMethodName        = "/panelarr.source.v1.SourcePluginService/ReloadPackage"
+	SourcePluginService_SetSourceHealthCheck_FullMethodName = "/panelarr.source.v1.SourcePluginService/SetSourceHealthCheck"
+	SourcePluginService_GetNetworkProfile_FullMethodName    = "/panelarr.source.v1.SourcePluginService/GetNetworkProfile"
+	SourcePluginService_SetNetworkProfile_FullMethodName    = "/panelarr.source.v1.SourcePluginService/SetNetworkProfile"
+	SourcePluginService_ListJobs_FullMethodName             = "/panelarr.source.v1.SourcePluginService/ListJobs"
+	SourcePluginService_GetJob_FullMethodName               = "/panelarr.source.v1.SourcePluginService/GetJob"
+	SourcePluginService_ListJobRuns_FullMethodName          = "/panelarr.source.v1.SourcePluginService/ListJobRuns"
+	SourcePluginService_GetJobRun_FullMethodName            = "/panelarr.source.v1.SourcePluginService/GetJobRun"
+	SourcePluginService_RunJob_FullMethodName               = "/panelarr.source.v1.SourcePluginService/RunJob"
+	SourcePluginService_CancelJobRun_FullMethodName         = "/panelarr.source.v1.SourcePluginService/CancelJobRun"
 )
 
 // SourcePluginServiceClient is the client API for SourcePluginService service.
@@ -141,6 +145,22 @@ type SourcePluginServiceClient interface {
 	// SetPackageSettings replaces a package's settings, e.g. its enabled languages. It
 	// returns the package as it is after the change.
 	SetPackageSettings(ctx context.Context, in *SetPackageSettingsRequest, opts ...grpc.CallOption) (*SetPackageSettingsResponse, error)
+	// ListOrigins lists where packages come from, e.g. extension stores (with the
+	// PACKAGES capability). PackageOffer.origin_id names one of them.
+	ListOrigins(ctx context.Context, in *ListOriginsRequest, opts ...grpc.CallOption) (*ListOriginsResponse, error)
+	// RefreshOrigin fetches an origin's list of packages again and returns the origin.
+	// When that fails, the call fails (STORE_FETCH_FAILED or STORE_INVALID) and the
+	// origin's `error` says why until a refresh works.
+	RefreshOrigin(ctx context.Context, in *RefreshOriginRequest, opts ...grpc.CallOption) (*RefreshOriginResponse, error)
+	// ReloadPackage loads an installed package again from what is installed, without
+	// downloading anything: to retry a package that failed to load, or to apply settings
+	// the package only reads when it starts. UpdatePackage doesn't do that when the
+	// package is up to date. Returns the package as it is after loading.
+	ReloadPackage(ctx context.Context, in *ReloadPackageRequest, opts ...grpc.CallOption) (*ReloadPackageResponse, error)
+	// SetSourceHealthCheck turns the plugin's scheduled health checks of one source on
+	// or off (with the HEALTH_CHECKS capability). SourceHealth.checks_disabled shows the
+	// setting. Returns the source. Plugins without the capability answer UNIMPLEMENTED.
+	SetSourceHealthCheck(ctx context.Context, in *SetSourceHealthCheckRequest, opts ...grpc.CallOption) (*SetSourceHealthCheckResponse, error)
 	// GetNetworkProfile returns the network profile a source uses now and where it comes
 	// from, so a host can show it. Proxy passwords come back empty. Optional: plugins that
 	// don't implement it answer UNIMPLEMENTED.
@@ -425,6 +445,46 @@ func (c *sourcePluginServiceClient) SetPackageSettings(ctx context.Context, in *
 	return out, nil
 }
 
+func (c *sourcePluginServiceClient) ListOrigins(ctx context.Context, in *ListOriginsRequest, opts ...grpc.CallOption) (*ListOriginsResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(ListOriginsResponse)
+	err := c.cc.Invoke(ctx, SourcePluginService_ListOrigins_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *sourcePluginServiceClient) RefreshOrigin(ctx context.Context, in *RefreshOriginRequest, opts ...grpc.CallOption) (*RefreshOriginResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(RefreshOriginResponse)
+	err := c.cc.Invoke(ctx, SourcePluginService_RefreshOrigin_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *sourcePluginServiceClient) ReloadPackage(ctx context.Context, in *ReloadPackageRequest, opts ...grpc.CallOption) (*ReloadPackageResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(ReloadPackageResponse)
+	err := c.cc.Invoke(ctx, SourcePluginService_ReloadPackage_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *sourcePluginServiceClient) SetSourceHealthCheck(ctx context.Context, in *SetSourceHealthCheckRequest, opts ...grpc.CallOption) (*SetSourceHealthCheckResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(SetSourceHealthCheckResponse)
+	err := c.cc.Invoke(ctx, SourcePluginService_SetSourceHealthCheck_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 func (c *sourcePluginServiceClient) GetNetworkProfile(ctx context.Context, in *GetNetworkProfileRequest, opts ...grpc.CallOption) (*GetNetworkProfileResponse, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	out := new(GetNetworkProfileResponse)
@@ -591,6 +651,22 @@ type SourcePluginServiceServer interface {
 	// SetPackageSettings replaces a package's settings, e.g. its enabled languages. It
 	// returns the package as it is after the change.
 	SetPackageSettings(context.Context, *SetPackageSettingsRequest) (*SetPackageSettingsResponse, error)
+	// ListOrigins lists where packages come from, e.g. extension stores (with the
+	// PACKAGES capability). PackageOffer.origin_id names one of them.
+	ListOrigins(context.Context, *ListOriginsRequest) (*ListOriginsResponse, error)
+	// RefreshOrigin fetches an origin's list of packages again and returns the origin.
+	// When that fails, the call fails (STORE_FETCH_FAILED or STORE_INVALID) and the
+	// origin's `error` says why until a refresh works.
+	RefreshOrigin(context.Context, *RefreshOriginRequest) (*RefreshOriginResponse, error)
+	// ReloadPackage loads an installed package again from what is installed, without
+	// downloading anything: to retry a package that failed to load, or to apply settings
+	// the package only reads when it starts. UpdatePackage doesn't do that when the
+	// package is up to date. Returns the package as it is after loading.
+	ReloadPackage(context.Context, *ReloadPackageRequest) (*ReloadPackageResponse, error)
+	// SetSourceHealthCheck turns the plugin's scheduled health checks of one source on
+	// or off (with the HEALTH_CHECKS capability). SourceHealth.checks_disabled shows the
+	// setting. Returns the source. Plugins without the capability answer UNIMPLEMENTED.
+	SetSourceHealthCheck(context.Context, *SetSourceHealthCheckRequest) (*SetSourceHealthCheckResponse, error)
 	// GetNetworkProfile returns the network profile a source uses now and where it comes
 	// from, so a host can show it. Proxy passwords come back empty. Optional: plugins that
 	// don't implement it answer UNIMPLEMENTED.
@@ -697,6 +773,18 @@ func (UnimplementedSourcePluginServiceServer) UninstallPackage(context.Context, 
 }
 func (UnimplementedSourcePluginServiceServer) SetPackageSettings(context.Context, *SetPackageSettingsRequest) (*SetPackageSettingsResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method SetPackageSettings not implemented")
+}
+func (UnimplementedSourcePluginServiceServer) ListOrigins(context.Context, *ListOriginsRequest) (*ListOriginsResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method ListOrigins not implemented")
+}
+func (UnimplementedSourcePluginServiceServer) RefreshOrigin(context.Context, *RefreshOriginRequest) (*RefreshOriginResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method RefreshOrigin not implemented")
+}
+func (UnimplementedSourcePluginServiceServer) ReloadPackage(context.Context, *ReloadPackageRequest) (*ReloadPackageResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method ReloadPackage not implemented")
+}
+func (UnimplementedSourcePluginServiceServer) SetSourceHealthCheck(context.Context, *SetSourceHealthCheckRequest) (*SetSourceHealthCheckResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method SetSourceHealthCheck not implemented")
 }
 func (UnimplementedSourcePluginServiceServer) GetNetworkProfile(context.Context, *GetNetworkProfileRequest) (*GetNetworkProfileResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method GetNetworkProfile not implemented")
@@ -1168,6 +1256,78 @@ func _SourcePluginService_SetPackageSettings_Handler(srv interface{}, ctx contex
 	return interceptor(ctx, in, info, handler)
 }
 
+func _SourcePluginService_ListOrigins_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(ListOriginsRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(SourcePluginServiceServer).ListOrigins(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: SourcePluginService_ListOrigins_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(SourcePluginServiceServer).ListOrigins(ctx, req.(*ListOriginsRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _SourcePluginService_RefreshOrigin_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(RefreshOriginRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(SourcePluginServiceServer).RefreshOrigin(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: SourcePluginService_RefreshOrigin_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(SourcePluginServiceServer).RefreshOrigin(ctx, req.(*RefreshOriginRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _SourcePluginService_ReloadPackage_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(ReloadPackageRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(SourcePluginServiceServer).ReloadPackage(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: SourcePluginService_ReloadPackage_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(SourcePluginServiceServer).ReloadPackage(ctx, req.(*ReloadPackageRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _SourcePluginService_SetSourceHealthCheck_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(SetSourceHealthCheckRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(SourcePluginServiceServer).SetSourceHealthCheck(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: SourcePluginService_SetSourceHealthCheck_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(SourcePluginServiceServer).SetSourceHealthCheck(ctx, req.(*SetSourceHealthCheckRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 func _SourcePluginService_GetNetworkProfile_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(GetNetworkProfileRequest)
 	if err := dec(in); err != nil {
@@ -1410,6 +1570,22 @@ var SourcePluginService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "SetPackageSettings",
 			Handler:    _SourcePluginService_SetPackageSettings_Handler,
+		},
+		{
+			MethodName: "ListOrigins",
+			Handler:    _SourcePluginService_ListOrigins_Handler,
+		},
+		{
+			MethodName: "RefreshOrigin",
+			Handler:    _SourcePluginService_RefreshOrigin_Handler,
+		},
+		{
+			MethodName: "ReloadPackage",
+			Handler:    _SourcePluginService_ReloadPackage_Handler,
+		},
+		{
+			MethodName: "SetSourceHealthCheck",
+			Handler:    _SourcePluginService_SetSourceHealthCheck_Handler,
 		},
 		{
 			MethodName: "GetNetworkProfile",
