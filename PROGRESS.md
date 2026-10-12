@@ -29,5 +29,5 @@ All v0 slices are done.
 
 - [x] **1. source.v1 jobs:** `panelarr.jobs.v1` (the shared job and run messages), the `JOBS` capability and its six calls, `ALREADY_RUNNING`; `sdk/jobs`, fake, conformance, docs.
 - [x] **2. source.v1 packages and health checks:** origins, package details, reload, per-source health checks.
-- [ ] **3. mihon-source:** health-check schedule over the admin API, step notes for targeted checks.
-- [ ] **4. source-mihon:** jobs, origins, details, reload, health checks; end to end.
+- [x] **3. mihon-source:** health-check schedule over the admin API, step notes for targeted checks.
+- [x] **4. source-mihon:** jobs, origins, details, reload, health checks; end to end.
