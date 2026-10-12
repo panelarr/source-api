@@ -35,6 +35,7 @@ const (
 	CodeUnauthenticated    = connect.CodeUnauthenticated
 	CodePermissionDenied   = connect.CodePermissionDenied
 	CodeInternal           = connect.CodeInternal
+	CodeAlreadyExists      = connect.CodeAlreadyExists
 )
 
 // Reason is why a request failed because of the upstream source: an
@@ -50,6 +51,9 @@ const (
 	ReasonNotFound      Reason = "NOT_FOUND"
 	ReasonLoginRequired Reason = "LOGIN_REQUIRED"
 	ReasonUnsupported   Reason = "UNSUPPORTED"
+	// Package origins (e.g. extension stores).
+	ReasonStoreFetchFailed Reason = "STORE_FETCH_FAILED"
+	ReasonStoreInvalid     Reason = "STORE_INVALID"
 )
 
 // ReasonOf turns an ErrorReason value into its wire name.
@@ -138,6 +142,18 @@ func ErrRateLimited(retryAfter time.Duration, format string, args ...any) *Error
 // ErrLoginRequired says the upstream wants a login the plugin doesn't have.
 func ErrLoginRequired(format string, args ...any) *Error {
 	return reasoned(CodeUnauthenticated, ReasonLoginRequired, format, args...)
+}
+
+// ErrStoreFetchFailed says a package's origin, or a file it lists, couldn't
+// be downloaded.
+func ErrStoreFetchFailed(format string, args ...any) *Error {
+	return reasoned(CodeUnavailable, ReasonStoreFetchFailed, format, args...)
+}
+
+// ErrStoreInvalid says a package's origin, or a file it lists, can't be used:
+// unreadable, or signed with a key that doesn't match.
+func ErrStoreInvalid(format string, args ...any) *Error {
+	return reasoned(CodeFailedPrecondition, ReasonStoreInvalid, format, args...)
 }
 
 // ErrorCode returns the code of err: the code of an *Error, CodeCanceled or

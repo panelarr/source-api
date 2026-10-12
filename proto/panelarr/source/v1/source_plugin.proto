@@ -56,7 +56,8 @@ service SourcePluginService {
     option (google.api.http) = {get: "/v1/health"};
   }
 
-  // ListSources lists the sources the plugin serves.
+  // ListSources lists the sources the plugin serves. A plugin with languages lists only
+  // the sources whose language is enabled; calls to any other source answer NOT_FOUND.
   rpc ListSources(ListSourcesRequest) returns (ListSourcesResponse) {
     option (google.api.http) = {get: "/v1/sources"};
   }
@@ -137,6 +138,56 @@ service SourcePluginService {
     };
   }
 
+  // ListPackages lists the packages the plugin can install (with the PACKAGES
+  // capability): for a plugin that hosts many sites, the extensions that provide them.
+  // Plugins without the capability answer UNIMPLEMENTED, and so do the other package
+  // calls.
+  rpc ListPackages(ListPackagesRequest) returns (ListPackagesResponse) {
+    option (google.api.http) = {get: "/v1/packages"};
+  }
+
+  rpc GetPackage(GetPackageRequest) returns (GetPackageResponse) {
+    option (google.api.http) = {get: "/v1/packages/{package_id}"};
+  }
+
+  // InstallPackage installs a package and returns when it's done, which can take a
+  // couple of minutes (a download, maybe a conversion): callers should allow a long
+  // deadline. Installing the version that is already installed answers OK. A call
+  // cancelled midway either finishes or leaves the previous state; never half a package.
+  rpc InstallPackage(InstallPackageRequest) returns (InstallPackageResponse) {
+    option (google.api.http) = {
+      post: "/v1/packages/{package_id}:install"
+      body: "*"
+    };
+  }
+
+  // UpdatePackage installs the newest supported version of an installed package. Like
+  // InstallPackage: synchronous, OK when already up to date, never half done.
+  rpc UpdatePackage(UpdatePackageRequest) returns (UpdatePackageResponse) {
+    option (google.api.http) = {
+      post: "/v1/packages/{package_id}:update"
+      body: "*"
+    };
+  }
+
+  // UninstallPackage removes an installed package and its sources. Uninstalling a
+  // package that isn't installed answers OK.
+  rpc UninstallPackage(UninstallPackageRequest) returns (UninstallPackageResponse) {
+    option (google.api.http) = {
+      post: "/v1/packages/{package_id}:uninstall"
+      body: "*"
+    };
+  }
+
+  // SetPackageSettings replaces a package's settings, e.g. its enabled languages. It
+  // returns the package as it is after the change.
+  rpc SetPackageSettings(SetPackageSettingsRequest) returns (SetPackageSettingsResponse) {
+    option (google.api.http) = {
+      patch: "/v1/packages/{package_id}/settings"
+      body: "*"
+    };
+  }
+
   // SetNetworkProfile is how a host pushes the network profile a source must use.
   // A pushed profile overrides anything the plugin configured locally. Leaving
   // `profile` unset removes the override.
@@ -184,6 +235,9 @@ enum PluginCapability {
   PLUGIN_CAPABILITY_NETWORK_PROFILES = 1;
   // Sources can be added and removed at runtime, so hosts should re-list them.
   PLUGIN_CAPABILITY_DYNAMIC_SOURCES = 2;
+  // The plugin lists, installs, updates and removes packages (ListPackages and the
+  // other package calls), e.g. extensions that each provide some sources.
+  PLUGIN_CAPABILITY_PACKAGES = 3;
 }
 
 // CommonService is a service a host can offer to plugins.
@@ -267,6 +321,13 @@ enum ErrorReason {
   ERROR_REASON_LOGIN_REQUIRED = 5;
   // The source doesn't support this call.
   ERROR_REASON_UNSUPPORTED = 6;
+  // A package's origin (e.g. an extension store) or a file it lists couldn't be
+  // downloaded. Sent with UNAVAILABLE.
+  ERROR_REASON_STORE_FETCH_FAILED = 7;
+  // A package's origin or a file it lists can't be used: unreadable content, or a
+  // signing key that doesn't match. Sent with FAILED_PRECONDITION. (A bad signature or
+  // checksum of the package file itself is INVALID_ARGUMENT.)
+  ERROR_REASON_STORE_INVALID = 8;
 }
 
 // ---------------------------------------------------------------------------
@@ -289,6 +350,9 @@ message Source {
   string home_url = 7;
   // The result of the plugin's last check of this source, when it checks sources.
   SourceHealth health = 8;
+  // The package that provides the source (see ListPackages), for plugins with the
+  // PACKAGES capability. Empty otherwise.
+  string package_id = 9;
 }
 
 // SourceHealth is what a plugin last saw when it checked a source itself.
@@ -611,6 +675,130 @@ message ImageMetadata {
   string content_type = 1;
   // Total size in bytes, or 0 when unknown.
   uint64 content_length = 2;
+}
+
+// ---------------------------------------------------------------------------
+// Packages
+// ---------------------------------------------------------------------------
+
+// Package is something a plugin can install that provides sources, e.g. an extension.
+message Package {
+  // Stable identifier, opaque to hosts. Matches `^[A-Za-z0-9][A-Za-z0-9._-]*$`: never a
+  // `:`, which HTTP paths would read as a custom verb (as in `:install`).
+  string id = 1;
+  string name = 2;
+  // Languages its sources cover: BCP 47 tags, or "all"/"multi" for sources that serve
+  // many languages.
+  repeated string langs = 3;
+  // Newest version offered.
+  string version = 4;
+  bool installed = 5;
+  // The installed version, when installed.
+  string installed_version = 6;
+  // A newer supported version is offered than the installed one.
+  bool update_available = 7;
+  ContentRating content_rating = 8;
+  // The plugin can run the version offered.
+  bool supported = 9;
+  // Where the package can come from; several origins (e.g. stores) may offer it.
+  repeated PackageOffer offers = 10;
+  // The sources it provides.
+  repeated PackageSource sources = 11;
+  PackageSettings settings = 12;
+  // Icon URL. It may be a path relative to the plugin's own address, fetched with the
+  // same credentials as the API.
+  string icon_url = 13;
+  // Why an installed package isn't working (e.g. it failed to load). Empty when fine.
+  string error = 14;
+}
+
+message PackageOffer {
+  // Identifier of the origin, e.g. an extension store; for InstallPackage.origin_id.
+  string origin_id = 1;
+  string origin_name = 2;
+  string version = 3;
+  bool supported = 4;
+}
+
+message PackageSource {
+  // The Source.id it has once installed.
+  string id = 1;
+  string name = 2;
+  string lang = 3;
+  // Its language is enabled at the plugin's and the package's level, so ListSources
+  // lists it when the package is installed. (Hosts may still turn single sources off
+  // on their side.)
+  bool available = 4;
+}
+
+message PackageSettings {
+  // Languages of the package to offer sources in: a subset of Package.langs. Empty
+  // means every language the plugin allows. "all" and "multi" are languages like any
+  // other: they must be listed to keep multi-language sources.
+  repeated string enabled_langs = 1;
+}
+
+message ListPackagesRequest {
+  // Case-insensitive match on the package or source name.
+  string query = 1;
+  // Only packages with a source in this language.
+  string lang = 2;
+  bool installed_only = 3;
+  bool updates_only = 4;
+  // Only packages offered by this origin.
+  string origin_id = 5;
+  // At most this many; 0 means all. Plugins may return all regardless.
+  int32 page_size = 6;
+  // From the previous response's next_page_token.
+  string page_token = 7;
+}
+
+message ListPackagesResponse {
+  repeated Package packages = 1;
+  // Empty on the last page.
+  string next_page_token = 2;
+}
+
+message GetPackageRequest {
+  string package_id = 1;
+}
+
+message GetPackageResponse {
+  Package package = 1;
+}
+
+message InstallPackageRequest {
+  string package_id = 1;
+  // Origin to install from (PackageOffer.origin_id). Empty lets the plugin pick the
+  // best supported offer.
+  string origin_id = 2;
+}
+
+message InstallPackageResponse {
+  Package package = 1;
+}
+
+message UpdatePackageRequest {
+  string package_id = 1;
+}
+
+message UpdatePackageResponse {
+  Package package = 1;
+}
+
+message UninstallPackageRequest {
+  string package_id = 1;
+}
+
+message UninstallPackageResponse {}
+
+message SetPackageSettingsRequest {
+  string package_id = 1;
+  PackageSettings settings = 2;
+}
+
+message SetPackageSettingsResponse {
+  Package package = 1;
 }
 
 // ---------------------------------------------------------------------------

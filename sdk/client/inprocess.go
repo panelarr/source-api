@@ -109,6 +109,30 @@ func (c *inProcess) SetSettings(ctx context.Context, req *sourcev1.SetSettingsRe
 	return call(ctx, req, c.p.SetSettings)
 }
 
+func (c *inProcess) ListPackages(ctx context.Context, req *sourcev1.ListPackagesRequest) (*sourcev1.ListPackagesResponse, error) {
+	return call(ctx, req, c.p.ListPackages)
+}
+
+func (c *inProcess) GetPackage(ctx context.Context, req *sourcev1.GetPackageRequest) (*sourcev1.GetPackageResponse, error) {
+	return call(ctx, req, c.p.GetPackage)
+}
+
+func (c *inProcess) InstallPackage(ctx context.Context, req *sourcev1.InstallPackageRequest) (*sourcev1.InstallPackageResponse, error) {
+	return call(ctx, req, c.p.InstallPackage)
+}
+
+func (c *inProcess) UpdatePackage(ctx context.Context, req *sourcev1.UpdatePackageRequest) (*sourcev1.UpdatePackageResponse, error) {
+	return call(ctx, req, c.p.UpdatePackage)
+}
+
+func (c *inProcess) UninstallPackage(ctx context.Context, req *sourcev1.UninstallPackageRequest) (*sourcev1.UninstallPackageResponse, error) {
+	return call(ctx, req, c.p.UninstallPackage)
+}
+
+func (c *inProcess) SetPackageSettings(ctx context.Context, req *sourcev1.SetPackageSettingsRequest) (*sourcev1.SetPackageSettingsResponse, error) {
+	return call(ctx, req, c.p.SetPackageSettings)
+}
+
 func (c *inProcess) FetchImage(ctx context.Context, req *sourcev1.FetchImageRequest) (ImageStream, error) {
 	ctx, cancel := context.WithCancel(ctx)
 	s := &inProcessStream{msgs: make(chan *sourcev1.FetchImageResponse, 16), cancel: cancel}

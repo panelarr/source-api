@@ -33,6 +33,11 @@ func TestRunAgainstAPlugin(t *testing.T) {
 	}
 
 	out.Reset()
+	if code := run([]string{"--target", srv.URL, "--api-key", "k", "--package", "multi.comics"}, &out, &errOut); code != 0 || !strings.Contains(out.String(), "3 packages") || !strings.Contains(out.String(), "UninstallPackage") {
+		t.Fatalf("package walk: exit %d\n%s", code, out.String())
+	}
+
+	out.Reset()
 	if code := run([]string{"--target", srv.URL, "--api-key", "wrong"}, &out, &errOut); code != 2 {
 		t.Fatalf("wrong key: exit %d", code)
 	}

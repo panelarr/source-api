@@ -112,8 +112,9 @@ func stampOrder(v any) any {
 		for _, k := range t.keys {
 			out[k] = stampOrder(t.values[k])
 		}
-		if props, ok := t.values["properties"].(*ordered); ok {
-			stamped := out["properties"].(map[string]any)
+		props, ok := t.values["properties"].(*ordered)
+		stamped, okOut := out["properties"].(map[string]any)
+		if ok && okOut {
 			for i, name := range props.keys {
 				prop, ok := stamped[name].(map[string]any)
 				if !ok {

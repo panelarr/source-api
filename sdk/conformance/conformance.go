@@ -47,6 +47,10 @@ type Options struct {
 	SearchQuery string
 	// SkipImages skips FetchImage.
 	SkipImages bool
+	// PackageID, for plugins with the PACKAGES capability, is a package to
+	// install, narrow to one language, restore and (if it wasn't installed)
+	// uninstall again. Without it the package checks only read.
+	PackageID string
 	// Timeout bounds the whole check. Default 5 minutes.
 	Timeout time.Duration
 }
@@ -60,6 +64,10 @@ type Report struct {
 	Warnings []string
 	// Sources are the walks of the checked sources.
 	Sources []*SourceReport
+	// Packages is how many packages ListPackages returned (PACKAGES plugins).
+	Packages int
+	// PackageSteps is the install walk of Options.PackageID.
+	PackageSteps []Step
 }
 
 // SourceReport is the walk through one source.
@@ -177,6 +185,7 @@ func Check(ctx context.Context, c client.Client, opts Options) (*Report, error) 
 	}
 
 	checkUnknownSource(ctx, rep, c)
+	checkPackages(ctx, rep, c, info, opts.PackageID)
 	if slices.Contains(info.GetCapabilities(), sourcev1.PluginCapability_PLUGIN_CAPABILITY_NETWORK_PROFILES) && len(sources) > 0 {
 		// Removing a pushed profile is always allowed and changes nothing a
 		// test cares about.

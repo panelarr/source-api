@@ -49,6 +49,14 @@ type Client interface {
 	GetSettingsSchema(ctx context.Context, req *sourcev1.GetSettingsSchemaRequest) (*sourcev1.GetSettingsSchemaResponse, error)
 	GetSettings(ctx context.Context, req *sourcev1.GetSettingsRequest) (*sourcev1.GetSettingsResponse, error)
 	SetSettings(ctx context.Context, req *sourcev1.SetSettingsRequest) (*sourcev1.SetSettingsResponse, error)
+	// The package calls (plugins with the PACKAGES capability). InstallPackage
+	// and UpdatePackage can take minutes: give them a long deadline.
+	ListPackages(ctx context.Context, req *sourcev1.ListPackagesRequest) (*sourcev1.ListPackagesResponse, error)
+	GetPackage(ctx context.Context, req *sourcev1.GetPackageRequest) (*sourcev1.GetPackageResponse, error)
+	InstallPackage(ctx context.Context, req *sourcev1.InstallPackageRequest) (*sourcev1.InstallPackageResponse, error)
+	UpdatePackage(ctx context.Context, req *sourcev1.UpdatePackageRequest) (*sourcev1.UpdatePackageResponse, error)
+	UninstallPackage(ctx context.Context, req *sourcev1.UninstallPackageRequest) (*sourcev1.UninstallPackageResponse, error)
+	SetPackageSettings(ctx context.Context, req *sourcev1.SetPackageSettingsRequest) (*sourcev1.SetPackageSettingsResponse, error)
 	// FetchImage starts streaming an image. Read it with Recv, or use
 	// [ReadImage].
 	FetchImage(ctx context.Context, req *sourcev1.FetchImageRequest) (ImageStream, error)
@@ -257,6 +265,30 @@ func (r *remoteClient) SetSettings(ctx context.Context, req *sourcev1.SetSetting
 	return callConnect(ctx, req, r.c.SetSettings)
 }
 
+func (r *remoteClient) ListPackages(ctx context.Context, req *sourcev1.ListPackagesRequest) (*sourcev1.ListPackagesResponse, error) {
+	return callConnect(ctx, req, r.c.ListPackages)
+}
+
+func (r *remoteClient) GetPackage(ctx context.Context, req *sourcev1.GetPackageRequest) (*sourcev1.GetPackageResponse, error) {
+	return callConnect(ctx, req, r.c.GetPackage)
+}
+
+func (r *remoteClient) InstallPackage(ctx context.Context, req *sourcev1.InstallPackageRequest) (*sourcev1.InstallPackageResponse, error) {
+	return callConnect(ctx, req, r.c.InstallPackage)
+}
+
+func (r *remoteClient) UpdatePackage(ctx context.Context, req *sourcev1.UpdatePackageRequest) (*sourcev1.UpdatePackageResponse, error) {
+	return callConnect(ctx, req, r.c.UpdatePackage)
+}
+
+func (r *remoteClient) UninstallPackage(ctx context.Context, req *sourcev1.UninstallPackageRequest) (*sourcev1.UninstallPackageResponse, error) {
+	return callConnect(ctx, req, r.c.UninstallPackage)
+}
+
+func (r *remoteClient) SetPackageSettings(ctx context.Context, req *sourcev1.SetPackageSettingsRequest) (*sourcev1.SetPackageSettingsResponse, error) {
+	return callConnect(ctx, req, r.c.SetPackageSettings)
+}
+
 func (r *remoteClient) FetchImage(ctx context.Context, req *sourcev1.FetchImageRequest) (ImageStream, error) {
 	s, err := r.c.FetchImage(ctx, connect.NewRequest(req))
 	if err != nil {
@@ -431,6 +463,30 @@ func (g *grpcClient) GetSettings(ctx context.Context, req *sourcev1.GetSettingsR
 
 func (g *grpcClient) SetSettings(ctx context.Context, req *sourcev1.SetSettingsRequest) (*sourcev1.SetSettingsResponse, error) {
 	return callGRPC(ctx, req, g.c.SetSettings)
+}
+
+func (g *grpcClient) ListPackages(ctx context.Context, req *sourcev1.ListPackagesRequest) (*sourcev1.ListPackagesResponse, error) {
+	return callGRPC(ctx, req, g.c.ListPackages)
+}
+
+func (g *grpcClient) GetPackage(ctx context.Context, req *sourcev1.GetPackageRequest) (*sourcev1.GetPackageResponse, error) {
+	return callGRPC(ctx, req, g.c.GetPackage)
+}
+
+func (g *grpcClient) InstallPackage(ctx context.Context, req *sourcev1.InstallPackageRequest) (*sourcev1.InstallPackageResponse, error) {
+	return callGRPC(ctx, req, g.c.InstallPackage)
+}
+
+func (g *grpcClient) UpdatePackage(ctx context.Context, req *sourcev1.UpdatePackageRequest) (*sourcev1.UpdatePackageResponse, error) {
+	return callGRPC(ctx, req, g.c.UpdatePackage)
+}
+
+func (g *grpcClient) UninstallPackage(ctx context.Context, req *sourcev1.UninstallPackageRequest) (*sourcev1.UninstallPackageResponse, error) {
+	return callGRPC(ctx, req, g.c.UninstallPackage)
+}
+
+func (g *grpcClient) SetPackageSettings(ctx context.Context, req *sourcev1.SetPackageSettingsRequest) (*sourcev1.SetPackageSettingsResponse, error) {
+	return callGRPC(ctx, req, g.c.SetPackageSettings)
 }
 
 func (g *grpcClient) FetchImage(ctx context.Context, req *sourcev1.FetchImageRequest) (ImageStream, error) {

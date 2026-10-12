@@ -104,3 +104,34 @@ func TestOptionsSelectSources(t *testing.T) {
 		t.Fatal("an unknown source was accepted")
 	}
 }
+
+// brokenPackages breaks the package rules on purpose.
+type brokenPackages struct{ *plugintest.Fake }
+
+func (b brokenPackages) ListPackages(ctx context.Context, r *sourcev1.ListPackagesRequest) (*sourcev1.ListPackagesResponse, error) {
+	res, err := b.Fake.ListPackages(ctx, r)
+	if err == nil && len(res.Packages) > 0 {
+		res.Packages[0].Id = "sync:bad"
+	}
+	return res, err
+}
+
+func (b brokenPackages) InstallPackage(ctx context.Context, r *sourcev1.InstallPackageRequest) (*sourcev1.InstallPackageResponse, error) {
+	if p, _ := b.GetPackage(ctx, &sourcev1.GetPackageRequest{PackageId: r.GetPackageId()}); p.GetPackage().GetInstalled() {
+		return nil, plugin.Errorf(plugin.CodeAlreadyExists, "already installed")
+	}
+	return b.Fake.InstallPackage(ctx, r)
+}
+
+func TestReportsPackageViolations(t *testing.T) {
+	rep, err := conformance.Check(context.Background(), client.InProcess(brokenPackages{plugintest.New()}), conformance.Options{PackageID: "multi.comics"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	problems := strings.Join(rep.Problems, "\n")
+	for _, want := range []string{`id "sync:bad" must match`, "installing the installed version again must answer OK"} {
+		if !strings.Contains(problems, want) {
+			t.Errorf("missing problem %q in:\n%s", want, problems)
+		}
+	}
+}

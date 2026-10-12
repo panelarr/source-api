@@ -105,6 +105,30 @@ func (s *connectServer) SetNetworkProfile(ctx context.Context, r *connect.Reques
 	return unaryConnect(ctx, r, s.p.SetNetworkProfile)
 }
 
+func (s *connectServer) ListPackages(ctx context.Context, r *connect.Request[sourcev1.ListPackagesRequest]) (*connect.Response[sourcev1.ListPackagesResponse], error) {
+	return unaryConnect(ctx, r, s.p.ListPackages)
+}
+
+func (s *connectServer) GetPackage(ctx context.Context, r *connect.Request[sourcev1.GetPackageRequest]) (*connect.Response[sourcev1.GetPackageResponse], error) {
+	return unaryConnect(ctx, r, s.p.GetPackage)
+}
+
+func (s *connectServer) InstallPackage(ctx context.Context, r *connect.Request[sourcev1.InstallPackageRequest]) (*connect.Response[sourcev1.InstallPackageResponse], error) {
+	return unaryConnect(ctx, r, s.p.InstallPackage)
+}
+
+func (s *connectServer) UpdatePackage(ctx context.Context, r *connect.Request[sourcev1.UpdatePackageRequest]) (*connect.Response[sourcev1.UpdatePackageResponse], error) {
+	return unaryConnect(ctx, r, s.p.UpdatePackage)
+}
+
+func (s *connectServer) UninstallPackage(ctx context.Context, r *connect.Request[sourcev1.UninstallPackageRequest]) (*connect.Response[sourcev1.UninstallPackageResponse], error) {
+	return unaryConnect(ctx, r, s.p.UninstallPackage)
+}
+
+func (s *connectServer) SetPackageSettings(ctx context.Context, r *connect.Request[sourcev1.SetPackageSettingsRequest]) (*connect.Response[sourcev1.SetPackageSettingsResponse], error) {
+	return unaryConnect(ctx, r, s.p.SetPackageSettings)
+}
+
 func (s *connectServer) FetchImage(ctx context.Context, r *connect.Request[sourcev1.FetchImageRequest], stream *connect.ServerStream[sourcev1.FetchImageResponse]) error {
 	return ToConnectError(s.p.FetchImage(ctx, r.Msg, stream.Send))
 }
@@ -193,6 +217,30 @@ func (s *grpcServer) SetSettings(ctx context.Context, r *sourcev1.SetSettingsReq
 
 func (s *grpcServer) SetNetworkProfile(ctx context.Context, r *sourcev1.SetNetworkProfileRequest) (*sourcev1.SetNetworkProfileResponse, error) {
 	return unaryGRPC(ctx, r, s.p.SetNetworkProfile)
+}
+
+func (s *grpcServer) ListPackages(ctx context.Context, r *sourcev1.ListPackagesRequest) (*sourcev1.ListPackagesResponse, error) {
+	return unaryGRPC(ctx, r, s.p.ListPackages)
+}
+
+func (s *grpcServer) GetPackage(ctx context.Context, r *sourcev1.GetPackageRequest) (*sourcev1.GetPackageResponse, error) {
+	return unaryGRPC(ctx, r, s.p.GetPackage)
+}
+
+func (s *grpcServer) InstallPackage(ctx context.Context, r *sourcev1.InstallPackageRequest) (*sourcev1.InstallPackageResponse, error) {
+	return unaryGRPC(ctx, r, s.p.InstallPackage)
+}
+
+func (s *grpcServer) UpdatePackage(ctx context.Context, r *sourcev1.UpdatePackageRequest) (*sourcev1.UpdatePackageResponse, error) {
+	return unaryGRPC(ctx, r, s.p.UpdatePackage)
+}
+
+func (s *grpcServer) UninstallPackage(ctx context.Context, r *sourcev1.UninstallPackageRequest) (*sourcev1.UninstallPackageResponse, error) {
+	return unaryGRPC(ctx, r, s.p.UninstallPackage)
+}
+
+func (s *grpcServer) SetPackageSettings(ctx context.Context, r *sourcev1.SetPackageSettingsRequest) (*sourcev1.SetPackageSettingsResponse, error) {
+	return unaryGRPC(ctx, r, s.p.SetPackageSettings)
 }
 
 func (s *grpcServer) FetchImage(r *sourcev1.FetchImageRequest, stream grpc.ServerStreamingServer[sourcev1.FetchImageResponse]) error {

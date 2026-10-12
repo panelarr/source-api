@@ -89,6 +89,24 @@ const (
 	// SourcePluginServiceSetSettingsProcedure is the fully-qualified name of the SourcePluginService's
 	// SetSettings RPC.
 	SourcePluginServiceSetSettingsProcedure = "/panelarr.source.v1.SourcePluginService/SetSettings"
+	// SourcePluginServiceListPackagesProcedure is the fully-qualified name of the SourcePluginService's
+	// ListPackages RPC.
+	SourcePluginServiceListPackagesProcedure = "/panelarr.source.v1.SourcePluginService/ListPackages"
+	// SourcePluginServiceGetPackageProcedure is the fully-qualified name of the SourcePluginService's
+	// GetPackage RPC.
+	SourcePluginServiceGetPackageProcedure = "/panelarr.source.v1.SourcePluginService/GetPackage"
+	// SourcePluginServiceInstallPackageProcedure is the fully-qualified name of the
+	// SourcePluginService's InstallPackage RPC.
+	SourcePluginServiceInstallPackageProcedure = "/panelarr.source.v1.SourcePluginService/InstallPackage"
+	// SourcePluginServiceUpdatePackageProcedure is the fully-qualified name of the
+	// SourcePluginService's UpdatePackage RPC.
+	SourcePluginServiceUpdatePackageProcedure = "/panelarr.source.v1.SourcePluginService/UpdatePackage"
+	// SourcePluginServiceUninstallPackageProcedure is the fully-qualified name of the
+	// SourcePluginService's UninstallPackage RPC.
+	SourcePluginServiceUninstallPackageProcedure = "/panelarr.source.v1.SourcePluginService/UninstallPackage"
+	// SourcePluginServiceSetPackageSettingsProcedure is the fully-qualified name of the
+	// SourcePluginService's SetPackageSettings RPC.
+	SourcePluginServiceSetPackageSettingsProcedure = "/panelarr.source.v1.SourcePluginService/SetPackageSettings"
 	// SourcePluginServiceSetNetworkProfileProcedure is the fully-qualified name of the
 	// SourcePluginService's SetNetworkProfile RPC.
 	SourcePluginServiceSetNetworkProfileProcedure = "/panelarr.source.v1.SourcePluginService/SetNetworkProfile"
@@ -112,7 +130,8 @@ type SourcePluginServiceClient interface {
 	SetConfig(context.Context, *connect.Request[v1.SetConfigRequest]) (*connect.Response[v1.SetConfigResponse], error)
 	// Health reports whether the plugin can serve requests. It needs no credentials.
 	Health(context.Context, *connect.Request[v1.HealthRequest]) (*connect.Response[v1.HealthResponse], error)
-	// ListSources lists the sources the plugin serves.
+	// ListSources lists the sources the plugin serves. A plugin with languages lists only
+	// the sources whose language is enabled; calls to any other source answer NOT_FOUND.
 	ListSources(context.Context, *connect.Request[v1.ListSourcesRequest]) (*connect.Response[v1.ListSourcesResponse], error)
 	// GetSource returns one source.
 	GetSource(context.Context, *connect.Request[v1.GetSourceRequest]) (*connect.Response[v1.GetSourceResponse], error)
@@ -144,6 +163,26 @@ type SourcePluginServiceClient interface {
 	// SetSettings changes some of a source's settings. Keys that are left out keep
 	// their value. It returns all values after the change.
 	SetSettings(context.Context, *connect.Request[v1.SetSettingsRequest]) (*connect.Response[v1.SetSettingsResponse], error)
+	// ListPackages lists the packages the plugin can install (with the PACKAGES
+	// capability): for a plugin that hosts many sites, the extensions that provide them.
+	// Plugins without the capability answer UNIMPLEMENTED, and so do the other package
+	// calls.
+	ListPackages(context.Context, *connect.Request[v1.ListPackagesRequest]) (*connect.Response[v1.ListPackagesResponse], error)
+	GetPackage(context.Context, *connect.Request[v1.GetPackageRequest]) (*connect.Response[v1.GetPackageResponse], error)
+	// InstallPackage installs a package and returns when it's done, which can take a
+	// couple of minutes (a download, maybe a conversion): callers should allow a long
+	// deadline. Installing the version that is already installed answers OK. A call
+	// cancelled midway either finishes or leaves the previous state; never half a package.
+	InstallPackage(context.Context, *connect.Request[v1.InstallPackageRequest]) (*connect.Response[v1.InstallPackageResponse], error)
+	// UpdatePackage installs the newest supported version of an installed package. Like
+	// InstallPackage: synchronous, OK when already up to date, never half done.
+	UpdatePackage(context.Context, *connect.Request[v1.UpdatePackageRequest]) (*connect.Response[v1.UpdatePackageResponse], error)
+	// UninstallPackage removes an installed package and its sources. Uninstalling a
+	// package that isn't installed answers OK.
+	UninstallPackage(context.Context, *connect.Request[v1.UninstallPackageRequest]) (*connect.Response[v1.UninstallPackageResponse], error)
+	// SetPackageSettings replaces a package's settings, e.g. its enabled languages. It
+	// returns the package as it is after the change.
+	SetPackageSettings(context.Context, *connect.Request[v1.SetPackageSettingsRequest]) (*connect.Response[v1.SetPackageSettingsResponse], error)
 	// SetNetworkProfile is how a host pushes the network profile a source must use.
 	// A pushed profile overrides anything the plugin configured locally. Leaving
 	// `profile` unset removes the override.
@@ -269,6 +308,42 @@ func NewSourcePluginServiceClient(httpClient connect.HTTPClient, baseURL string,
 			connect.WithSchema(sourcePluginServiceMethods.ByName("SetSettings")),
 			connect.WithClientOptions(opts...),
 		),
+		listPackages: connect.NewClient[v1.ListPackagesRequest, v1.ListPackagesResponse](
+			httpClient,
+			baseURL+SourcePluginServiceListPackagesProcedure,
+			connect.WithSchema(sourcePluginServiceMethods.ByName("ListPackages")),
+			connect.WithClientOptions(opts...),
+		),
+		getPackage: connect.NewClient[v1.GetPackageRequest, v1.GetPackageResponse](
+			httpClient,
+			baseURL+SourcePluginServiceGetPackageProcedure,
+			connect.WithSchema(sourcePluginServiceMethods.ByName("GetPackage")),
+			connect.WithClientOptions(opts...),
+		),
+		installPackage: connect.NewClient[v1.InstallPackageRequest, v1.InstallPackageResponse](
+			httpClient,
+			baseURL+SourcePluginServiceInstallPackageProcedure,
+			connect.WithSchema(sourcePluginServiceMethods.ByName("InstallPackage")),
+			connect.WithClientOptions(opts...),
+		),
+		updatePackage: connect.NewClient[v1.UpdatePackageRequest, v1.UpdatePackageResponse](
+			httpClient,
+			baseURL+SourcePluginServiceUpdatePackageProcedure,
+			connect.WithSchema(sourcePluginServiceMethods.ByName("UpdatePackage")),
+			connect.WithClientOptions(opts...),
+		),
+		uninstallPackage: connect.NewClient[v1.UninstallPackageRequest, v1.UninstallPackageResponse](
+			httpClient,
+			baseURL+SourcePluginServiceUninstallPackageProcedure,
+			connect.WithSchema(sourcePluginServiceMethods.ByName("UninstallPackage")),
+			connect.WithClientOptions(opts...),
+		),
+		setPackageSettings: connect.NewClient[v1.SetPackageSettingsRequest, v1.SetPackageSettingsResponse](
+			httpClient,
+			baseURL+SourcePluginServiceSetPackageSettingsProcedure,
+			connect.WithSchema(sourcePluginServiceMethods.ByName("SetPackageSettings")),
+			connect.WithClientOptions(opts...),
+		),
 		setNetworkProfile: connect.NewClient[v1.SetNetworkProfileRequest, v1.SetNetworkProfileResponse](
 			httpClient,
 			baseURL+SourcePluginServiceSetNetworkProfileProcedure,
@@ -280,25 +355,31 @@ func NewSourcePluginServiceClient(httpClient connect.HTTPClient, baseURL string,
 
 // sourcePluginServiceClient implements SourcePluginServiceClient.
 type sourcePluginServiceClient struct {
-	getInfo           *connect.Client[v1.GetInfoRequest, v1.GetInfoResponse]
-	getConfig         *connect.Client[v1.GetConfigRequest, v1.GetConfigResponse]
-	setConfig         *connect.Client[v1.SetConfigRequest, v1.SetConfigResponse]
-	health            *connect.Client[v1.HealthRequest, v1.HealthResponse]
-	listSources       *connect.Client[v1.ListSourcesRequest, v1.ListSourcesResponse]
-	getSource         *connect.Client[v1.GetSourceRequest, v1.GetSourceResponse]
-	getFilters        *connect.Client[v1.GetFiltersRequest, v1.GetFiltersResponse]
-	popular           *connect.Client[v1.PopularRequest, v1.PopularResponse]
-	latest            *connect.Client[v1.LatestRequest, v1.LatestResponse]
-	search            *connect.Client[v1.SearchRequest, v1.SearchResponse]
-	resolveUrl        *connect.Client[v1.ResolveUrlRequest, v1.ResolveUrlResponse]
-	getSeries         *connect.Client[v1.GetSeriesRequest, v1.GetSeriesResponse]
-	listChapters      *connect.Client[v1.ListChaptersRequest, v1.ListChaptersResponse]
-	listPages         *connect.Client[v1.ListPagesRequest, v1.ListPagesResponse]
-	fetchImage        *connect.Client[v1.FetchImageRequest, v1.FetchImageResponse]
-	getSettingsSchema *connect.Client[v1.GetSettingsSchemaRequest, v1.GetSettingsSchemaResponse]
-	getSettings       *connect.Client[v1.GetSettingsRequest, v1.GetSettingsResponse]
-	setSettings       *connect.Client[v1.SetSettingsRequest, v1.SetSettingsResponse]
-	setNetworkProfile *connect.Client[v1.SetNetworkProfileRequest, v1.SetNetworkProfileResponse]
+	getInfo            *connect.Client[v1.GetInfoRequest, v1.GetInfoResponse]
+	getConfig          *connect.Client[v1.GetConfigRequest, v1.GetConfigResponse]
+	setConfig          *connect.Client[v1.SetConfigRequest, v1.SetConfigResponse]
+	health             *connect.Client[v1.HealthRequest, v1.HealthResponse]
+	listSources        *connect.Client[v1.ListSourcesRequest, v1.ListSourcesResponse]
+	getSource          *connect.Client[v1.GetSourceRequest, v1.GetSourceResponse]
+	getFilters         *connect.Client[v1.GetFiltersRequest, v1.GetFiltersResponse]
+	popular            *connect.Client[v1.PopularRequest, v1.PopularResponse]
+	latest             *connect.Client[v1.LatestRequest, v1.LatestResponse]
+	search             *connect.Client[v1.SearchRequest, v1.SearchResponse]
+	resolveUrl         *connect.Client[v1.ResolveUrlRequest, v1.ResolveUrlResponse]
+	getSeries          *connect.Client[v1.GetSeriesRequest, v1.GetSeriesResponse]
+	listChapters       *connect.Client[v1.ListChaptersRequest, v1.ListChaptersResponse]
+	listPages          *connect.Client[v1.ListPagesRequest, v1.ListPagesResponse]
+	fetchImage         *connect.Client[v1.FetchImageRequest, v1.FetchImageResponse]
+	getSettingsSchema  *connect.Client[v1.GetSettingsSchemaRequest, v1.GetSettingsSchemaResponse]
+	getSettings        *connect.Client[v1.GetSettingsRequest, v1.GetSettingsResponse]
+	setSettings        *connect.Client[v1.SetSettingsRequest, v1.SetSettingsResponse]
+	listPackages       *connect.Client[v1.ListPackagesRequest, v1.ListPackagesResponse]
+	getPackage         *connect.Client[v1.GetPackageRequest, v1.GetPackageResponse]
+	installPackage     *connect.Client[v1.InstallPackageRequest, v1.InstallPackageResponse]
+	updatePackage      *connect.Client[v1.UpdatePackageRequest, v1.UpdatePackageResponse]
+	uninstallPackage   *connect.Client[v1.UninstallPackageRequest, v1.UninstallPackageResponse]
+	setPackageSettings *connect.Client[v1.SetPackageSettingsRequest, v1.SetPackageSettingsResponse]
+	setNetworkProfile  *connect.Client[v1.SetNetworkProfileRequest, v1.SetNetworkProfileResponse]
 }
 
 // GetInfo calls panelarr.source.v1.SourcePluginService.GetInfo.
@@ -391,6 +472,36 @@ func (c *sourcePluginServiceClient) SetSettings(ctx context.Context, req *connec
 	return c.setSettings.CallUnary(ctx, req)
 }
 
+// ListPackages calls panelarr.source.v1.SourcePluginService.ListPackages.
+func (c *sourcePluginServiceClient) ListPackages(ctx context.Context, req *connect.Request[v1.ListPackagesRequest]) (*connect.Response[v1.ListPackagesResponse], error) {
+	return c.listPackages.CallUnary(ctx, req)
+}
+
+// GetPackage calls panelarr.source.v1.SourcePluginService.GetPackage.
+func (c *sourcePluginServiceClient) GetPackage(ctx context.Context, req *connect.Request[v1.GetPackageRequest]) (*connect.Response[v1.GetPackageResponse], error) {
+	return c.getPackage.CallUnary(ctx, req)
+}
+
+// InstallPackage calls panelarr.source.v1.SourcePluginService.InstallPackage.
+func (c *sourcePluginServiceClient) InstallPackage(ctx context.Context, req *connect.Request[v1.InstallPackageRequest]) (*connect.Response[v1.InstallPackageResponse], error) {
+	return c.installPackage.CallUnary(ctx, req)
+}
+
+// UpdatePackage calls panelarr.source.v1.SourcePluginService.UpdatePackage.
+func (c *sourcePluginServiceClient) UpdatePackage(ctx context.Context, req *connect.Request[v1.UpdatePackageRequest]) (*connect.Response[v1.UpdatePackageResponse], error) {
+	return c.updatePackage.CallUnary(ctx, req)
+}
+
+// UninstallPackage calls panelarr.source.v1.SourcePluginService.UninstallPackage.
+func (c *sourcePluginServiceClient) UninstallPackage(ctx context.Context, req *connect.Request[v1.UninstallPackageRequest]) (*connect.Response[v1.UninstallPackageResponse], error) {
+	return c.uninstallPackage.CallUnary(ctx, req)
+}
+
+// SetPackageSettings calls panelarr.source.v1.SourcePluginService.SetPackageSettings.
+func (c *sourcePluginServiceClient) SetPackageSettings(ctx context.Context, req *connect.Request[v1.SetPackageSettingsRequest]) (*connect.Response[v1.SetPackageSettingsResponse], error) {
+	return c.setPackageSettings.CallUnary(ctx, req)
+}
+
 // SetNetworkProfile calls panelarr.source.v1.SourcePluginService.SetNetworkProfile.
 func (c *sourcePluginServiceClient) SetNetworkProfile(ctx context.Context, req *connect.Request[v1.SetNetworkProfileRequest]) (*connect.Response[v1.SetNetworkProfileResponse], error) {
 	return c.setNetworkProfile.CallUnary(ctx, req)
@@ -415,7 +526,8 @@ type SourcePluginServiceHandler interface {
 	SetConfig(context.Context, *connect.Request[v1.SetConfigRequest]) (*connect.Response[v1.SetConfigResponse], error)
 	// Health reports whether the plugin can serve requests. It needs no credentials.
 	Health(context.Context, *connect.Request[v1.HealthRequest]) (*connect.Response[v1.HealthResponse], error)
-	// ListSources lists the sources the plugin serves.
+	// ListSources lists the sources the plugin serves. A plugin with languages lists only
+	// the sources whose language is enabled; calls to any other source answer NOT_FOUND.
 	ListSources(context.Context, *connect.Request[v1.ListSourcesRequest]) (*connect.Response[v1.ListSourcesResponse], error)
 	// GetSource returns one source.
 	GetSource(context.Context, *connect.Request[v1.GetSourceRequest]) (*connect.Response[v1.GetSourceResponse], error)
@@ -447,6 +559,26 @@ type SourcePluginServiceHandler interface {
 	// SetSettings changes some of a source's settings. Keys that are left out keep
 	// their value. It returns all values after the change.
 	SetSettings(context.Context, *connect.Request[v1.SetSettingsRequest]) (*connect.Response[v1.SetSettingsResponse], error)
+	// ListPackages lists the packages the plugin can install (with the PACKAGES
+	// capability): for a plugin that hosts many sites, the extensions that provide them.
+	// Plugins without the capability answer UNIMPLEMENTED, and so do the other package
+	// calls.
+	ListPackages(context.Context, *connect.Request[v1.ListPackagesRequest]) (*connect.Response[v1.ListPackagesResponse], error)
+	GetPackage(context.Context, *connect.Request[v1.GetPackageRequest]) (*connect.Response[v1.GetPackageResponse], error)
+	// InstallPackage installs a package and returns when it's done, which can take a
+	// couple of minutes (a download, maybe a conversion): callers should allow a long
+	// deadline. Installing the version that is already installed answers OK. A call
+	// cancelled midway either finishes or leaves the previous state; never half a package.
+	InstallPackage(context.Context, *connect.Request[v1.InstallPackageRequest]) (*connect.Response[v1.InstallPackageResponse], error)
+	// UpdatePackage installs the newest supported version of an installed package. Like
+	// InstallPackage: synchronous, OK when already up to date, never half done.
+	UpdatePackage(context.Context, *connect.Request[v1.UpdatePackageRequest]) (*connect.Response[v1.UpdatePackageResponse], error)
+	// UninstallPackage removes an installed package and its sources. Uninstalling a
+	// package that isn't installed answers OK.
+	UninstallPackage(context.Context, *connect.Request[v1.UninstallPackageRequest]) (*connect.Response[v1.UninstallPackageResponse], error)
+	// SetPackageSettings replaces a package's settings, e.g. its enabled languages. It
+	// returns the package as it is after the change.
+	SetPackageSettings(context.Context, *connect.Request[v1.SetPackageSettingsRequest]) (*connect.Response[v1.SetPackageSettingsResponse], error)
 	// SetNetworkProfile is how a host pushes the network profile a source must use.
 	// A pushed profile overrides anything the plugin configured locally. Leaving
 	// `profile` unset removes the override.
@@ -568,6 +700,42 @@ func NewSourcePluginServiceHandler(svc SourcePluginServiceHandler, opts ...conne
 		connect.WithSchema(sourcePluginServiceMethods.ByName("SetSettings")),
 		connect.WithHandlerOptions(opts...),
 	)
+	sourcePluginServiceListPackagesHandler := connect.NewUnaryHandler(
+		SourcePluginServiceListPackagesProcedure,
+		svc.ListPackages,
+		connect.WithSchema(sourcePluginServiceMethods.ByName("ListPackages")),
+		connect.WithHandlerOptions(opts...),
+	)
+	sourcePluginServiceGetPackageHandler := connect.NewUnaryHandler(
+		SourcePluginServiceGetPackageProcedure,
+		svc.GetPackage,
+		connect.WithSchema(sourcePluginServiceMethods.ByName("GetPackage")),
+		connect.WithHandlerOptions(opts...),
+	)
+	sourcePluginServiceInstallPackageHandler := connect.NewUnaryHandler(
+		SourcePluginServiceInstallPackageProcedure,
+		svc.InstallPackage,
+		connect.WithSchema(sourcePluginServiceMethods.ByName("InstallPackage")),
+		connect.WithHandlerOptions(opts...),
+	)
+	sourcePluginServiceUpdatePackageHandler := connect.NewUnaryHandler(
+		SourcePluginServiceUpdatePackageProcedure,
+		svc.UpdatePackage,
+		connect.WithSchema(sourcePluginServiceMethods.ByName("UpdatePackage")),
+		connect.WithHandlerOptions(opts...),
+	)
+	sourcePluginServiceUninstallPackageHandler := connect.NewUnaryHandler(
+		SourcePluginServiceUninstallPackageProcedure,
+		svc.UninstallPackage,
+		connect.WithSchema(sourcePluginServiceMethods.ByName("UninstallPackage")),
+		connect.WithHandlerOptions(opts...),
+	)
+	sourcePluginServiceSetPackageSettingsHandler := connect.NewUnaryHandler(
+		SourcePluginServiceSetPackageSettingsProcedure,
+		svc.SetPackageSettings,
+		connect.WithSchema(sourcePluginServiceMethods.ByName("SetPackageSettings")),
+		connect.WithHandlerOptions(opts...),
+	)
 	sourcePluginServiceSetNetworkProfileHandler := connect.NewUnaryHandler(
 		SourcePluginServiceSetNetworkProfileProcedure,
 		svc.SetNetworkProfile,
@@ -612,6 +780,18 @@ func NewSourcePluginServiceHandler(svc SourcePluginServiceHandler, opts ...conne
 			sourcePluginServiceGetSettingsHandler.ServeHTTP(w, r)
 		case SourcePluginServiceSetSettingsProcedure:
 			sourcePluginServiceSetSettingsHandler.ServeHTTP(w, r)
+		case SourcePluginServiceListPackagesProcedure:
+			sourcePluginServiceListPackagesHandler.ServeHTTP(w, r)
+		case SourcePluginServiceGetPackageProcedure:
+			sourcePluginServiceGetPackageHandler.ServeHTTP(w, r)
+		case SourcePluginServiceInstallPackageProcedure:
+			sourcePluginServiceInstallPackageHandler.ServeHTTP(w, r)
+		case SourcePluginServiceUpdatePackageProcedure:
+			sourcePluginServiceUpdatePackageHandler.ServeHTTP(w, r)
+		case SourcePluginServiceUninstallPackageProcedure:
+			sourcePluginServiceUninstallPackageHandler.ServeHTTP(w, r)
+		case SourcePluginServiceSetPackageSettingsProcedure:
+			sourcePluginServiceSetPackageSettingsHandler.ServeHTTP(w, r)
 		case SourcePluginServiceSetNetworkProfileProcedure:
 			sourcePluginServiceSetNetworkProfileHandler.ServeHTTP(w, r)
 		default:
@@ -693,6 +873,30 @@ func (UnimplementedSourcePluginServiceHandler) GetSettings(context.Context, *con
 
 func (UnimplementedSourcePluginServiceHandler) SetSettings(context.Context, *connect.Request[v1.SetSettingsRequest]) (*connect.Response[v1.SetSettingsResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("panelarr.source.v1.SourcePluginService.SetSettings is not implemented"))
+}
+
+func (UnimplementedSourcePluginServiceHandler) ListPackages(context.Context, *connect.Request[v1.ListPackagesRequest]) (*connect.Response[v1.ListPackagesResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("panelarr.source.v1.SourcePluginService.ListPackages is not implemented"))
+}
+
+func (UnimplementedSourcePluginServiceHandler) GetPackage(context.Context, *connect.Request[v1.GetPackageRequest]) (*connect.Response[v1.GetPackageResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("panelarr.source.v1.SourcePluginService.GetPackage is not implemented"))
+}
+
+func (UnimplementedSourcePluginServiceHandler) InstallPackage(context.Context, *connect.Request[v1.InstallPackageRequest]) (*connect.Response[v1.InstallPackageResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("panelarr.source.v1.SourcePluginService.InstallPackage is not implemented"))
+}
+
+func (UnimplementedSourcePluginServiceHandler) UpdatePackage(context.Context, *connect.Request[v1.UpdatePackageRequest]) (*connect.Response[v1.UpdatePackageResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("panelarr.source.v1.SourcePluginService.UpdatePackage is not implemented"))
+}
+
+func (UnimplementedSourcePluginServiceHandler) UninstallPackage(context.Context, *connect.Request[v1.UninstallPackageRequest]) (*connect.Response[v1.UninstallPackageResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("panelarr.source.v1.SourcePluginService.UninstallPackage is not implemented"))
+}
+
+func (UnimplementedSourcePluginServiceHandler) SetPackageSettings(context.Context, *connect.Request[v1.SetPackageSettingsRequest]) (*connect.Response[v1.SetPackageSettingsResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("panelarr.source.v1.SourcePluginService.SetPackageSettings is not implemented"))
 }
 
 func (UnimplementedSourcePluginServiceHandler) SetNetworkProfile(context.Context, *connect.Request[v1.SetNetworkProfileRequest]) (*connect.Response[v1.SetNetworkProfileResponse], error) {

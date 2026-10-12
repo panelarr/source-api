@@ -7,6 +7,7 @@ The conformance suite ([`sdk/conformance`](../sdk/conformance/conformance.go)) c
 - **Plugin:** `GetInfo` (id, name, version, contracts, capabilities, limits, a valid config schema), `GetConfig`/`SetConfig` (secrets never returned; `UNIMPLEMENTED` without a schema), `Health`.
 - **Sources:** unique IDs, names, languages and capabilities; the language filter of `ListSources`; `NOT_FOUND` for an unknown source; removing a pushed network profile.
 - **The walk, per source:** `GetSource` → `GetFilters` → `Popular` → `Latest` → `Search` → `GetSeries` → `ResolveUrl` → `ListChapters` → `ListPages` → `FetchImage` → settings. Each step feeds the next (the first popular series, its newest chapter, its first page). Search looks for the first popular series by its title and expects to find it: hosts match series across sources that way.
+- **Packages** (plugins with `PACKAGES`): valid package IDs and fields, the list filters, `NOT_FOUND` for an unknown package, and that `ListSources` lists exactly the available sources of installed packages. With `--package ID` (`Options.PackageID`) it also installs the package, installs it again (must answer OK), checks its sources appear, narrows it to one language (the others must go and answer `NOT_FOUND`), restores the languages and, if it wasn't installed before, removes it again. That changes the plugin, so it's opt-in.
 - **Errors:** every failure must carry a known error reason, and failures of the upstream (`UNAVAILABLE`, `RESOURCE_EXHAUSTED`) should say why. Calls a source doesn't support should answer `UNIMPLEMENTED`.
 
 **Problems** break the protocol. **Warnings** are likely mistakes. A **failed step** usually means the source's site is failing, which is reported per source but isn't a protocol problem.
@@ -28,4 +29,4 @@ bin/source-conformance --managed ./my-plugin --config config.json
 bin/source-conformance --target localhost:8904 --max-sources 5 --skip-images --json
 ```
 
-Flags: `--sources a,b`, `--max-sources N`, `--query Q`, `--skip-images`, `--config FILE`, `--connect`, `--timeout`, `--json`, `--strict` (also fail on failed steps). Exit codes: 0 conformant, 1 protocol problems, 2 bad usage or unreachable, 3 failed steps with `--strict`.
+Flags: `--package ID`, `--sources a,b`, `--max-sources N`, `--query Q`, `--skip-images`, `--config FILE`, `--connect`, `--timeout`, `--json`, `--strict` (also fail on failed steps). Exit codes: 0 conformant, 1 protocol problems, 2 bad usage or unreachable, 3 failed steps with `--strict`.

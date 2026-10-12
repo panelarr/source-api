@@ -38,6 +38,10 @@ Standalone plugins use ports from 8903 up. `plugin.WithRoutes(plugin.Route{Patte
 | settings calls | per-source settings as JSON Schema plus values |
 | `SetNetworkProfile` | pass straight to `httpx.Sources.SetNetworkProfile` |
 
+## Packages
+
+A plugin that installs things that provide sources (extensions) declares `PLUGIN_CAPABILITY_PACKAGES` and implements the package calls (see [protos.md](protos.md#packages-and-languages)). Keep install and update idempotent and all-or-nothing, set `Source.package_id` on listed sources, list only sources whose language is enabled at the plugin's and the package's level, and answer `NOT_FOUND` for the others. If the plugin's configuration has a languages field, say in its description that `"all"`/`"multi"` must be listed to keep multi-language sources. `plugintest.New()` shows a complete fake.
+
 ## Errors
 
 Return the SDK's errors so hosts see the right code and reason:
@@ -50,6 +54,8 @@ Return the SDK's errors so hosts see the right code and reason:
 | `plugin.ErrChallenge` | UNAVAILABLE | `CLOUDFLARE_CHALLENGE` |
 | `plugin.ErrRateLimited(retryAfter, …)` | RESOURCE_EXHAUSTED | `RATE_LIMITED`, with the retry hint |
 | `plugin.ErrLoginRequired` | UNAUTHENTICATED | `LOGIN_REQUIRED` |
+| `plugin.ErrStoreFetchFailed` | UNAVAILABLE | `STORE_FETCH_FAILED` (a package's origin couldn't be downloaded) |
+| `plugin.ErrStoreInvalid` | FAILED_PRECONDITION | `STORE_INVALID` (a package's origin can't be used) |
 | `plugin.ErrInvalidArgument` | INVALID_ARGUMENT | — |
 
 `httpx.StatusError(resp)` and `httpx.Wrap(err)` turn HTTP responses and transport errors into these.

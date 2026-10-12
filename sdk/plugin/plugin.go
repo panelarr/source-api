@@ -16,6 +16,7 @@ package plugin
 
 import (
 	"context"
+	"regexp"
 
 	sourcev1 "github.com/panelarr/source-api/gen/panelarr/source/v1"
 )
@@ -52,6 +53,14 @@ type Plugin interface {
 	GetSettingsSchema(ctx context.Context, req *sourcev1.GetSettingsSchemaRequest) (*sourcev1.GetSettingsSchemaResponse, error)
 	GetSettings(ctx context.Context, req *sourcev1.GetSettingsRequest) (*sourcev1.GetSettingsResponse, error)
 	SetSettings(ctx context.Context, req *sourcev1.SetSettingsRequest) (*sourcev1.SetSettingsResponse, error)
+	// The package calls, for plugins with the PACKAGES capability: see the proto.
+	// Package IDs must match [PackageIDPattern].
+	ListPackages(ctx context.Context, req *sourcev1.ListPackagesRequest) (*sourcev1.ListPackagesResponse, error)
+	GetPackage(ctx context.Context, req *sourcev1.GetPackageRequest) (*sourcev1.GetPackageResponse, error)
+	InstallPackage(ctx context.Context, req *sourcev1.InstallPackageRequest) (*sourcev1.InstallPackageResponse, error)
+	UpdatePackage(ctx context.Context, req *sourcev1.UpdatePackageRequest) (*sourcev1.UpdatePackageResponse, error)
+	UninstallPackage(ctx context.Context, req *sourcev1.UninstallPackageRequest) (*sourcev1.UninstallPackageResponse, error)
+	SetPackageSettings(ctx context.Context, req *sourcev1.SetPackageSettingsRequest) (*sourcev1.SetPackageSettingsResponse, error)
 	// SetNetworkProfile receives a source's network profile from the host.
 	// Plugins that declare the network profile common service apply it to
 	// every request for that source; httpx.Sources does that for them.
@@ -141,6 +150,34 @@ func (Unimplemented) SetSettings(context.Context, *sourcev1.SetSettingsRequest) 
 	return &sourcev1.SetSettingsResponse{}, nil
 }
 
+func (Unimplemented) ListPackages(context.Context, *sourcev1.ListPackagesRequest) (*sourcev1.ListPackagesResponse, error) {
+	return nil, ErrUnimplemented("ListPackages")
+}
+
+func (Unimplemented) GetPackage(context.Context, *sourcev1.GetPackageRequest) (*sourcev1.GetPackageResponse, error) {
+	return nil, ErrUnimplemented("GetPackage")
+}
+
+func (Unimplemented) InstallPackage(context.Context, *sourcev1.InstallPackageRequest) (*sourcev1.InstallPackageResponse, error) {
+	return nil, ErrUnimplemented("InstallPackage")
+}
+
+func (Unimplemented) UpdatePackage(context.Context, *sourcev1.UpdatePackageRequest) (*sourcev1.UpdatePackageResponse, error) {
+	return nil, ErrUnimplemented("UpdatePackage")
+}
+
+func (Unimplemented) UninstallPackage(context.Context, *sourcev1.UninstallPackageRequest) (*sourcev1.UninstallPackageResponse, error) {
+	return nil, ErrUnimplemented("UninstallPackage")
+}
+
+func (Unimplemented) SetPackageSettings(context.Context, *sourcev1.SetPackageSettingsRequest) (*sourcev1.SetPackageSettingsResponse, error) {
+	return nil, ErrUnimplemented("SetPackageSettings")
+}
+
 func (Unimplemented) SetNetworkProfile(context.Context, *sourcev1.SetNetworkProfileRequest) (*sourcev1.SetNetworkProfileResponse, error) {
 	return nil, ErrUnimplemented("SetNetworkProfile")
 }
+
+// PackageIDPattern is what package IDs look like: no ':', which HTTP paths
+// read as a custom verb (as in ":install").
+var PackageIDPattern = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9._-]*$`)

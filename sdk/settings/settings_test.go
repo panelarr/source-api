@@ -110,3 +110,11 @@ func TestParseStampsTheWrittenOrder(t *testing.T) {
 		t.Fatal("trailing data accepted")
 	}
 }
+
+func TestParseRefusesMalformedPropertiesCleanly(t *testing.T) {
+	for _, doc := range []string{`{"type": "object", "properties": true}`, `{"properties": [1, 2]}`, `{"properties": {"a": 3}}`} {
+		if _, err := settings.Parse(doc); err == nil {
+			t.Errorf("%s: accepted", doc)
+		}
+	}
+}

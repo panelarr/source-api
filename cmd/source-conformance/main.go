@@ -42,6 +42,7 @@ func run(args []string, stdout, stderr io.Writer) int {
 	maxSources := fs.Int("max-sources", 0, "walk at most this many sources (default all)")
 	query := fs.String("query", "", "search query (default each source's first popular title)")
 	skipImages := fs.Bool("skip-images", false, "don't fetch images")
+	pkg := fs.String("package", "", "a package to install, narrow to one language and remove again (plugins with packages; changes the plugin)")
 	timeout := fs.Duration("timeout", 5*time.Minute, "time limit for the whole check")
 	asJSON := fs.Bool("json", false, "print the report as JSON")
 	strict := fs.Bool("strict", false, "also fail when a source fails a step (e.g. its site is down)")
@@ -53,7 +54,7 @@ func run(args []string, stdout, stderr io.Writer) int {
 		fs.Usage()
 		return 2
 	}
-	opts := conformance.Options{MaxSources: *maxSources, SearchQuery: *query, SkipImages: *skipImages, Timeout: *timeout}
+	opts := conformance.Options{MaxSources: *maxSources, SearchQuery: *query, SkipImages: *skipImages, Timeout: *timeout, PackageID: *pkg}
 	if *sources != "" {
 		for _, id := range strings.Split(*sources, ",") {
 			if id = strings.TrimSpace(id); id != "" {
@@ -140,6 +141,16 @@ func printReport(w io.Writer, rep *conformance.Report) {
 				}
 			}
 			fmt.Fprintf(w, "       %-14s %-22s %s\n", st.Name, state, st.Detail)
+		}
+	}
+	if rep.Packages > 0 || len(rep.PackageSteps) > 0 {
+		fmt.Fprintf(w, "\n%d packages\n", rep.Packages)
+		for _, st := range rep.PackageSteps {
+			state := "ok"
+			if !st.OK {
+				state = "failed"
+			}
+			fmt.Fprintf(w, "       %-20s %-8s %s\n", st.Name, state, st.Detail)
 		}
 	}
 	fmt.Fprintf(w, "\n%d sources, %d failing\n", len(rep.Sources), failing(rep))

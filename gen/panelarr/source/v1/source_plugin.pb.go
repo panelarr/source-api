@@ -35,6 +35,9 @@ const (
 	PluginCapability_PLUGIN_CAPABILITY_NETWORK_PROFILES PluginCapability = 1
 	// Sources can be added and removed at runtime, so hosts should re-list them.
 	PluginCapability_PLUGIN_CAPABILITY_DYNAMIC_SOURCES PluginCapability = 2
+	// The plugin lists, installs, updates and removes packages (ListPackages and the
+	// other package calls), e.g. extensions that each provide some sources.
+	PluginCapability_PLUGIN_CAPABILITY_PACKAGES PluginCapability = 3
 )
 
 // Enum value maps for PluginCapability.
@@ -43,11 +46,13 @@ var (
 		0: "PLUGIN_CAPABILITY_UNSPECIFIED",
 		1: "PLUGIN_CAPABILITY_NETWORK_PROFILES",
 		2: "PLUGIN_CAPABILITY_DYNAMIC_SOURCES",
+		3: "PLUGIN_CAPABILITY_PACKAGES",
 	}
 	PluginCapability_value = map[string]int32{
 		"PLUGIN_CAPABILITY_UNSPECIFIED":      0,
 		"PLUGIN_CAPABILITY_NETWORK_PROFILES": 1,
 		"PLUGIN_CAPABILITY_DYNAMIC_SOURCES":  2,
+		"PLUGIN_CAPABILITY_PACKAGES":         3,
 	}
 )
 
@@ -252,6 +257,13 @@ const (
 	ErrorReason_ERROR_REASON_LOGIN_REQUIRED ErrorReason = 5
 	// The source doesn't support this call.
 	ErrorReason_ERROR_REASON_UNSUPPORTED ErrorReason = 6
+	// A package's origin (e.g. an extension store) or a file it lists couldn't be
+	// downloaded. Sent with UNAVAILABLE.
+	ErrorReason_ERROR_REASON_STORE_FETCH_FAILED ErrorReason = 7
+	// A package's origin or a file it lists can't be used: unreadable content, or a
+	// signing key that doesn't match. Sent with FAILED_PRECONDITION. (A bad signature or
+	// checksum of the package file itself is INVALID_ARGUMENT.)
+	ErrorReason_ERROR_REASON_STORE_INVALID ErrorReason = 8
 )
 
 // Enum value maps for ErrorReason.
@@ -264,6 +276,8 @@ var (
 		4: "ERROR_REASON_NOT_FOUND",
 		5: "ERROR_REASON_LOGIN_REQUIRED",
 		6: "ERROR_REASON_UNSUPPORTED",
+		7: "ERROR_REASON_STORE_FETCH_FAILED",
+		8: "ERROR_REASON_STORE_INVALID",
 	}
 	ErrorReason_value = map[string]int32{
 		"ERROR_REASON_UNSPECIFIED":          0,
@@ -273,6 +287,8 @@ var (
 		"ERROR_REASON_NOT_FOUND":            4,
 		"ERROR_REASON_LOGIN_REQUIRED":       5,
 		"ERROR_REASON_UNSUPPORTED":          6,
+		"ERROR_REASON_STORE_FETCH_FAILED":   7,
+		"ERROR_REASON_STORE_INVALID":        8,
 	}
 )
 
@@ -1225,7 +1241,10 @@ type Source struct {
 	// Web address of the source, for display.
 	HomeUrl string `protobuf:"bytes,7,opt,name=home_url,json=homeUrl,proto3" json:"home_url,omitempty"`
 	// The result of the plugin's last check of this source, when it checks sources.
-	Health        *SourceHealth `protobuf:"bytes,8,opt,name=health,proto3" json:"health,omitempty"`
+	Health *SourceHealth `protobuf:"bytes,8,opt,name=health,proto3" json:"health,omitempty"`
+	// The package that provides the source (see ListPackages), for plugins with the
+	// PACKAGES capability. Empty otherwise.
+	PackageId     string `protobuf:"bytes,9,opt,name=package_id,json=packageId,proto3" json:"package_id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1314,6 +1333,13 @@ func (x *Source) GetHealth() *SourceHealth {
 		return x.Health
 	}
 	return nil
+}
+
+func (x *Source) GetPackageId() string {
+	if x != nil {
+		return x.PackageId
+	}
+	return ""
 }
 
 // SourceHealth is what a plugin last saw when it checked a source itself.
@@ -3655,6 +3681,956 @@ func (x *ImageMetadata) GetContentLength() uint64 {
 	return 0
 }
 
+// Package is something a plugin can install that provides sources, e.g. an extension.
+type Package struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Stable identifier, opaque to hosts. Matches `^[A-Za-z0-9][A-Za-z0-9._-]*$`: never a
+	// `:`, which HTTP paths would read as a custom verb (as in `:install`).
+	Id   string `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
+	Name string `protobuf:"bytes,2,opt,name=name,proto3" json:"name,omitempty"`
+	// Languages its sources cover: BCP 47 tags, or "all"/"multi" for sources that serve
+	// many languages.
+	Langs []string `protobuf:"bytes,3,rep,name=langs,proto3" json:"langs,omitempty"`
+	// Newest version offered.
+	Version   string `protobuf:"bytes,4,opt,name=version,proto3" json:"version,omitempty"`
+	Installed bool   `protobuf:"varint,5,opt,name=installed,proto3" json:"installed,omitempty"`
+	// The installed version, when installed.
+	InstalledVersion string `protobuf:"bytes,6,opt,name=installed_version,json=installedVersion,proto3" json:"installed_version,omitempty"`
+	// A newer supported version is offered than the installed one.
+	UpdateAvailable bool          `protobuf:"varint,7,opt,name=update_available,json=updateAvailable,proto3" json:"update_available,omitempty"`
+	ContentRating   ContentRating `protobuf:"varint,8,opt,name=content_rating,json=contentRating,proto3,enum=panelarr.source.v1.ContentRating" json:"content_rating,omitempty"`
+	// The plugin can run the version offered.
+	Supported bool `protobuf:"varint,9,opt,name=supported,proto3" json:"supported,omitempty"`
+	// Where the package can come from; several origins (e.g. stores) may offer it.
+	Offers []*PackageOffer `protobuf:"bytes,10,rep,name=offers,proto3" json:"offers,omitempty"`
+	// The sources it provides.
+	Sources  []*PackageSource `protobuf:"bytes,11,rep,name=sources,proto3" json:"sources,omitempty"`
+	Settings *PackageSettings `protobuf:"bytes,12,opt,name=settings,proto3" json:"settings,omitempty"`
+	// Icon URL. It may be a path relative to the plugin's own address, fetched with the
+	// same credentials as the API.
+	IconUrl string `protobuf:"bytes,13,opt,name=icon_url,json=iconUrl,proto3" json:"icon_url,omitempty"`
+	// Why an installed package isn't working (e.g. it failed to load). Empty when fine.
+	Error         string `protobuf:"bytes,14,opt,name=error,proto3" json:"error,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *Package) Reset() {
+	*x = Package{}
+	mi := &file_panelarr_source_v1_source_plugin_proto_msgTypes[50]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *Package) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*Package) ProtoMessage() {}
+
+func (x *Package) ProtoReflect() protoreflect.Message {
+	mi := &file_panelarr_source_v1_source_plugin_proto_msgTypes[50]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use Package.ProtoReflect.Descriptor instead.
+func (*Package) Descriptor() ([]byte, []int) {
+	return file_panelarr_source_v1_source_plugin_proto_rawDescGZIP(), []int{50}
+}
+
+func (x *Package) GetId() string {
+	if x != nil {
+		return x.Id
+	}
+	return ""
+}
+
+func (x *Package) GetName() string {
+	if x != nil {
+		return x.Name
+	}
+	return ""
+}
+
+func (x *Package) GetLangs() []string {
+	if x != nil {
+		return x.Langs
+	}
+	return nil
+}
+
+func (x *Package) GetVersion() string {
+	if x != nil {
+		return x.Version
+	}
+	return ""
+}
+
+func (x *Package) GetInstalled() bool {
+	if x != nil {
+		return x.Installed
+	}
+	return false
+}
+
+func (x *Package) GetInstalledVersion() string {
+	if x != nil {
+		return x.InstalledVersion
+	}
+	return ""
+}
+
+func (x *Package) GetUpdateAvailable() bool {
+	if x != nil {
+		return x.UpdateAvailable
+	}
+	return false
+}
+
+func (x *Package) GetContentRating() ContentRating {
+	if x != nil {
+		return x.ContentRating
+	}
+	return ContentRating_CONTENT_RATING_UNSPECIFIED
+}
+
+func (x *Package) GetSupported() bool {
+	if x != nil {
+		return x.Supported
+	}
+	return false
+}
+
+func (x *Package) GetOffers() []*PackageOffer {
+	if x != nil {
+		return x.Offers
+	}
+	return nil
+}
+
+func (x *Package) GetSources() []*PackageSource {
+	if x != nil {
+		return x.Sources
+	}
+	return nil
+}
+
+func (x *Package) GetSettings() *PackageSettings {
+	if x != nil {
+		return x.Settings
+	}
+	return nil
+}
+
+func (x *Package) GetIconUrl() string {
+	if x != nil {
+		return x.IconUrl
+	}
+	return ""
+}
+
+func (x *Package) GetError() string {
+	if x != nil {
+		return x.Error
+	}
+	return ""
+}
+
+type PackageOffer struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Identifier of the origin, e.g. an extension store; for InstallPackage.origin_id.
+	OriginId      string `protobuf:"bytes,1,opt,name=origin_id,json=originId,proto3" json:"origin_id,omitempty"`
+	OriginName    string `protobuf:"bytes,2,opt,name=origin_name,json=originName,proto3" json:"origin_name,omitempty"`
+	Version       string `protobuf:"bytes,3,opt,name=version,proto3" json:"version,omitempty"`
+	Supported     bool   `protobuf:"varint,4,opt,name=supported,proto3" json:"supported,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *PackageOffer) Reset() {
+	*x = PackageOffer{}
+	mi := &file_panelarr_source_v1_source_plugin_proto_msgTypes[51]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *PackageOffer) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*PackageOffer) ProtoMessage() {}
+
+func (x *PackageOffer) ProtoReflect() protoreflect.Message {
+	mi := &file_panelarr_source_v1_source_plugin_proto_msgTypes[51]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use PackageOffer.ProtoReflect.Descriptor instead.
+func (*PackageOffer) Descriptor() ([]byte, []int) {
+	return file_panelarr_source_v1_source_plugin_proto_rawDescGZIP(), []int{51}
+}
+
+func (x *PackageOffer) GetOriginId() string {
+	if x != nil {
+		return x.OriginId
+	}
+	return ""
+}
+
+func (x *PackageOffer) GetOriginName() string {
+	if x != nil {
+		return x.OriginName
+	}
+	return ""
+}
+
+func (x *PackageOffer) GetVersion() string {
+	if x != nil {
+		return x.Version
+	}
+	return ""
+}
+
+func (x *PackageOffer) GetSupported() bool {
+	if x != nil {
+		return x.Supported
+	}
+	return false
+}
+
+type PackageSource struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// The Source.id it has once installed.
+	Id   string `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
+	Name string `protobuf:"bytes,2,opt,name=name,proto3" json:"name,omitempty"`
+	Lang string `protobuf:"bytes,3,opt,name=lang,proto3" json:"lang,omitempty"`
+	// Its language is enabled at the plugin's and the package's level, so ListSources
+	// lists it when the package is installed. (Hosts may still turn single sources off
+	// on their side.)
+	Available     bool `protobuf:"varint,4,opt,name=available,proto3" json:"available,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *PackageSource) Reset() {
+	*x = PackageSource{}
+	mi := &file_panelarr_source_v1_source_plugin_proto_msgTypes[52]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *PackageSource) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*PackageSource) ProtoMessage() {}
+
+func (x *PackageSource) ProtoReflect() protoreflect.Message {
+	mi := &file_panelarr_source_v1_source_plugin_proto_msgTypes[52]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use PackageSource.ProtoReflect.Descriptor instead.
+func (*PackageSource) Descriptor() ([]byte, []int) {
+	return file_panelarr_source_v1_source_plugin_proto_rawDescGZIP(), []int{52}
+}
+
+func (x *PackageSource) GetId() string {
+	if x != nil {
+		return x.Id
+	}
+	return ""
+}
+
+func (x *PackageSource) GetName() string {
+	if x != nil {
+		return x.Name
+	}
+	return ""
+}
+
+func (x *PackageSource) GetLang() string {
+	if x != nil {
+		return x.Lang
+	}
+	return ""
+}
+
+func (x *PackageSource) GetAvailable() bool {
+	if x != nil {
+		return x.Available
+	}
+	return false
+}
+
+type PackageSettings struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Languages of the package to offer sources in: a subset of Package.langs. Empty
+	// means every language the plugin allows. "all" and "multi" are languages like any
+	// other: they must be listed to keep multi-language sources.
+	EnabledLangs  []string `protobuf:"bytes,1,rep,name=enabled_langs,json=enabledLangs,proto3" json:"enabled_langs,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *PackageSettings) Reset() {
+	*x = PackageSettings{}
+	mi := &file_panelarr_source_v1_source_plugin_proto_msgTypes[53]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *PackageSettings) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*PackageSettings) ProtoMessage() {}
+
+func (x *PackageSettings) ProtoReflect() protoreflect.Message {
+	mi := &file_panelarr_source_v1_source_plugin_proto_msgTypes[53]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use PackageSettings.ProtoReflect.Descriptor instead.
+func (*PackageSettings) Descriptor() ([]byte, []int) {
+	return file_panelarr_source_v1_source_plugin_proto_rawDescGZIP(), []int{53}
+}
+
+func (x *PackageSettings) GetEnabledLangs() []string {
+	if x != nil {
+		return x.EnabledLangs
+	}
+	return nil
+}
+
+type ListPackagesRequest struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Case-insensitive match on the package or source name.
+	Query string `protobuf:"bytes,1,opt,name=query,proto3" json:"query,omitempty"`
+	// Only packages with a source in this language.
+	Lang          string `protobuf:"bytes,2,opt,name=lang,proto3" json:"lang,omitempty"`
+	InstalledOnly bool   `protobuf:"varint,3,opt,name=installed_only,json=installedOnly,proto3" json:"installed_only,omitempty"`
+	UpdatesOnly   bool   `protobuf:"varint,4,opt,name=updates_only,json=updatesOnly,proto3" json:"updates_only,omitempty"`
+	// Only packages offered by this origin.
+	OriginId string `protobuf:"bytes,5,opt,name=origin_id,json=originId,proto3" json:"origin_id,omitempty"`
+	// At most this many; 0 means all. Plugins may return all regardless.
+	PageSize int32 `protobuf:"varint,6,opt,name=page_size,json=pageSize,proto3" json:"page_size,omitempty"`
+	// From the previous response's next_page_token.
+	PageToken     string `protobuf:"bytes,7,opt,name=page_token,json=pageToken,proto3" json:"page_token,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ListPackagesRequest) Reset() {
+	*x = ListPackagesRequest{}
+	mi := &file_panelarr_source_v1_source_plugin_proto_msgTypes[54]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ListPackagesRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ListPackagesRequest) ProtoMessage() {}
+
+func (x *ListPackagesRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_panelarr_source_v1_source_plugin_proto_msgTypes[54]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ListPackagesRequest.ProtoReflect.Descriptor instead.
+func (*ListPackagesRequest) Descriptor() ([]byte, []int) {
+	return file_panelarr_source_v1_source_plugin_proto_rawDescGZIP(), []int{54}
+}
+
+func (x *ListPackagesRequest) GetQuery() string {
+	if x != nil {
+		return x.Query
+	}
+	return ""
+}
+
+func (x *ListPackagesRequest) GetLang() string {
+	if x != nil {
+		return x.Lang
+	}
+	return ""
+}
+
+func (x *ListPackagesRequest) GetInstalledOnly() bool {
+	if x != nil {
+		return x.InstalledOnly
+	}
+	return false
+}
+
+func (x *ListPackagesRequest) GetUpdatesOnly() bool {
+	if x != nil {
+		return x.UpdatesOnly
+	}
+	return false
+}
+
+func (x *ListPackagesRequest) GetOriginId() string {
+	if x != nil {
+		return x.OriginId
+	}
+	return ""
+}
+
+func (x *ListPackagesRequest) GetPageSize() int32 {
+	if x != nil {
+		return x.PageSize
+	}
+	return 0
+}
+
+func (x *ListPackagesRequest) GetPageToken() string {
+	if x != nil {
+		return x.PageToken
+	}
+	return ""
+}
+
+type ListPackagesResponse struct {
+	state    protoimpl.MessageState `protogen:"open.v1"`
+	Packages []*Package             `protobuf:"bytes,1,rep,name=packages,proto3" json:"packages,omitempty"`
+	// Empty on the last page.
+	NextPageToken string `protobuf:"bytes,2,opt,name=next_page_token,json=nextPageToken,proto3" json:"next_page_token,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ListPackagesResponse) Reset() {
+	*x = ListPackagesResponse{}
+	mi := &file_panelarr_source_v1_source_plugin_proto_msgTypes[55]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ListPackagesResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ListPackagesResponse) ProtoMessage() {}
+
+func (x *ListPackagesResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_panelarr_source_v1_source_plugin_proto_msgTypes[55]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ListPackagesResponse.ProtoReflect.Descriptor instead.
+func (*ListPackagesResponse) Descriptor() ([]byte, []int) {
+	return file_panelarr_source_v1_source_plugin_proto_rawDescGZIP(), []int{55}
+}
+
+func (x *ListPackagesResponse) GetPackages() []*Package {
+	if x != nil {
+		return x.Packages
+	}
+	return nil
+}
+
+func (x *ListPackagesResponse) GetNextPageToken() string {
+	if x != nil {
+		return x.NextPageToken
+	}
+	return ""
+}
+
+type GetPackageRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	PackageId     string                 `protobuf:"bytes,1,opt,name=package_id,json=packageId,proto3" json:"package_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetPackageRequest) Reset() {
+	*x = GetPackageRequest{}
+	mi := &file_panelarr_source_v1_source_plugin_proto_msgTypes[56]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetPackageRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetPackageRequest) ProtoMessage() {}
+
+func (x *GetPackageRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_panelarr_source_v1_source_plugin_proto_msgTypes[56]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetPackageRequest.ProtoReflect.Descriptor instead.
+func (*GetPackageRequest) Descriptor() ([]byte, []int) {
+	return file_panelarr_source_v1_source_plugin_proto_rawDescGZIP(), []int{56}
+}
+
+func (x *GetPackageRequest) GetPackageId() string {
+	if x != nil {
+		return x.PackageId
+	}
+	return ""
+}
+
+type GetPackageResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Package       *Package               `protobuf:"bytes,1,opt,name=package,proto3" json:"package,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetPackageResponse) Reset() {
+	*x = GetPackageResponse{}
+	mi := &file_panelarr_source_v1_source_plugin_proto_msgTypes[57]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetPackageResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetPackageResponse) ProtoMessage() {}
+
+func (x *GetPackageResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_panelarr_source_v1_source_plugin_proto_msgTypes[57]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetPackageResponse.ProtoReflect.Descriptor instead.
+func (*GetPackageResponse) Descriptor() ([]byte, []int) {
+	return file_panelarr_source_v1_source_plugin_proto_rawDescGZIP(), []int{57}
+}
+
+func (x *GetPackageResponse) GetPackage() *Package {
+	if x != nil {
+		return x.Package
+	}
+	return nil
+}
+
+type InstallPackageRequest struct {
+	state     protoimpl.MessageState `protogen:"open.v1"`
+	PackageId string                 `protobuf:"bytes,1,opt,name=package_id,json=packageId,proto3" json:"package_id,omitempty"`
+	// Origin to install from (PackageOffer.origin_id). Empty lets the plugin pick the
+	// best supported offer.
+	OriginId      string `protobuf:"bytes,2,opt,name=origin_id,json=originId,proto3" json:"origin_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *InstallPackageRequest) Reset() {
+	*x = InstallPackageRequest{}
+	mi := &file_panelarr_source_v1_source_plugin_proto_msgTypes[58]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *InstallPackageRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*InstallPackageRequest) ProtoMessage() {}
+
+func (x *InstallPackageRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_panelarr_source_v1_source_plugin_proto_msgTypes[58]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use InstallPackageRequest.ProtoReflect.Descriptor instead.
+func (*InstallPackageRequest) Descriptor() ([]byte, []int) {
+	return file_panelarr_source_v1_source_plugin_proto_rawDescGZIP(), []int{58}
+}
+
+func (x *InstallPackageRequest) GetPackageId() string {
+	if x != nil {
+		return x.PackageId
+	}
+	return ""
+}
+
+func (x *InstallPackageRequest) GetOriginId() string {
+	if x != nil {
+		return x.OriginId
+	}
+	return ""
+}
+
+type InstallPackageResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Package       *Package               `protobuf:"bytes,1,opt,name=package,proto3" json:"package,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *InstallPackageResponse) Reset() {
+	*x = InstallPackageResponse{}
+	mi := &file_panelarr_source_v1_source_plugin_proto_msgTypes[59]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *InstallPackageResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*InstallPackageResponse) ProtoMessage() {}
+
+func (x *InstallPackageResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_panelarr_source_v1_source_plugin_proto_msgTypes[59]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use InstallPackageResponse.ProtoReflect.Descriptor instead.
+func (*InstallPackageResponse) Descriptor() ([]byte, []int) {
+	return file_panelarr_source_v1_source_plugin_proto_rawDescGZIP(), []int{59}
+}
+
+func (x *InstallPackageResponse) GetPackage() *Package {
+	if x != nil {
+		return x.Package
+	}
+	return nil
+}
+
+type UpdatePackageRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	PackageId     string                 `protobuf:"bytes,1,opt,name=package_id,json=packageId,proto3" json:"package_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *UpdatePackageRequest) Reset() {
+	*x = UpdatePackageRequest{}
+	mi := &file_panelarr_source_v1_source_plugin_proto_msgTypes[60]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *UpdatePackageRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*UpdatePackageRequest) ProtoMessage() {}
+
+func (x *UpdatePackageRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_panelarr_source_v1_source_plugin_proto_msgTypes[60]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use UpdatePackageRequest.ProtoReflect.Descriptor instead.
+func (*UpdatePackageRequest) Descriptor() ([]byte, []int) {
+	return file_panelarr_source_v1_source_plugin_proto_rawDescGZIP(), []int{60}
+}
+
+func (x *UpdatePackageRequest) GetPackageId() string {
+	if x != nil {
+		return x.PackageId
+	}
+	return ""
+}
+
+type UpdatePackageResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Package       *Package               `protobuf:"bytes,1,opt,name=package,proto3" json:"package,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *UpdatePackageResponse) Reset() {
+	*x = UpdatePackageResponse{}
+	mi := &file_panelarr_source_v1_source_plugin_proto_msgTypes[61]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *UpdatePackageResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*UpdatePackageResponse) ProtoMessage() {}
+
+func (x *UpdatePackageResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_panelarr_source_v1_source_plugin_proto_msgTypes[61]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use UpdatePackageResponse.ProtoReflect.Descriptor instead.
+func (*UpdatePackageResponse) Descriptor() ([]byte, []int) {
+	return file_panelarr_source_v1_source_plugin_proto_rawDescGZIP(), []int{61}
+}
+
+func (x *UpdatePackageResponse) GetPackage() *Package {
+	if x != nil {
+		return x.Package
+	}
+	return nil
+}
+
+type UninstallPackageRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	PackageId     string                 `protobuf:"bytes,1,opt,name=package_id,json=packageId,proto3" json:"package_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *UninstallPackageRequest) Reset() {
+	*x = UninstallPackageRequest{}
+	mi := &file_panelarr_source_v1_source_plugin_proto_msgTypes[62]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *UninstallPackageRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*UninstallPackageRequest) ProtoMessage() {}
+
+func (x *UninstallPackageRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_panelarr_source_v1_source_plugin_proto_msgTypes[62]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use UninstallPackageRequest.ProtoReflect.Descriptor instead.
+func (*UninstallPackageRequest) Descriptor() ([]byte, []int) {
+	return file_panelarr_source_v1_source_plugin_proto_rawDescGZIP(), []int{62}
+}
+
+func (x *UninstallPackageRequest) GetPackageId() string {
+	if x != nil {
+		return x.PackageId
+	}
+	return ""
+}
+
+type UninstallPackageResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *UninstallPackageResponse) Reset() {
+	*x = UninstallPackageResponse{}
+	mi := &file_panelarr_source_v1_source_plugin_proto_msgTypes[63]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *UninstallPackageResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*UninstallPackageResponse) ProtoMessage() {}
+
+func (x *UninstallPackageResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_panelarr_source_v1_source_plugin_proto_msgTypes[63]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use UninstallPackageResponse.ProtoReflect.Descriptor instead.
+func (*UninstallPackageResponse) Descriptor() ([]byte, []int) {
+	return file_panelarr_source_v1_source_plugin_proto_rawDescGZIP(), []int{63}
+}
+
+type SetPackageSettingsRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	PackageId     string                 `protobuf:"bytes,1,opt,name=package_id,json=packageId,proto3" json:"package_id,omitempty"`
+	Settings      *PackageSettings       `protobuf:"bytes,2,opt,name=settings,proto3" json:"settings,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *SetPackageSettingsRequest) Reset() {
+	*x = SetPackageSettingsRequest{}
+	mi := &file_panelarr_source_v1_source_plugin_proto_msgTypes[64]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *SetPackageSettingsRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*SetPackageSettingsRequest) ProtoMessage() {}
+
+func (x *SetPackageSettingsRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_panelarr_source_v1_source_plugin_proto_msgTypes[64]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use SetPackageSettingsRequest.ProtoReflect.Descriptor instead.
+func (*SetPackageSettingsRequest) Descriptor() ([]byte, []int) {
+	return file_panelarr_source_v1_source_plugin_proto_rawDescGZIP(), []int{64}
+}
+
+func (x *SetPackageSettingsRequest) GetPackageId() string {
+	if x != nil {
+		return x.PackageId
+	}
+	return ""
+}
+
+func (x *SetPackageSettingsRequest) GetSettings() *PackageSettings {
+	if x != nil {
+		return x.Settings
+	}
+	return nil
+}
+
+type SetPackageSettingsResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Package       *Package               `protobuf:"bytes,1,opt,name=package,proto3" json:"package,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *SetPackageSettingsResponse) Reset() {
+	*x = SetPackageSettingsResponse{}
+	mi := &file_panelarr_source_v1_source_plugin_proto_msgTypes[65]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *SetPackageSettingsResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*SetPackageSettingsResponse) ProtoMessage() {}
+
+func (x *SetPackageSettingsResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_panelarr_source_v1_source_plugin_proto_msgTypes[65]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use SetPackageSettingsResponse.ProtoReflect.Descriptor instead.
+func (*SetPackageSettingsResponse) Descriptor() ([]byte, []int) {
+	return file_panelarr_source_v1_source_plugin_proto_rawDescGZIP(), []int{65}
+}
+
+func (x *SetPackageSettingsResponse) GetPackage() *Package {
+	if x != nil {
+		return x.Package
+	}
+	return nil
+}
+
 type GetSettingsSchemaRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	SourceId      string                 `protobuf:"bytes,1,opt,name=source_id,json=sourceId,proto3" json:"source_id,omitempty"`
@@ -3664,7 +4640,7 @@ type GetSettingsSchemaRequest struct {
 
 func (x *GetSettingsSchemaRequest) Reset() {
 	*x = GetSettingsSchemaRequest{}
-	mi := &file_panelarr_source_v1_source_plugin_proto_msgTypes[50]
+	mi := &file_panelarr_source_v1_source_plugin_proto_msgTypes[66]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3676,7 +4652,7 @@ func (x *GetSettingsSchemaRequest) String() string {
 func (*GetSettingsSchemaRequest) ProtoMessage() {}
 
 func (x *GetSettingsSchemaRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_panelarr_source_v1_source_plugin_proto_msgTypes[50]
+	mi := &file_panelarr_source_v1_source_plugin_proto_msgTypes[66]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3689,7 +4665,7 @@ func (x *GetSettingsSchemaRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetSettingsSchemaRequest.ProtoReflect.Descriptor instead.
 func (*GetSettingsSchemaRequest) Descriptor() ([]byte, []int) {
-	return file_panelarr_source_v1_source_plugin_proto_rawDescGZIP(), []int{50}
+	return file_panelarr_source_v1_source_plugin_proto_rawDescGZIP(), []int{66}
 }
 
 func (x *GetSettingsSchemaRequest) GetSourceId() string {
@@ -3709,7 +4685,7 @@ type GetSettingsSchemaResponse struct {
 
 func (x *GetSettingsSchemaResponse) Reset() {
 	*x = GetSettingsSchemaResponse{}
-	mi := &file_panelarr_source_v1_source_plugin_proto_msgTypes[51]
+	mi := &file_panelarr_source_v1_source_plugin_proto_msgTypes[67]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3721,7 +4697,7 @@ func (x *GetSettingsSchemaResponse) String() string {
 func (*GetSettingsSchemaResponse) ProtoMessage() {}
 
 func (x *GetSettingsSchemaResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_panelarr_source_v1_source_plugin_proto_msgTypes[51]
+	mi := &file_panelarr_source_v1_source_plugin_proto_msgTypes[67]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3734,7 +4710,7 @@ func (x *GetSettingsSchemaResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetSettingsSchemaResponse.ProtoReflect.Descriptor instead.
 func (*GetSettingsSchemaResponse) Descriptor() ([]byte, []int) {
-	return file_panelarr_source_v1_source_plugin_proto_rawDescGZIP(), []int{51}
+	return file_panelarr_source_v1_source_plugin_proto_rawDescGZIP(), []int{67}
 }
 
 func (x *GetSettingsSchemaResponse) GetSchema() *structpb.Struct {
@@ -3753,7 +4729,7 @@ type GetSettingsRequest struct {
 
 func (x *GetSettingsRequest) Reset() {
 	*x = GetSettingsRequest{}
-	mi := &file_panelarr_source_v1_source_plugin_proto_msgTypes[52]
+	mi := &file_panelarr_source_v1_source_plugin_proto_msgTypes[68]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3765,7 +4741,7 @@ func (x *GetSettingsRequest) String() string {
 func (*GetSettingsRequest) ProtoMessage() {}
 
 func (x *GetSettingsRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_panelarr_source_v1_source_plugin_proto_msgTypes[52]
+	mi := &file_panelarr_source_v1_source_plugin_proto_msgTypes[68]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3778,7 +4754,7 @@ func (x *GetSettingsRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetSettingsRequest.ProtoReflect.Descriptor instead.
 func (*GetSettingsRequest) Descriptor() ([]byte, []int) {
-	return file_panelarr_source_v1_source_plugin_proto_rawDescGZIP(), []int{52}
+	return file_panelarr_source_v1_source_plugin_proto_rawDescGZIP(), []int{68}
 }
 
 func (x *GetSettingsRequest) GetSourceId() string {
@@ -3797,7 +4773,7 @@ type GetSettingsResponse struct {
 
 func (x *GetSettingsResponse) Reset() {
 	*x = GetSettingsResponse{}
-	mi := &file_panelarr_source_v1_source_plugin_proto_msgTypes[53]
+	mi := &file_panelarr_source_v1_source_plugin_proto_msgTypes[69]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3809,7 +4785,7 @@ func (x *GetSettingsResponse) String() string {
 func (*GetSettingsResponse) ProtoMessage() {}
 
 func (x *GetSettingsResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_panelarr_source_v1_source_plugin_proto_msgTypes[53]
+	mi := &file_panelarr_source_v1_source_plugin_proto_msgTypes[69]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3822,7 +4798,7 @@ func (x *GetSettingsResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetSettingsResponse.ProtoReflect.Descriptor instead.
 func (*GetSettingsResponse) Descriptor() ([]byte, []int) {
-	return file_panelarr_source_v1_source_plugin_proto_rawDescGZIP(), []int{53}
+	return file_panelarr_source_v1_source_plugin_proto_rawDescGZIP(), []int{69}
 }
 
 func (x *GetSettingsResponse) GetValues() *structpb.Struct {
@@ -3843,7 +4819,7 @@ type SetSettingsRequest struct {
 
 func (x *SetSettingsRequest) Reset() {
 	*x = SetSettingsRequest{}
-	mi := &file_panelarr_source_v1_source_plugin_proto_msgTypes[54]
+	mi := &file_panelarr_source_v1_source_plugin_proto_msgTypes[70]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3855,7 +4831,7 @@ func (x *SetSettingsRequest) String() string {
 func (*SetSettingsRequest) ProtoMessage() {}
 
 func (x *SetSettingsRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_panelarr_source_v1_source_plugin_proto_msgTypes[54]
+	mi := &file_panelarr_source_v1_source_plugin_proto_msgTypes[70]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3868,7 +4844,7 @@ func (x *SetSettingsRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SetSettingsRequest.ProtoReflect.Descriptor instead.
 func (*SetSettingsRequest) Descriptor() ([]byte, []int) {
-	return file_panelarr_source_v1_source_plugin_proto_rawDescGZIP(), []int{54}
+	return file_panelarr_source_v1_source_plugin_proto_rawDescGZIP(), []int{70}
 }
 
 func (x *SetSettingsRequest) GetSourceId() string {
@@ -3894,7 +4870,7 @@ type SetSettingsResponse struct {
 
 func (x *SetSettingsResponse) Reset() {
 	*x = SetSettingsResponse{}
-	mi := &file_panelarr_source_v1_source_plugin_proto_msgTypes[55]
+	mi := &file_panelarr_source_v1_source_plugin_proto_msgTypes[71]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3906,7 +4882,7 @@ func (x *SetSettingsResponse) String() string {
 func (*SetSettingsResponse) ProtoMessage() {}
 
 func (x *SetSettingsResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_panelarr_source_v1_source_plugin_proto_msgTypes[55]
+	mi := &file_panelarr_source_v1_source_plugin_proto_msgTypes[71]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3919,7 +4895,7 @@ func (x *SetSettingsResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SetSettingsResponse.ProtoReflect.Descriptor instead.
 func (*SetSettingsResponse) Descriptor() ([]byte, []int) {
-	return file_panelarr_source_v1_source_plugin_proto_rawDescGZIP(), []int{55}
+	return file_panelarr_source_v1_source_plugin_proto_rawDescGZIP(), []int{71}
 }
 
 func (x *SetSettingsResponse) GetValues() *structpb.Struct {
@@ -3940,7 +4916,7 @@ type SetNetworkProfileRequest struct {
 
 func (x *SetNetworkProfileRequest) Reset() {
 	*x = SetNetworkProfileRequest{}
-	mi := &file_panelarr_source_v1_source_plugin_proto_msgTypes[56]
+	mi := &file_panelarr_source_v1_source_plugin_proto_msgTypes[72]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3952,7 +4928,7 @@ func (x *SetNetworkProfileRequest) String() string {
 func (*SetNetworkProfileRequest) ProtoMessage() {}
 
 func (x *SetNetworkProfileRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_panelarr_source_v1_source_plugin_proto_msgTypes[56]
+	mi := &file_panelarr_source_v1_source_plugin_proto_msgTypes[72]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3965,7 +4941,7 @@ func (x *SetNetworkProfileRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SetNetworkProfileRequest.ProtoReflect.Descriptor instead.
 func (*SetNetworkProfileRequest) Descriptor() ([]byte, []int) {
-	return file_panelarr_source_v1_source_plugin_proto_rawDescGZIP(), []int{56}
+	return file_panelarr_source_v1_source_plugin_proto_rawDescGZIP(), []int{72}
 }
 
 func (x *SetNetworkProfileRequest) GetSourceId() string {
@@ -3990,7 +4966,7 @@ type SetNetworkProfileResponse struct {
 
 func (x *SetNetworkProfileResponse) Reset() {
 	*x = SetNetworkProfileResponse{}
-	mi := &file_panelarr_source_v1_source_plugin_proto_msgTypes[57]
+	mi := &file_panelarr_source_v1_source_plugin_proto_msgTypes[73]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -4002,7 +4978,7 @@ func (x *SetNetworkProfileResponse) String() string {
 func (*SetNetworkProfileResponse) ProtoMessage() {}
 
 func (x *SetNetworkProfileResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_panelarr_source_v1_source_plugin_proto_msgTypes[57]
+	mi := &file_panelarr_source_v1_source_plugin_proto_msgTypes[73]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4015,7 +4991,7 @@ func (x *SetNetworkProfileResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SetNetworkProfileResponse.ProtoReflect.Descriptor instead.
 func (*SetNetworkProfileResponse) Descriptor() ([]byte, []int) {
-	return file_panelarr_source_v1_source_plugin_proto_rawDescGZIP(), []int{57}
+	return file_panelarr_source_v1_source_plugin_proto_rawDescGZIP(), []int{73}
 }
 
 // NetworkProfile is everything a plugin needs to make requests for one source.
@@ -4046,7 +5022,7 @@ type NetworkProfile struct {
 
 func (x *NetworkProfile) Reset() {
 	*x = NetworkProfile{}
-	mi := &file_panelarr_source_v1_source_plugin_proto_msgTypes[58]
+	mi := &file_panelarr_source_v1_source_plugin_proto_msgTypes[74]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -4058,7 +5034,7 @@ func (x *NetworkProfile) String() string {
 func (*NetworkProfile) ProtoMessage() {}
 
 func (x *NetworkProfile) ProtoReflect() protoreflect.Message {
-	mi := &file_panelarr_source_v1_source_plugin_proto_msgTypes[58]
+	mi := &file_panelarr_source_v1_source_plugin_proto_msgTypes[74]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4071,7 +5047,7 @@ func (x *NetworkProfile) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use NetworkProfile.ProtoReflect.Descriptor instead.
 func (*NetworkProfile) Descriptor() ([]byte, []int) {
-	return file_panelarr_source_v1_source_plugin_proto_rawDescGZIP(), []int{58}
+	return file_panelarr_source_v1_source_plugin_proto_rawDescGZIP(), []int{74}
 }
 
 func (x *NetworkProfile) GetName() string {
@@ -4156,7 +5132,7 @@ type Proxy struct {
 
 func (x *Proxy) Reset() {
 	*x = Proxy{}
-	mi := &file_panelarr_source_v1_source_plugin_proto_msgTypes[59]
+	mi := &file_panelarr_source_v1_source_plugin_proto_msgTypes[75]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -4168,7 +5144,7 @@ func (x *Proxy) String() string {
 func (*Proxy) ProtoMessage() {}
 
 func (x *Proxy) ProtoReflect() protoreflect.Message {
-	mi := &file_panelarr_source_v1_source_plugin_proto_msgTypes[59]
+	mi := &file_panelarr_source_v1_source_plugin_proto_msgTypes[75]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4181,7 +5157,7 @@ func (x *Proxy) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Proxy.ProtoReflect.Descriptor instead.
 func (*Proxy) Descriptor() ([]byte, []int) {
-	return file_panelarr_source_v1_source_plugin_proto_rawDescGZIP(), []int{59}
+	return file_panelarr_source_v1_source_plugin_proto_rawDescGZIP(), []int{75}
 }
 
 func (x *Proxy) GetUrl() string {
@@ -4222,7 +5198,7 @@ type Solver struct {
 
 func (x *Solver) Reset() {
 	*x = Solver{}
-	mi := &file_panelarr_source_v1_source_plugin_proto_msgTypes[60]
+	mi := &file_panelarr_source_v1_source_plugin_proto_msgTypes[76]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -4234,7 +5210,7 @@ func (x *Solver) String() string {
 func (*Solver) ProtoMessage() {}
 
 func (x *Solver) ProtoReflect() protoreflect.Message {
-	mi := &file_panelarr_source_v1_source_plugin_proto_msgTypes[60]
+	mi := &file_panelarr_source_v1_source_plugin_proto_msgTypes[76]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4247,7 +5223,7 @@ func (x *Solver) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Solver.ProtoReflect.Descriptor instead.
 func (*Solver) Descriptor() ([]byte, []int) {
-	return file_panelarr_source_v1_source_plugin_proto_rawDescGZIP(), []int{60}
+	return file_panelarr_source_v1_source_plugin_proto_rawDescGZIP(), []int{76}
 }
 
 func (x *Solver) GetType() SolverType {
@@ -4299,7 +5275,7 @@ type UserAgent struct {
 
 func (x *UserAgent) Reset() {
 	*x = UserAgent{}
-	mi := &file_panelarr_source_v1_source_plugin_proto_msgTypes[61]
+	mi := &file_panelarr_source_v1_source_plugin_proto_msgTypes[77]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -4311,7 +5287,7 @@ func (x *UserAgent) String() string {
 func (*UserAgent) ProtoMessage() {}
 
 func (x *UserAgent) ProtoReflect() protoreflect.Message {
-	mi := &file_panelarr_source_v1_source_plugin_proto_msgTypes[61]
+	mi := &file_panelarr_source_v1_source_plugin_proto_msgTypes[77]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4324,7 +5300,7 @@ func (x *UserAgent) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use UserAgent.ProtoReflect.Descriptor instead.
 func (*UserAgent) Descriptor() ([]byte, []int) {
-	return file_panelarr_source_v1_source_plugin_proto_rawDescGZIP(), []int{61}
+	return file_panelarr_source_v1_source_plugin_proto_rawDescGZIP(), []int{77}
 }
 
 func (x *UserAgent) GetMode() isUserAgent_Mode {
@@ -4398,7 +5374,7 @@ type Timeouts struct {
 
 func (x *Timeouts) Reset() {
 	*x = Timeouts{}
-	mi := &file_panelarr_source_v1_source_plugin_proto_msgTypes[62]
+	mi := &file_panelarr_source_v1_source_plugin_proto_msgTypes[78]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -4410,7 +5386,7 @@ func (x *Timeouts) String() string {
 func (*Timeouts) ProtoMessage() {}
 
 func (x *Timeouts) ProtoReflect() protoreflect.Message {
-	mi := &file_panelarr_source_v1_source_plugin_proto_msgTypes[62]
+	mi := &file_panelarr_source_v1_source_plugin_proto_msgTypes[78]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4423,7 +5399,7 @@ func (x *Timeouts) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Timeouts.ProtoReflect.Descriptor instead.
 func (*Timeouts) Descriptor() ([]byte, []int) {
-	return file_panelarr_source_v1_source_plugin_proto_rawDescGZIP(), []int{62}
+	return file_panelarr_source_v1_source_plugin_proto_rawDescGZIP(), []int{78}
 }
 
 func (x *Timeouts) GetConnect() *durationpb.Duration {
@@ -4483,7 +5459,7 @@ const file_panelarr_source_v1_source_plugin_proto_rawDesc = "" +
 	"\rHealthRequest\"d\n" +
 	"\x0eHealthResponse\x128\n" +
 	"\x06status\x18\x01 \x01(\x0e2 .panelarr.source.v1.HealthStatusR\x06status\x12\x18\n" +
-	"\amessage\x18\x02 \x01(\tR\amessage\"\xc4\x02\n" +
+	"\amessage\x18\x02 \x01(\tR\amessage\"\xe3\x02\n" +
 	"\x06Source\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x12\n" +
 	"\x04name\x18\x02 \x01(\tR\x04name\x12\x12\n" +
@@ -4492,7 +5468,9 @@ const file_panelarr_source_v1_source_plugin_proto_rawDesc = "" +
 	"\bicon_url\x18\x05 \x01(\tR\aiconUrl\x12H\n" +
 	"\fcapabilities\x18\x06 \x03(\x0e2$.panelarr.source.v1.SourceCapabilityR\fcapabilities\x12\x19\n" +
 	"\bhome_url\x18\a \x01(\tR\ahomeUrl\x128\n" +
-	"\x06health\x18\b \x01(\v2 .panelarr.source.v1.SourceHealthR\x06health\"\x99\x02\n" +
+	"\x06health\x18\b \x01(\v2 .panelarr.source.v1.SourceHealthR\x06health\x12\x1d\n" +
+	"\n" +
+	"package_id\x18\t \x01(\tR\tpackageId\"\x99\x02\n" +
 	"\fSourceHealth\x12>\n" +
 	"\x06status\x18\x01 \x01(\x0e2&.panelarr.source.v1.SourceHealthStatusR\x06status\x12\x16\n" +
 	"\x06reason\x18\x02 \x01(\tR\x06reason\x12\x18\n" +
@@ -4639,7 +5617,74 @@ const file_panelarr_source_v1_source_plugin_proto_rawDesc = "" +
 	"\x04part\"Y\n" +
 	"\rImageMetadata\x12!\n" +
 	"\fcontent_type\x18\x01 \x01(\tR\vcontentType\x12%\n" +
-	"\x0econtent_length\x18\x02 \x01(\x04R\rcontentLength\"7\n" +
+	"\x0econtent_length\x18\x02 \x01(\x04R\rcontentLength\"\xa4\x04\n" +
+	"\aPackage\x12\x0e\n" +
+	"\x02id\x18\x01 \x01(\tR\x02id\x12\x12\n" +
+	"\x04name\x18\x02 \x01(\tR\x04name\x12\x14\n" +
+	"\x05langs\x18\x03 \x03(\tR\x05langs\x12\x18\n" +
+	"\aversion\x18\x04 \x01(\tR\aversion\x12\x1c\n" +
+	"\tinstalled\x18\x05 \x01(\bR\tinstalled\x12+\n" +
+	"\x11installed_version\x18\x06 \x01(\tR\x10installedVersion\x12)\n" +
+	"\x10update_available\x18\a \x01(\bR\x0fupdateAvailable\x12H\n" +
+	"\x0econtent_rating\x18\b \x01(\x0e2!.panelarr.source.v1.ContentRatingR\rcontentRating\x12\x1c\n" +
+	"\tsupported\x18\t \x01(\bR\tsupported\x128\n" +
+	"\x06offers\x18\n" +
+	" \x03(\v2 .panelarr.source.v1.PackageOfferR\x06offers\x12;\n" +
+	"\asources\x18\v \x03(\v2!.panelarr.source.v1.PackageSourceR\asources\x12?\n" +
+	"\bsettings\x18\f \x01(\v2#.panelarr.source.v1.PackageSettingsR\bsettings\x12\x19\n" +
+	"\bicon_url\x18\r \x01(\tR\aiconUrl\x12\x14\n" +
+	"\x05error\x18\x0e \x01(\tR\x05error\"\x84\x01\n" +
+	"\fPackageOffer\x12\x1b\n" +
+	"\torigin_id\x18\x01 \x01(\tR\boriginId\x12\x1f\n" +
+	"\vorigin_name\x18\x02 \x01(\tR\n" +
+	"originName\x12\x18\n" +
+	"\aversion\x18\x03 \x01(\tR\aversion\x12\x1c\n" +
+	"\tsupported\x18\x04 \x01(\bR\tsupported\"e\n" +
+	"\rPackageSource\x12\x0e\n" +
+	"\x02id\x18\x01 \x01(\tR\x02id\x12\x12\n" +
+	"\x04name\x18\x02 \x01(\tR\x04name\x12\x12\n" +
+	"\x04lang\x18\x03 \x01(\tR\x04lang\x12\x1c\n" +
+	"\tavailable\x18\x04 \x01(\bR\tavailable\"6\n" +
+	"\x0fPackageSettings\x12#\n" +
+	"\renabled_langs\x18\x01 \x03(\tR\fenabledLangs\"\xe2\x01\n" +
+	"\x13ListPackagesRequest\x12\x14\n" +
+	"\x05query\x18\x01 \x01(\tR\x05query\x12\x12\n" +
+	"\x04lang\x18\x02 \x01(\tR\x04lang\x12%\n" +
+	"\x0einstalled_only\x18\x03 \x01(\bR\rinstalledOnly\x12!\n" +
+	"\fupdates_only\x18\x04 \x01(\bR\vupdatesOnly\x12\x1b\n" +
+	"\torigin_id\x18\x05 \x01(\tR\boriginId\x12\x1b\n" +
+	"\tpage_size\x18\x06 \x01(\x05R\bpageSize\x12\x1d\n" +
+	"\n" +
+	"page_token\x18\a \x01(\tR\tpageToken\"w\n" +
+	"\x14ListPackagesResponse\x127\n" +
+	"\bpackages\x18\x01 \x03(\v2\x1b.panelarr.source.v1.PackageR\bpackages\x12&\n" +
+	"\x0fnext_page_token\x18\x02 \x01(\tR\rnextPageToken\"2\n" +
+	"\x11GetPackageRequest\x12\x1d\n" +
+	"\n" +
+	"package_id\x18\x01 \x01(\tR\tpackageId\"K\n" +
+	"\x12GetPackageResponse\x125\n" +
+	"\apackage\x18\x01 \x01(\v2\x1b.panelarr.source.v1.PackageR\apackage\"S\n" +
+	"\x15InstallPackageRequest\x12\x1d\n" +
+	"\n" +
+	"package_id\x18\x01 \x01(\tR\tpackageId\x12\x1b\n" +
+	"\torigin_id\x18\x02 \x01(\tR\boriginId\"O\n" +
+	"\x16InstallPackageResponse\x125\n" +
+	"\apackage\x18\x01 \x01(\v2\x1b.panelarr.source.v1.PackageR\apackage\"5\n" +
+	"\x14UpdatePackageRequest\x12\x1d\n" +
+	"\n" +
+	"package_id\x18\x01 \x01(\tR\tpackageId\"N\n" +
+	"\x15UpdatePackageResponse\x125\n" +
+	"\apackage\x18\x01 \x01(\v2\x1b.panelarr.source.v1.PackageR\apackage\"8\n" +
+	"\x17UninstallPackageRequest\x12\x1d\n" +
+	"\n" +
+	"package_id\x18\x01 \x01(\tR\tpackageId\"\x1a\n" +
+	"\x18UninstallPackageResponse\"{\n" +
+	"\x19SetPackageSettingsRequest\x12\x1d\n" +
+	"\n" +
+	"package_id\x18\x01 \x01(\tR\tpackageId\x12?\n" +
+	"\bsettings\x18\x02 \x01(\v2#.panelarr.source.v1.PackageSettingsR\bsettings\"S\n" +
+	"\x1aSetPackageSettingsResponse\x125\n" +
+	"\apackage\x18\x01 \x01(\v2\x1b.panelarr.source.v1.PackageR\apackage\"7\n" +
 	"\x18GetSettingsSchemaRequest\x12\x1b\n" +
 	"\tsource_id\x18\x01 \x01(\tR\bsourceId\"L\n" +
 	"\x19GetSettingsSchemaResponse\x12/\n" +
@@ -4695,11 +5740,12 @@ const file_panelarr_source_v1_source_plugin_proto_rawDesc = "" +
 	"\bTimeouts\x123\n" +
 	"\aconnect\x18\x01 \x01(\v2\x19.google.protobuf.DurationR\aconnect\x12-\n" +
 	"\x04read\x18\x02 \x01(\v2\x19.google.protobuf.DurationR\x04read\x12-\n" +
-	"\x04call\x18\x03 \x01(\v2\x19.google.protobuf.DurationR\x04call*\x84\x01\n" +
+	"\x04call\x18\x03 \x01(\v2\x19.google.protobuf.DurationR\x04call*\xa4\x01\n" +
 	"\x10PluginCapability\x12!\n" +
 	"\x1dPLUGIN_CAPABILITY_UNSPECIFIED\x10\x00\x12&\n" +
 	"\"PLUGIN_CAPABILITY_NETWORK_PROFILES\x10\x01\x12%\n" +
-	"!PLUGIN_CAPABILITY_DYNAMIC_SOURCES\x10\x02*n\n" +
+	"!PLUGIN_CAPABILITY_DYNAMIC_SOURCES\x10\x02\x12\x1e\n" +
+	"\x1aPLUGIN_CAPABILITY_PACKAGES\x10\x03*n\n" +
 	"\rCommonService\x12\x1e\n" +
 	"\x1aCOMMON_SERVICE_UNSPECIFIED\x10\x00\x12\"\n" +
 	"\x1eCOMMON_SERVICE_NETWORK_PROFILE\x10\x01\x12\x19\n" +
@@ -4712,7 +5758,7 @@ const file_panelarr_source_v1_source_plugin_proto_rawDesc = "" +
 	"\x19HEALTH_STATUS_UNSPECIFIED\x10\x00\x12\x19\n" +
 	"\x15HEALTH_STATUS_SERVING\x10\x01\x12\x1a\n" +
 	"\x16HEALTH_STATUS_DEGRADED\x10\x02\x12\x1d\n" +
-	"\x19HEALTH_STATUS_NOT_SERVING\x10\x03*\xea\x01\n" +
+	"\x19HEALTH_STATUS_NOT_SERVING\x10\x03*\xaf\x02\n" +
 	"\vErrorReason\x12\x1c\n" +
 	"\x18ERROR_REASON_UNSPECIFIED\x10\x00\x12%\n" +
 	"!ERROR_REASON_CLOUDFLARE_CHALLENGE\x10\x01\x12\x1d\n" +
@@ -4720,7 +5766,9 @@ const file_panelarr_source_v1_source_plugin_proto_rawDesc = "" +
 	"\x18ERROR_REASON_SOURCE_DOWN\x10\x03\x12\x1a\n" +
 	"\x16ERROR_REASON_NOT_FOUND\x10\x04\x12\x1f\n" +
 	"\x1bERROR_REASON_LOGIN_REQUIRED\x10\x05\x12\x1c\n" +
-	"\x18ERROR_REASON_UNSUPPORTED\x10\x06*y\n" +
+	"\x18ERROR_REASON_UNSUPPORTED\x10\x06\x12#\n" +
+	"\x1fERROR_REASON_STORE_FETCH_FAILED\x10\a\x12\x1e\n" +
+	"\x1aERROR_REASON_STORE_INVALID\x10\b*y\n" +
 	"\x12SourceHealthStatus\x12$\n" +
 	" SOURCE_HEALTH_STATUS_UNSPECIFIED\x10\x00\x12\x1b\n" +
 	"\x17SOURCE_HEALTH_STATUS_OK\x10\x01\x12 \n" +
@@ -4756,7 +5804,7 @@ const file_panelarr_source_v1_source_plugin_proto_rawDesc = "" +
 	"SolverType\x12\x1b\n" +
 	"\x17SOLVER_TYPE_UNSPECIFIED\x10\x00\x12\x1c\n" +
 	"\x18SOLVER_TYPE_FLARESOLVERR\x10\x01\x12\x16\n" +
-	"\x12SOLVER_TYPE_BYPARR\x10\x022\xf6\x12\n" +
+	"\x12SOLVER_TYPE_BYPARR\x10\x022\xe0\x19\n" +
 	"\x13SourcePluginService\x12d\n" +
 	"\aGetInfo\x12\".panelarr.source.v1.GetInfoRequest\x1a#.panelarr.source.v1.GetInfoResponse\"\x10\x82\xd3\xe4\x93\x02\n" +
 	"\x12\b/v1/info\x12l\n" +
@@ -4782,7 +5830,14 @@ const file_panelarr_source_v1_source_plugin_proto_rawDesc = "" +
 	"FetchImage\x12%.panelarr.source.v1.FetchImageRequest\x1a&.panelarr.source.v1.FetchImageResponse0\x01\x12\xa1\x01\n" +
 	"\x11GetSettingsSchema\x12,.panelarr.source.v1.GetSettingsSchemaRequest\x1a-.panelarr.source.v1.GetSettingsSchemaResponse\"/\x82\xd3\xe4\x93\x02)\x12'/v1/sources/{source_id}/settings/schema\x12\x88\x01\n" +
 	"\vGetSettings\x12&.panelarr.source.v1.GetSettingsRequest\x1a'.panelarr.source.v1.GetSettingsResponse\"(\x82\xd3\xe4\x93\x02\"\x12 /v1/sources/{source_id}/settings\x12\x8b\x01\n" +
-	"\vSetSettings\x12&.panelarr.source.v1.SetSettingsRequest\x1a'.panelarr.source.v1.SetSettingsResponse\"+\x82\xd3\xe4\x93\x02%:\x01*2 /v1/sources/{source_id}/settings\x12\xa4\x01\n" +
+	"\vSetSettings\x12&.panelarr.source.v1.SetSettingsRequest\x1a'.panelarr.source.v1.SetSettingsResponse\"+\x82\xd3\xe4\x93\x02%:\x01*2 /v1/sources/{source_id}/settings\x12w\n" +
+	"\fListPackages\x12'.panelarr.source.v1.ListPackagesRequest\x1a(.panelarr.source.v1.ListPackagesResponse\"\x14\x82\xd3\xe4\x93\x02\x0e\x12\f/v1/packages\x12~\n" +
+	"\n" +
+	"GetPackage\x12%.panelarr.source.v1.GetPackageRequest\x1a&.panelarr.source.v1.GetPackageResponse\"!\x82\xd3\xe4\x93\x02\x1b\x12\x19/v1/packages/{package_id}\x12\x95\x01\n" +
+	"\x0eInstallPackage\x12).panelarr.source.v1.InstallPackageRequest\x1a*.panelarr.source.v1.InstallPackageResponse\",\x82\xd3\xe4\x93\x02&:\x01*\"!/v1/packages/{package_id}:install\x12\x91\x01\n" +
+	"\rUpdatePackage\x12(.panelarr.source.v1.UpdatePackageRequest\x1a).panelarr.source.v1.UpdatePackageResponse\"+\x82\xd3\xe4\x93\x02%:\x01*\" /v1/packages/{package_id}:update\x12\x9d\x01\n" +
+	"\x10UninstallPackage\x12+.panelarr.source.v1.UninstallPackageRequest\x1a,.panelarr.source.v1.UninstallPackageResponse\".\x82\xd3\xe4\x93\x02(:\x01*\"#/v1/packages/{package_id}:uninstall\x12\xa2\x01\n" +
+	"\x12SetPackageSettings\x12-.panelarr.source.v1.SetPackageSettingsRequest\x1a..panelarr.source.v1.SetPackageSettingsResponse\"-\x82\xd3\xe4\x93\x02':\x01*2\"/v1/packages/{package_id}/settings\x12\xa4\x01\n" +
 	"\x11SetNetworkProfile\x12,.panelarr.source.v1.SetNetworkProfileRequest\x1a-.panelarr.source.v1.SetNetworkProfileResponse\"2\x82\xd3\xe4\x93\x02,:\x01*\x1a'/v1/sources/{source_id}/network-profileB\xd5\x01\n" +
 	"\x16com.panelarr.source.v1B\x11SourcePluginProtoP\x01Z>github.com/panelarr/source-api/gen/panelarr/source/v1;sourcev1\xa2\x02\x03PSX\xaa\x02\x12Panelarr.Source.V1\xca\x02\x12Panelarr\\Source\\V1\xe2\x02\x1ePanelarr\\Source\\V1\\GPBMetadata\xea\x02\x14Panelarr::Source::V1b\x06proto3"
 
@@ -4799,106 +5854,122 @@ func file_panelarr_source_v1_source_plugin_proto_rawDescGZIP() []byte {
 }
 
 var file_panelarr_source_v1_source_plugin_proto_enumTypes = make([]protoimpl.EnumInfo, 11)
-var file_panelarr_source_v1_source_plugin_proto_msgTypes = make([]protoimpl.MessageInfo, 64)
+var file_panelarr_source_v1_source_plugin_proto_msgTypes = make([]protoimpl.MessageInfo, 80)
 var file_panelarr_source_v1_source_plugin_proto_goTypes = []any{
-	(PluginCapability)(0),             // 0: panelarr.source.v1.PluginCapability
-	(CommonService)(0),                // 1: panelarr.source.v1.CommonService
-	(RateLimitScope)(0),               // 2: panelarr.source.v1.RateLimitScope
-	(HealthStatus)(0),                 // 3: panelarr.source.v1.HealthStatus
-	(ErrorReason)(0),                  // 4: panelarr.source.v1.ErrorReason
-	(SourceHealthStatus)(0),           // 5: panelarr.source.v1.SourceHealthStatus
-	(SourceCapability)(0),             // 6: panelarr.source.v1.SourceCapability
-	(ContentRating)(0),                // 7: panelarr.source.v1.ContentRating
-	(TriState)(0),                     // 8: panelarr.source.v1.TriState
-	(SeriesStatus)(0),                 // 9: panelarr.source.v1.SeriesStatus
-	(SolverType)(0),                   // 10: panelarr.source.v1.SolverType
-	(*GetInfoRequest)(nil),            // 11: panelarr.source.v1.GetInfoRequest
-	(*GetInfoResponse)(nil),           // 12: panelarr.source.v1.GetInfoResponse
-	(*PluginInfo)(nil),                // 13: panelarr.source.v1.PluginInfo
-	(*Limits)(nil),                    // 14: panelarr.source.v1.Limits
-	(*RateLimit)(nil),                 // 15: panelarr.source.v1.RateLimit
-	(*GetConfigRequest)(nil),          // 16: panelarr.source.v1.GetConfigRequest
-	(*GetConfigResponse)(nil),         // 17: panelarr.source.v1.GetConfigResponse
-	(*SetConfigRequest)(nil),          // 18: panelarr.source.v1.SetConfigRequest
-	(*SetConfigResponse)(nil),         // 19: panelarr.source.v1.SetConfigResponse
-	(*HealthRequest)(nil),             // 20: panelarr.source.v1.HealthRequest
-	(*HealthResponse)(nil),            // 21: panelarr.source.v1.HealthResponse
-	(*Source)(nil),                    // 22: panelarr.source.v1.Source
-	(*SourceHealth)(nil),              // 23: panelarr.source.v1.SourceHealth
-	(*ListSourcesRequest)(nil),        // 24: panelarr.source.v1.ListSourcesRequest
-	(*ListSourcesResponse)(nil),       // 25: panelarr.source.v1.ListSourcesResponse
-	(*GetSourceRequest)(nil),          // 26: panelarr.source.v1.GetSourceRequest
-	(*GetSourceResponse)(nil),         // 27: panelarr.source.v1.GetSourceResponse
-	(*GetFiltersRequest)(nil),         // 28: panelarr.source.v1.GetFiltersRequest
-	(*GetFiltersResponse)(nil),        // 29: panelarr.source.v1.GetFiltersResponse
-	(*Filter)(nil),                    // 30: panelarr.source.v1.Filter
-	(*HeaderFilter)(nil),              // 31: panelarr.source.v1.HeaderFilter
-	(*SeparatorFilter)(nil),           // 32: panelarr.source.v1.SeparatorFilter
-	(*TextFilter)(nil),                // 33: panelarr.source.v1.TextFilter
-	(*CheckboxFilter)(nil),            // 34: panelarr.source.v1.CheckboxFilter
-	(*TriStateFilter)(nil),            // 35: panelarr.source.v1.TriStateFilter
-	(*SelectFilter)(nil),              // 36: panelarr.source.v1.SelectFilter
-	(*SortFilter)(nil),                // 37: panelarr.source.v1.SortFilter
-	(*SortSelection)(nil),             // 38: panelarr.source.v1.SortSelection
-	(*GroupFilter)(nil),               // 39: panelarr.source.v1.GroupFilter
-	(*FilterValue)(nil),               // 40: panelarr.source.v1.FilterValue
-	(*Series)(nil),                    // 41: panelarr.source.v1.Series
-	(*PopularRequest)(nil),            // 42: panelarr.source.v1.PopularRequest
-	(*PopularResponse)(nil),           // 43: panelarr.source.v1.PopularResponse
-	(*LatestRequest)(nil),             // 44: panelarr.source.v1.LatestRequest
-	(*LatestResponse)(nil),            // 45: panelarr.source.v1.LatestResponse
-	(*SearchRequest)(nil),             // 46: panelarr.source.v1.SearchRequest
-	(*SearchResponse)(nil),            // 47: panelarr.source.v1.SearchResponse
-	(*ResolveUrlRequest)(nil),         // 48: panelarr.source.v1.ResolveUrlRequest
-	(*ResolveUrlResponse)(nil),        // 49: panelarr.source.v1.ResolveUrlResponse
-	(*GetSeriesRequest)(nil),          // 50: panelarr.source.v1.GetSeriesRequest
-	(*GetSeriesResponse)(nil),         // 51: panelarr.source.v1.GetSeriesResponse
-	(*Chapter)(nil),                   // 52: panelarr.source.v1.Chapter
-	(*ListChaptersRequest)(nil),       // 53: panelarr.source.v1.ListChaptersRequest
-	(*ListChaptersResponse)(nil),      // 54: panelarr.source.v1.ListChaptersResponse
-	(*Page)(nil),                      // 55: panelarr.source.v1.Page
-	(*ListPagesRequest)(nil),          // 56: panelarr.source.v1.ListPagesRequest
-	(*ListPagesResponse)(nil),         // 57: panelarr.source.v1.ListPagesResponse
-	(*FetchImageRequest)(nil),         // 58: panelarr.source.v1.FetchImageRequest
-	(*FetchImageResponse)(nil),        // 59: panelarr.source.v1.FetchImageResponse
-	(*ImageMetadata)(nil),             // 60: panelarr.source.v1.ImageMetadata
-	(*GetSettingsSchemaRequest)(nil),  // 61: panelarr.source.v1.GetSettingsSchemaRequest
-	(*GetSettingsSchemaResponse)(nil), // 62: panelarr.source.v1.GetSettingsSchemaResponse
-	(*GetSettingsRequest)(nil),        // 63: panelarr.source.v1.GetSettingsRequest
-	(*GetSettingsResponse)(nil),       // 64: panelarr.source.v1.GetSettingsResponse
-	(*SetSettingsRequest)(nil),        // 65: panelarr.source.v1.SetSettingsRequest
-	(*SetSettingsResponse)(nil),       // 66: panelarr.source.v1.SetSettingsResponse
-	(*SetNetworkProfileRequest)(nil),  // 67: panelarr.source.v1.SetNetworkProfileRequest
-	(*SetNetworkProfileResponse)(nil), // 68: panelarr.source.v1.SetNetworkProfileResponse
-	(*NetworkProfile)(nil),            // 69: panelarr.source.v1.NetworkProfile
-	(*Proxy)(nil),                     // 70: panelarr.source.v1.Proxy
-	(*Solver)(nil),                    // 71: panelarr.source.v1.Solver
-	(*UserAgent)(nil),                 // 72: panelarr.source.v1.UserAgent
-	(*Timeouts)(nil),                  // 73: panelarr.source.v1.Timeouts
-	nil,                               // 74: panelarr.source.v1.NetworkProfile.HeadersEntry
-	(*structpb.Struct)(nil),           // 75: google.protobuf.Struct
-	(*durationpb.Duration)(nil),       // 76: google.protobuf.Duration
-	(*timestamppb.Timestamp)(nil),     // 77: google.protobuf.Timestamp
+	(PluginCapability)(0),              // 0: panelarr.source.v1.PluginCapability
+	(CommonService)(0),                 // 1: panelarr.source.v1.CommonService
+	(RateLimitScope)(0),                // 2: panelarr.source.v1.RateLimitScope
+	(HealthStatus)(0),                  // 3: panelarr.source.v1.HealthStatus
+	(ErrorReason)(0),                   // 4: panelarr.source.v1.ErrorReason
+	(SourceHealthStatus)(0),            // 5: panelarr.source.v1.SourceHealthStatus
+	(SourceCapability)(0),              // 6: panelarr.source.v1.SourceCapability
+	(ContentRating)(0),                 // 7: panelarr.source.v1.ContentRating
+	(TriState)(0),                      // 8: panelarr.source.v1.TriState
+	(SeriesStatus)(0),                  // 9: panelarr.source.v1.SeriesStatus
+	(SolverType)(0),                    // 10: panelarr.source.v1.SolverType
+	(*GetInfoRequest)(nil),             // 11: panelarr.source.v1.GetInfoRequest
+	(*GetInfoResponse)(nil),            // 12: panelarr.source.v1.GetInfoResponse
+	(*PluginInfo)(nil),                 // 13: panelarr.source.v1.PluginInfo
+	(*Limits)(nil),                     // 14: panelarr.source.v1.Limits
+	(*RateLimit)(nil),                  // 15: panelarr.source.v1.RateLimit
+	(*GetConfigRequest)(nil),           // 16: panelarr.source.v1.GetConfigRequest
+	(*GetConfigResponse)(nil),          // 17: panelarr.source.v1.GetConfigResponse
+	(*SetConfigRequest)(nil),           // 18: panelarr.source.v1.SetConfigRequest
+	(*SetConfigResponse)(nil),          // 19: panelarr.source.v1.SetConfigResponse
+	(*HealthRequest)(nil),              // 20: panelarr.source.v1.HealthRequest
+	(*HealthResponse)(nil),             // 21: panelarr.source.v1.HealthResponse
+	(*Source)(nil),                     // 22: panelarr.source.v1.Source
+	(*SourceHealth)(nil),               // 23: panelarr.source.v1.SourceHealth
+	(*ListSourcesRequest)(nil),         // 24: panelarr.source.v1.ListSourcesRequest
+	(*ListSourcesResponse)(nil),        // 25: panelarr.source.v1.ListSourcesResponse
+	(*GetSourceRequest)(nil),           // 26: panelarr.source.v1.GetSourceRequest
+	(*GetSourceResponse)(nil),          // 27: panelarr.source.v1.GetSourceResponse
+	(*GetFiltersRequest)(nil),          // 28: panelarr.source.v1.GetFiltersRequest
+	(*GetFiltersResponse)(nil),         // 29: panelarr.source.v1.GetFiltersResponse
+	(*Filter)(nil),                     // 30: panelarr.source.v1.Filter
+	(*HeaderFilter)(nil),               // 31: panelarr.source.v1.HeaderFilter
+	(*SeparatorFilter)(nil),            // 32: panelarr.source.v1.SeparatorFilter
+	(*TextFilter)(nil),                 // 33: panelarr.source.v1.TextFilter
+	(*CheckboxFilter)(nil),             // 34: panelarr.source.v1.CheckboxFilter
+	(*TriStateFilter)(nil),             // 35: panelarr.source.v1.TriStateFilter
+	(*SelectFilter)(nil),               // 36: panelarr.source.v1.SelectFilter
+	(*SortFilter)(nil),                 // 37: panelarr.source.v1.SortFilter
+	(*SortSelection)(nil),              // 38: panelarr.source.v1.SortSelection
+	(*GroupFilter)(nil),                // 39: panelarr.source.v1.GroupFilter
+	(*FilterValue)(nil),                // 40: panelarr.source.v1.FilterValue
+	(*Series)(nil),                     // 41: panelarr.source.v1.Series
+	(*PopularRequest)(nil),             // 42: panelarr.source.v1.PopularRequest
+	(*PopularResponse)(nil),            // 43: panelarr.source.v1.PopularResponse
+	(*LatestRequest)(nil),              // 44: panelarr.source.v1.LatestRequest
+	(*LatestResponse)(nil),             // 45: panelarr.source.v1.LatestResponse
+	(*SearchRequest)(nil),              // 46: panelarr.source.v1.SearchRequest
+	(*SearchResponse)(nil),             // 47: panelarr.source.v1.SearchResponse
+	(*ResolveUrlRequest)(nil),          // 48: panelarr.source.v1.ResolveUrlRequest
+	(*ResolveUrlResponse)(nil),         // 49: panelarr.source.v1.ResolveUrlResponse
+	(*GetSeriesRequest)(nil),           // 50: panelarr.source.v1.GetSeriesRequest
+	(*GetSeriesResponse)(nil),          // 51: panelarr.source.v1.GetSeriesResponse
+	(*Chapter)(nil),                    // 52: panelarr.source.v1.Chapter
+	(*ListChaptersRequest)(nil),        // 53: panelarr.source.v1.ListChaptersRequest
+	(*ListChaptersResponse)(nil),       // 54: panelarr.source.v1.ListChaptersResponse
+	(*Page)(nil),                       // 55: panelarr.source.v1.Page
+	(*ListPagesRequest)(nil),           // 56: panelarr.source.v1.ListPagesRequest
+	(*ListPagesResponse)(nil),          // 57: panelarr.source.v1.ListPagesResponse
+	(*FetchImageRequest)(nil),          // 58: panelarr.source.v1.FetchImageRequest
+	(*FetchImageResponse)(nil),         // 59: panelarr.source.v1.FetchImageResponse
+	(*ImageMetadata)(nil),              // 60: panelarr.source.v1.ImageMetadata
+	(*Package)(nil),                    // 61: panelarr.source.v1.Package
+	(*PackageOffer)(nil),               // 62: panelarr.source.v1.PackageOffer
+	(*PackageSource)(nil),              // 63: panelarr.source.v1.PackageSource
+	(*PackageSettings)(nil),            // 64: panelarr.source.v1.PackageSettings
+	(*ListPackagesRequest)(nil),        // 65: panelarr.source.v1.ListPackagesRequest
+	(*ListPackagesResponse)(nil),       // 66: panelarr.source.v1.ListPackagesResponse
+	(*GetPackageRequest)(nil),          // 67: panelarr.source.v1.GetPackageRequest
+	(*GetPackageResponse)(nil),         // 68: panelarr.source.v1.GetPackageResponse
+	(*InstallPackageRequest)(nil),      // 69: panelarr.source.v1.InstallPackageRequest
+	(*InstallPackageResponse)(nil),     // 70: panelarr.source.v1.InstallPackageResponse
+	(*UpdatePackageRequest)(nil),       // 71: panelarr.source.v1.UpdatePackageRequest
+	(*UpdatePackageResponse)(nil),      // 72: panelarr.source.v1.UpdatePackageResponse
+	(*UninstallPackageRequest)(nil),    // 73: panelarr.source.v1.UninstallPackageRequest
+	(*UninstallPackageResponse)(nil),   // 74: panelarr.source.v1.UninstallPackageResponse
+	(*SetPackageSettingsRequest)(nil),  // 75: panelarr.source.v1.SetPackageSettingsRequest
+	(*SetPackageSettingsResponse)(nil), // 76: panelarr.source.v1.SetPackageSettingsResponse
+	(*GetSettingsSchemaRequest)(nil),   // 77: panelarr.source.v1.GetSettingsSchemaRequest
+	(*GetSettingsSchemaResponse)(nil),  // 78: panelarr.source.v1.GetSettingsSchemaResponse
+	(*GetSettingsRequest)(nil),         // 79: panelarr.source.v1.GetSettingsRequest
+	(*GetSettingsResponse)(nil),        // 80: panelarr.source.v1.GetSettingsResponse
+	(*SetSettingsRequest)(nil),         // 81: panelarr.source.v1.SetSettingsRequest
+	(*SetSettingsResponse)(nil),        // 82: panelarr.source.v1.SetSettingsResponse
+	(*SetNetworkProfileRequest)(nil),   // 83: panelarr.source.v1.SetNetworkProfileRequest
+	(*SetNetworkProfileResponse)(nil),  // 84: panelarr.source.v1.SetNetworkProfileResponse
+	(*NetworkProfile)(nil),             // 85: panelarr.source.v1.NetworkProfile
+	(*Proxy)(nil),                      // 86: panelarr.source.v1.Proxy
+	(*Solver)(nil),                     // 87: panelarr.source.v1.Solver
+	(*UserAgent)(nil),                  // 88: panelarr.source.v1.UserAgent
+	(*Timeouts)(nil),                   // 89: panelarr.source.v1.Timeouts
+	nil,                                // 90: panelarr.source.v1.NetworkProfile.HeadersEntry
+	(*structpb.Struct)(nil),            // 91: google.protobuf.Struct
+	(*durationpb.Duration)(nil),        // 92: google.protobuf.Duration
+	(*timestamppb.Timestamp)(nil),      // 93: google.protobuf.Timestamp
 }
 var file_panelarr_source_v1_source_plugin_proto_depIdxs = []int32{
 	13, // 0: panelarr.source.v1.GetInfoResponse.info:type_name -> panelarr.source.v1.PluginInfo
 	0,  // 1: panelarr.source.v1.PluginInfo.capabilities:type_name -> panelarr.source.v1.PluginCapability
 	14, // 2: panelarr.source.v1.PluginInfo.limits:type_name -> panelarr.source.v1.Limits
-	75, // 3: panelarr.source.v1.PluginInfo.config_schema:type_name -> google.protobuf.Struct
+	91, // 3: panelarr.source.v1.PluginInfo.config_schema:type_name -> google.protobuf.Struct
 	1,  // 4: panelarr.source.v1.PluginInfo.common_services:type_name -> panelarr.source.v1.CommonService
 	15, // 5: panelarr.source.v1.Limits.default_rate_limit:type_name -> panelarr.source.v1.RateLimit
-	76, // 6: panelarr.source.v1.RateLimit.period:type_name -> google.protobuf.Duration
+	92, // 6: panelarr.source.v1.RateLimit.period:type_name -> google.protobuf.Duration
 	2,  // 7: panelarr.source.v1.RateLimit.scope:type_name -> panelarr.source.v1.RateLimitScope
-	75, // 8: panelarr.source.v1.GetConfigResponse.values:type_name -> google.protobuf.Struct
-	75, // 9: panelarr.source.v1.SetConfigRequest.values:type_name -> google.protobuf.Struct
-	75, // 10: panelarr.source.v1.SetConfigResponse.values:type_name -> google.protobuf.Struct
+	91, // 8: panelarr.source.v1.GetConfigResponse.values:type_name -> google.protobuf.Struct
+	91, // 9: panelarr.source.v1.SetConfigRequest.values:type_name -> google.protobuf.Struct
+	91, // 10: panelarr.source.v1.SetConfigResponse.values:type_name -> google.protobuf.Struct
 	3,  // 11: panelarr.source.v1.HealthResponse.status:type_name -> panelarr.source.v1.HealthStatus
 	7,  // 12: panelarr.source.v1.Source.content_rating:type_name -> panelarr.source.v1.ContentRating
 	6,  // 13: panelarr.source.v1.Source.capabilities:type_name -> panelarr.source.v1.SourceCapability
 	23, // 14: panelarr.source.v1.Source.health:type_name -> panelarr.source.v1.SourceHealth
 	5,  // 15: panelarr.source.v1.SourceHealth.status:type_name -> panelarr.source.v1.SourceHealthStatus
-	76, // 16: panelarr.source.v1.SourceHealth.latency:type_name -> google.protobuf.Duration
-	77, // 17: panelarr.source.v1.SourceHealth.checked_at:type_name -> google.protobuf.Timestamp
+	92, // 16: panelarr.source.v1.SourceHealth.latency:type_name -> google.protobuf.Duration
+	93, // 17: panelarr.source.v1.SourceHealth.checked_at:type_name -> google.protobuf.Timestamp
 	22, // 18: panelarr.source.v1.ListSourcesResponse.sources:type_name -> panelarr.source.v1.Source
 	22, // 19: panelarr.source.v1.GetSourceResponse.source:type_name -> panelarr.source.v1.Source
 	30, // 20: panelarr.source.v1.GetFiltersResponse.filters:type_name -> panelarr.source.v1.Filter
@@ -4922,70 +5993,92 @@ var file_panelarr_source_v1_source_plugin_proto_depIdxs = []int32{
 	41, // 38: panelarr.source.v1.SearchResponse.series:type_name -> panelarr.source.v1.Series
 	41, // 39: panelarr.source.v1.ResolveUrlResponse.series:type_name -> panelarr.source.v1.Series
 	41, // 40: panelarr.source.v1.GetSeriesResponse.series:type_name -> panelarr.source.v1.Series
-	77, // 41: panelarr.source.v1.Chapter.uploaded_at:type_name -> google.protobuf.Timestamp
+	93, // 41: panelarr.source.v1.Chapter.uploaded_at:type_name -> google.protobuf.Timestamp
 	52, // 42: panelarr.source.v1.ListChaptersResponse.chapters:type_name -> panelarr.source.v1.Chapter
 	55, // 43: panelarr.source.v1.ListPagesResponse.pages:type_name -> panelarr.source.v1.Page
 	60, // 44: panelarr.source.v1.FetchImageResponse.metadata:type_name -> panelarr.source.v1.ImageMetadata
-	75, // 45: panelarr.source.v1.GetSettingsSchemaResponse.schema:type_name -> google.protobuf.Struct
-	75, // 46: panelarr.source.v1.GetSettingsResponse.values:type_name -> google.protobuf.Struct
-	75, // 47: panelarr.source.v1.SetSettingsRequest.values:type_name -> google.protobuf.Struct
-	75, // 48: panelarr.source.v1.SetSettingsResponse.values:type_name -> google.protobuf.Struct
-	69, // 49: panelarr.source.v1.SetNetworkProfileRequest.profile:type_name -> panelarr.source.v1.NetworkProfile
-	70, // 50: panelarr.source.v1.NetworkProfile.proxy:type_name -> panelarr.source.v1.Proxy
-	71, // 51: panelarr.source.v1.NetworkProfile.solver:type_name -> panelarr.source.v1.Solver
-	15, // 52: panelarr.source.v1.NetworkProfile.rate_limit:type_name -> panelarr.source.v1.RateLimit
-	72, // 53: panelarr.source.v1.NetworkProfile.user_agent:type_name -> panelarr.source.v1.UserAgent
-	74, // 54: panelarr.source.v1.NetworkProfile.headers:type_name -> panelarr.source.v1.NetworkProfile.HeadersEntry
-	73, // 55: panelarr.source.v1.NetworkProfile.timeouts:type_name -> panelarr.source.v1.Timeouts
-	10, // 56: panelarr.source.v1.Solver.type:type_name -> panelarr.source.v1.SolverType
-	76, // 57: panelarr.source.v1.Solver.session_ttl:type_name -> google.protobuf.Duration
-	76, // 58: panelarr.source.v1.Solver.max_timeout:type_name -> google.protobuf.Duration
-	76, // 59: panelarr.source.v1.Timeouts.connect:type_name -> google.protobuf.Duration
-	76, // 60: panelarr.source.v1.Timeouts.read:type_name -> google.protobuf.Duration
-	76, // 61: panelarr.source.v1.Timeouts.call:type_name -> google.protobuf.Duration
-	11, // 62: panelarr.source.v1.SourcePluginService.GetInfo:input_type -> panelarr.source.v1.GetInfoRequest
-	16, // 63: panelarr.source.v1.SourcePluginService.GetConfig:input_type -> panelarr.source.v1.GetConfigRequest
-	18, // 64: panelarr.source.v1.SourcePluginService.SetConfig:input_type -> panelarr.source.v1.SetConfigRequest
-	20, // 65: panelarr.source.v1.SourcePluginService.Health:input_type -> panelarr.source.v1.HealthRequest
-	24, // 66: panelarr.source.v1.SourcePluginService.ListSources:input_type -> panelarr.source.v1.ListSourcesRequest
-	26, // 67: panelarr.source.v1.SourcePluginService.GetSource:input_type -> panelarr.source.v1.GetSourceRequest
-	28, // 68: panelarr.source.v1.SourcePluginService.GetFilters:input_type -> panelarr.source.v1.GetFiltersRequest
-	42, // 69: panelarr.source.v1.SourcePluginService.Popular:input_type -> panelarr.source.v1.PopularRequest
-	44, // 70: panelarr.source.v1.SourcePluginService.Latest:input_type -> panelarr.source.v1.LatestRequest
-	46, // 71: panelarr.source.v1.SourcePluginService.Search:input_type -> panelarr.source.v1.SearchRequest
-	48, // 72: panelarr.source.v1.SourcePluginService.ResolveUrl:input_type -> panelarr.source.v1.ResolveUrlRequest
-	50, // 73: panelarr.source.v1.SourcePluginService.GetSeries:input_type -> panelarr.source.v1.GetSeriesRequest
-	53, // 74: panelarr.source.v1.SourcePluginService.ListChapters:input_type -> panelarr.source.v1.ListChaptersRequest
-	56, // 75: panelarr.source.v1.SourcePluginService.ListPages:input_type -> panelarr.source.v1.ListPagesRequest
-	58, // 76: panelarr.source.v1.SourcePluginService.FetchImage:input_type -> panelarr.source.v1.FetchImageRequest
-	61, // 77: panelarr.source.v1.SourcePluginService.GetSettingsSchema:input_type -> panelarr.source.v1.GetSettingsSchemaRequest
-	63, // 78: panelarr.source.v1.SourcePluginService.GetSettings:input_type -> panelarr.source.v1.GetSettingsRequest
-	65, // 79: panelarr.source.v1.SourcePluginService.SetSettings:input_type -> panelarr.source.v1.SetSettingsRequest
-	67, // 80: panelarr.source.v1.SourcePluginService.SetNetworkProfile:input_type -> panelarr.source.v1.SetNetworkProfileRequest
-	12, // 81: panelarr.source.v1.SourcePluginService.GetInfo:output_type -> panelarr.source.v1.GetInfoResponse
-	17, // 82: panelarr.source.v1.SourcePluginService.GetConfig:output_type -> panelarr.source.v1.GetConfigResponse
-	19, // 83: panelarr.source.v1.SourcePluginService.SetConfig:output_type -> panelarr.source.v1.SetConfigResponse
-	21, // 84: panelarr.source.v1.SourcePluginService.Health:output_type -> panelarr.source.v1.HealthResponse
-	25, // 85: panelarr.source.v1.SourcePluginService.ListSources:output_type -> panelarr.source.v1.ListSourcesResponse
-	27, // 86: panelarr.source.v1.SourcePluginService.GetSource:output_type -> panelarr.source.v1.GetSourceResponse
-	29, // 87: panelarr.source.v1.SourcePluginService.GetFilters:output_type -> panelarr.source.v1.GetFiltersResponse
-	43, // 88: panelarr.source.v1.SourcePluginService.Popular:output_type -> panelarr.source.v1.PopularResponse
-	45, // 89: panelarr.source.v1.SourcePluginService.Latest:output_type -> panelarr.source.v1.LatestResponse
-	47, // 90: panelarr.source.v1.SourcePluginService.Search:output_type -> panelarr.source.v1.SearchResponse
-	49, // 91: panelarr.source.v1.SourcePluginService.ResolveUrl:output_type -> panelarr.source.v1.ResolveUrlResponse
-	51, // 92: panelarr.source.v1.SourcePluginService.GetSeries:output_type -> panelarr.source.v1.GetSeriesResponse
-	54, // 93: panelarr.source.v1.SourcePluginService.ListChapters:output_type -> panelarr.source.v1.ListChaptersResponse
-	57, // 94: panelarr.source.v1.SourcePluginService.ListPages:output_type -> panelarr.source.v1.ListPagesResponse
-	59, // 95: panelarr.source.v1.SourcePluginService.FetchImage:output_type -> panelarr.source.v1.FetchImageResponse
-	62, // 96: panelarr.source.v1.SourcePluginService.GetSettingsSchema:output_type -> panelarr.source.v1.GetSettingsSchemaResponse
-	64, // 97: panelarr.source.v1.SourcePluginService.GetSettings:output_type -> panelarr.source.v1.GetSettingsResponse
-	66, // 98: panelarr.source.v1.SourcePluginService.SetSettings:output_type -> panelarr.source.v1.SetSettingsResponse
-	68, // 99: panelarr.source.v1.SourcePluginService.SetNetworkProfile:output_type -> panelarr.source.v1.SetNetworkProfileResponse
-	81, // [81:100] is the sub-list for method output_type
-	62, // [62:81] is the sub-list for method input_type
-	62, // [62:62] is the sub-list for extension type_name
-	62, // [62:62] is the sub-list for extension extendee
-	0,  // [0:62] is the sub-list for field type_name
+	7,  // 45: panelarr.source.v1.Package.content_rating:type_name -> panelarr.source.v1.ContentRating
+	62, // 46: panelarr.source.v1.Package.offers:type_name -> panelarr.source.v1.PackageOffer
+	63, // 47: panelarr.source.v1.Package.sources:type_name -> panelarr.source.v1.PackageSource
+	64, // 48: panelarr.source.v1.Package.settings:type_name -> panelarr.source.v1.PackageSettings
+	61, // 49: panelarr.source.v1.ListPackagesResponse.packages:type_name -> panelarr.source.v1.Package
+	61, // 50: panelarr.source.v1.GetPackageResponse.package:type_name -> panelarr.source.v1.Package
+	61, // 51: panelarr.source.v1.InstallPackageResponse.package:type_name -> panelarr.source.v1.Package
+	61, // 52: panelarr.source.v1.UpdatePackageResponse.package:type_name -> panelarr.source.v1.Package
+	64, // 53: panelarr.source.v1.SetPackageSettingsRequest.settings:type_name -> panelarr.source.v1.PackageSettings
+	61, // 54: panelarr.source.v1.SetPackageSettingsResponse.package:type_name -> panelarr.source.v1.Package
+	91, // 55: panelarr.source.v1.GetSettingsSchemaResponse.schema:type_name -> google.protobuf.Struct
+	91, // 56: panelarr.source.v1.GetSettingsResponse.values:type_name -> google.protobuf.Struct
+	91, // 57: panelarr.source.v1.SetSettingsRequest.values:type_name -> google.protobuf.Struct
+	91, // 58: panelarr.source.v1.SetSettingsResponse.values:type_name -> google.protobuf.Struct
+	85, // 59: panelarr.source.v1.SetNetworkProfileRequest.profile:type_name -> panelarr.source.v1.NetworkProfile
+	86, // 60: panelarr.source.v1.NetworkProfile.proxy:type_name -> panelarr.source.v1.Proxy
+	87, // 61: panelarr.source.v1.NetworkProfile.solver:type_name -> panelarr.source.v1.Solver
+	15, // 62: panelarr.source.v1.NetworkProfile.rate_limit:type_name -> panelarr.source.v1.RateLimit
+	88, // 63: panelarr.source.v1.NetworkProfile.user_agent:type_name -> panelarr.source.v1.UserAgent
+	90, // 64: panelarr.source.v1.NetworkProfile.headers:type_name -> panelarr.source.v1.NetworkProfile.HeadersEntry
+	89, // 65: panelarr.source.v1.NetworkProfile.timeouts:type_name -> panelarr.source.v1.Timeouts
+	10, // 66: panelarr.source.v1.Solver.type:type_name -> panelarr.source.v1.SolverType
+	92, // 67: panelarr.source.v1.Solver.session_ttl:type_name -> google.protobuf.Duration
+	92, // 68: panelarr.source.v1.Solver.max_timeout:type_name -> google.protobuf.Duration
+	92, // 69: panelarr.source.v1.Timeouts.connect:type_name -> google.protobuf.Duration
+	92, // 70: panelarr.source.v1.Timeouts.read:type_name -> google.protobuf.Duration
+	92, // 71: panelarr.source.v1.Timeouts.call:type_name -> google.protobuf.Duration
+	11, // 72: panelarr.source.v1.SourcePluginService.GetInfo:input_type -> panelarr.source.v1.GetInfoRequest
+	16, // 73: panelarr.source.v1.SourcePluginService.GetConfig:input_type -> panelarr.source.v1.GetConfigRequest
+	18, // 74: panelarr.source.v1.SourcePluginService.SetConfig:input_type -> panelarr.source.v1.SetConfigRequest
+	20, // 75: panelarr.source.v1.SourcePluginService.Health:input_type -> panelarr.source.v1.HealthRequest
+	24, // 76: panelarr.source.v1.SourcePluginService.ListSources:input_type -> panelarr.source.v1.ListSourcesRequest
+	26, // 77: panelarr.source.v1.SourcePluginService.GetSource:input_type -> panelarr.source.v1.GetSourceRequest
+	28, // 78: panelarr.source.v1.SourcePluginService.GetFilters:input_type -> panelarr.source.v1.GetFiltersRequest
+	42, // 79: panelarr.source.v1.SourcePluginService.Popular:input_type -> panelarr.source.v1.PopularRequest
+	44, // 80: panelarr.source.v1.SourcePluginService.Latest:input_type -> panelarr.source.v1.LatestRequest
+	46, // 81: panelarr.source.v1.SourcePluginService.Search:input_type -> panelarr.source.v1.SearchRequest
+	48, // 82: panelarr.source.v1.SourcePluginService.ResolveUrl:input_type -> panelarr.source.v1.ResolveUrlRequest
+	50, // 83: panelarr.source.v1.SourcePluginService.GetSeries:input_type -> panelarr.source.v1.GetSeriesRequest
+	53, // 84: panelarr.source.v1.SourcePluginService.ListChapters:input_type -> panelarr.source.v1.ListChaptersRequest
+	56, // 85: panelarr.source.v1.SourcePluginService.ListPages:input_type -> panelarr.source.v1.ListPagesRequest
+	58, // 86: panelarr.source.v1.SourcePluginService.FetchImage:input_type -> panelarr.source.v1.FetchImageRequest
+	77, // 87: panelarr.source.v1.SourcePluginService.GetSettingsSchema:input_type -> panelarr.source.v1.GetSettingsSchemaRequest
+	79, // 88: panelarr.source.v1.SourcePluginService.GetSettings:input_type -> panelarr.source.v1.GetSettingsRequest
+	81, // 89: panelarr.source.v1.SourcePluginService.SetSettings:input_type -> panelarr.source.v1.SetSettingsRequest
+	65, // 90: panelarr.source.v1.SourcePluginService.ListPackages:input_type -> panelarr.source.v1.ListPackagesRequest
+	67, // 91: panelarr.source.v1.SourcePluginService.GetPackage:input_type -> panelarr.source.v1.GetPackageRequest
+	69, // 92: panelarr.source.v1.SourcePluginService.InstallPackage:input_type -> panelarr.source.v1.InstallPackageRequest
+	71, // 93: panelarr.source.v1.SourcePluginService.UpdatePackage:input_type -> panelarr.source.v1.UpdatePackageRequest
+	73, // 94: panelarr.source.v1.SourcePluginService.UninstallPackage:input_type -> panelarr.source.v1.UninstallPackageRequest
+	75, // 95: panelarr.source.v1.SourcePluginService.SetPackageSettings:input_type -> panelarr.source.v1.SetPackageSettingsRequest
+	83, // 96: panelarr.source.v1.SourcePluginService.SetNetworkProfile:input_type -> panelarr.source.v1.SetNetworkProfileRequest
+	12, // 97: panelarr.source.v1.SourcePluginService.GetInfo:output_type -> panelarr.source.v1.GetInfoResponse
+	17, // 98: panelarr.source.v1.SourcePluginService.GetConfig:output_type -> panelarr.source.v1.GetConfigResponse
+	19, // 99: panelarr.source.v1.SourcePluginService.SetConfig:output_type -> panelarr.source.v1.SetConfigResponse
+	21, // 100: panelarr.source.v1.SourcePluginService.Health:output_type -> panelarr.source.v1.HealthResponse
+	25, // 101: panelarr.source.v1.SourcePluginService.ListSources:output_type -> panelarr.source.v1.ListSourcesResponse
+	27, // 102: panelarr.source.v1.SourcePluginService.GetSource:output_type -> panelarr.source.v1.GetSourceResponse
+	29, // 103: panelarr.source.v1.SourcePluginService.GetFilters:output_type -> panelarr.source.v1.GetFiltersResponse
+	43, // 104: panelarr.source.v1.SourcePluginService.Popular:output_type -> panelarr.source.v1.PopularResponse
+	45, // 105: panelarr.source.v1.SourcePluginService.Latest:output_type -> panelarr.source.v1.LatestResponse
+	47, // 106: panelarr.source.v1.SourcePluginService.Search:output_type -> panelarr.source.v1.SearchResponse
+	49, // 107: panelarr.source.v1.SourcePluginService.ResolveUrl:output_type -> panelarr.source.v1.ResolveUrlResponse
+	51, // 108: panelarr.source.v1.SourcePluginService.GetSeries:output_type -> panelarr.source.v1.GetSeriesResponse
+	54, // 109: panelarr.source.v1.SourcePluginService.ListChapters:output_type -> panelarr.source.v1.ListChaptersResponse
+	57, // 110: panelarr.source.v1.SourcePluginService.ListPages:output_type -> panelarr.source.v1.ListPagesResponse
+	59, // 111: panelarr.source.v1.SourcePluginService.FetchImage:output_type -> panelarr.source.v1.FetchImageResponse
+	78, // 112: panelarr.source.v1.SourcePluginService.GetSettingsSchema:output_type -> panelarr.source.v1.GetSettingsSchemaResponse
+	80, // 113: panelarr.source.v1.SourcePluginService.GetSettings:output_type -> panelarr.source.v1.GetSettingsResponse
+	82, // 114: panelarr.source.v1.SourcePluginService.SetSettings:output_type -> panelarr.source.v1.SetSettingsResponse
+	66, // 115: panelarr.source.v1.SourcePluginService.ListPackages:output_type -> panelarr.source.v1.ListPackagesResponse
+	68, // 116: panelarr.source.v1.SourcePluginService.GetPackage:output_type -> panelarr.source.v1.GetPackageResponse
+	70, // 117: panelarr.source.v1.SourcePluginService.InstallPackage:output_type -> panelarr.source.v1.InstallPackageResponse
+	72, // 118: panelarr.source.v1.SourcePluginService.UpdatePackage:output_type -> panelarr.source.v1.UpdatePackageResponse
+	74, // 119: panelarr.source.v1.SourcePluginService.UninstallPackage:output_type -> panelarr.source.v1.UninstallPackageResponse
+	76, // 120: panelarr.source.v1.SourcePluginService.SetPackageSettings:output_type -> panelarr.source.v1.SetPackageSettingsResponse
+	84, // 121: panelarr.source.v1.SourcePluginService.SetNetworkProfile:output_type -> panelarr.source.v1.SetNetworkProfileResponse
+	97, // [97:122] is the sub-list for method output_type
+	72, // [72:97] is the sub-list for method input_type
+	72, // [72:72] is the sub-list for extension type_name
+	72, // [72:72] is the sub-list for extension extendee
+	0,  // [0:72] is the sub-list for field type_name
 }
 
 func init() { file_panelarr_source_v1_source_plugin_proto_init() }
@@ -5015,7 +6108,7 @@ func file_panelarr_source_v1_source_plugin_proto_init() {
 		(*FetchImageResponse_Metadata)(nil),
 		(*FetchImageResponse_Chunk)(nil),
 	}
-	file_panelarr_source_v1_source_plugin_proto_msgTypes[61].OneofWrappers = []any{
+	file_panelarr_source_v1_source_plugin_proto_msgTypes[77].OneofWrappers = []any{
 		(*UserAgent_Fixed)(nil),
 		(*UserAgent_RandomDesktop)(nil),
 		(*UserAgent_FromSolver)(nil),
@@ -5026,7 +6119,7 @@ func file_panelarr_source_v1_source_plugin_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_panelarr_source_v1_source_plugin_proto_rawDesc), len(file_panelarr_source_v1_source_plugin_proto_rawDesc)),
 			NumEnums:      11,
-			NumMessages:   64,
+			NumMessages:   80,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

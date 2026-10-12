@@ -41,8 +41,15 @@ type Fake struct {
 	// Config, when set, is the plugin-level configuration: GetInfo declares
 	// its schema and GetConfig/SetConfig use it.
 	Config *plugin.PluginConfig
+	// Packages, when set, makes the fake a plugin with the PACKAGES capability:
+	// a source belongs to the package that lists it, and is listed only while
+	// that package is installed and its language is enabled.
+	Packages []*Package
+	// Langs are the languages the plugin offers sources in; empty means all.
+	Langs []string
 
 	mu       sync.Mutex
+	pkgState map[string]*packageState
 	profiles map[string]*sourcev1.NetworkProfile
 	settings map[string]map[string]any
 	calls    map[string]int
@@ -85,6 +92,20 @@ func New() *Fake {
 	}
 	// Alternative titles, so title matching has something to find.
 	f.Sources[0].Series[0].Series.AltTitles = []string{"Toudai Mori", "Der Leuchtturm"}
+
+	// Packages: the two sources come from installed packages (the first with
+	// an update waiting), and a multi-language package can be installed.
+	multi := []*Source{
+		NewSource("3001", "Multi Comics", "en", []string{"First Light", "Second Wind"}, sourcev1.SourceCapability_SOURCE_CAPABILITY_SEARCH),
+		NewSource("3002", "Multi Comics", "fr", []string{"Premier Jour"}, sourcev1.SourceCapability_SOURCE_CAPABILITY_SEARCH),
+		NewSource("3003", "Multi Comics", "all", []string{"Every Tongue"}, sourcev1.SourceCapability_SOURCE_CAPABILITY_SEARCH),
+	}
+	f.Sources = append(f.Sources, multi...)
+	f.Packages = []*Package{
+		NewPackage("example.comics", "Example Comics", "1.1", []*Source{f.Sources[0]}, Offer{"store-a", "Store A", "1.1"}).Installed("1.0"),
+		NewPackage("beispiel.comics", "Beispiel Comics", "2.0", []*Source{f.Sources[1]}, Offer{"store-a", "Store A", "2.0"}).Installed("2.0"),
+		NewPackage("multi.comics", "Multi Comics", "3.1", multi, Offer{"store-a", "Store A", "3.0"}, Offer{"store-b", "Store B", "3.1"}),
+	}
 	return f
 }
 
@@ -155,7 +176,7 @@ func (f *Fake) Profile(sourceID string) *sourcev1.NetworkProfile {
 
 func (f *Fake) source(id string) (*Source, error) {
 	for _, s := range f.Sources {
-		if s.Source.GetId() == id {
+		if s.Source.GetId() == id && f.listed(s) {
 			return s, nil
 		}
 	}
@@ -223,7 +244,7 @@ func (f *Fake) GetInfo(context.Context, *sourcev1.GetInfoRequest) (*sourcev1.Get
 		Name:           "Fake sources",
 		Version:        "1.0.0",
 		Contracts:      []string{plugin.Protocol},
-		Capabilities:   []sourcev1.PluginCapability{sourcev1.PluginCapability_PLUGIN_CAPABILITY_NETWORK_PROFILES},
+		Capabilities:   f.capabilities(),
 		CommonServices: []sourcev1.CommonService{sourcev1.CommonService_COMMON_SERVICE_NETWORK_PROFILE},
 		Limits: &sourcev1.Limits{
 			MaxConcurrencyPerSource: 2,
@@ -254,8 +275,12 @@ func (f *Fake) ListSources(_ context.Context, r *sourcev1.ListSourcesRequest) (*
 	f.count("ListSources")
 	res := &sourcev1.ListSourcesResponse{}
 	for _, s := range f.Sources {
-		if r.GetLang() == "" || r.GetLang() == s.Source.GetLang() {
-			res.Sources = append(res.Sources, proto.Clone(s.Source).(*sourcev1.Source))
+		if (r.GetLang() == "" || r.GetLang() == s.Source.GetLang()) && f.listed(s) {
+			src := proto.Clone(s.Source).(*sourcev1.Source)
+			if p := f.packageOf(s.Source.GetId()); p != nil {
+				src.PackageId = p.Package.GetId()
+			}
+			res.Sources = append(res.Sources, src)
 		}
 	}
 	return res, nil

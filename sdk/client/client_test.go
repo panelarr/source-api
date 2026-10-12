@@ -296,3 +296,88 @@ func TestExtraRoutes(t *testing.T) {
 		t.Fatal("route auth")
 	}
 }
+
+func TestPackagesConformance(t *testing.T) {
+	f := plugintest.New()
+	rep := conformance.Run(t, remote(t, f, "k"), conformance.Options{PackageID: "multi.comics"})
+	if rep.Packages != 3 || len(rep.PackageSteps) != 6 {
+		t.Fatalf("packages %d, steps %+v", rep.Packages, rep.PackageSteps)
+	}
+	for _, st := range rep.PackageSteps {
+		if !st.OK {
+			t.Errorf("step %s: %s", st.Name, st.Detail)
+		}
+	}
+	// It was not installed before, so the walk removed it again.
+	if f.Calls()["UninstallPackage"] != 2 {
+		t.Fatalf("calls: %v", f.Calls())
+	}
+}
+
+func TestPackageLanguagesDecideTheSources(t *testing.T) {
+	f := plugintest.New()
+	f.Langs = []string{"en", "de", "all"} // the plugin's own setting: no French
+	c := remote(t, f, "")
+	ctx := context.Background()
+	res, err := c.InstallPackage(ctx, &sourcev1.InstallPackageRequest{PackageId: "multi.comics", OriginId: "store-a"})
+	if err != nil || res.GetPackage().GetInstalledVersion() != "3.0" {
+		t.Fatalf("install: %v %v", res, err)
+	}
+	listed := func() map[string]string {
+		out := map[string]string{}
+		l, _ := c.ListSources(ctx, &sourcev1.ListSourcesRequest{})
+		for _, s := range l.GetSources() {
+			out[s.GetId()] = s.GetPackageId()
+		}
+		return out
+	}
+	got := listed()
+	if got["3001"] != "multi.comics" || got["3003"] != "multi.comics" || got["3002"] != "" {
+		t.Fatalf("plugin languages: %v", got)
+	}
+	// The package's own languages narrow it further; "all" must be named to stay.
+	if _, err := c.SetPackageSettings(ctx, &sourcev1.SetPackageSettingsRequest{PackageId: "multi.comics", Settings: &sourcev1.PackageSettings{EnabledLangs: []string{"en"}}}); err != nil {
+		t.Fatal(err)
+	}
+	if got := listed(); got["3001"] == "" || got["3003"] != "" {
+		t.Fatalf("package languages: %v", got)
+	}
+	if _, err := c.GetSource(ctx, &sourcev1.GetSourceRequest{SourceId: "3003"}); plugin.ErrorCode(err) != plugin.CodeNotFound {
+		t.Fatalf("a source outside the languages: %v", err)
+	}
+	p, _ := c.GetPackage(ctx, &sourcev1.GetPackageRequest{PackageId: "multi.comics"})
+	avail := map[string]bool{}
+	for _, s := range p.GetPackage().GetSources() {
+		avail[s.GetId()] = s.GetAvailable()
+	}
+	if !avail["3001"] || avail["3002"] || avail["3003"] || !p.GetPackage().GetUpdateAvailable() {
+		t.Fatalf("package view: %v", p.GetPackage())
+	}
+	if _, err := c.SetPackageSettings(ctx, &sourcev1.SetPackageSettingsRequest{PackageId: "multi.comics", Settings: &sourcev1.PackageSettings{EnabledLangs: []string{"xx"}}}); plugin.ErrorCode(err) != plugin.CodeInvalidArgument {
+		t.Fatalf("unknown language: %v", err)
+	}
+	// Update to the newest offer; again is OK.
+	for range 2 {
+		u, err := c.UpdatePackage(ctx, &sourcev1.UpdatePackageRequest{PackageId: "multi.comics"})
+		if err != nil || u.GetPackage().GetInstalledVersion() != "3.1" || u.GetPackage().GetUpdateAvailable() {
+			t.Fatalf("update: %v %v", u, err)
+		}
+	}
+	// Without the capability, the package calls are unimplemented.
+	plain := plugintest.New()
+	plain.Packages = nil
+	if _, err := remote(t, plain, "").ListPackages(ctx, &sourcev1.ListPackagesRequest{}); plugin.ErrorCode(err) != plugin.CodeUnimplemented {
+		t.Fatalf("no packages: %v", err)
+	}
+}
+
+func TestStoreErrorReasonsTravel(t *testing.T) {
+	for name, back := range map[string]error{
+		"grpc":    plugin.FromGRPCError(plugin.ToGRPCError(plugin.ErrStoreFetchFailed("GET x failed"))),
+		"connect": plugin.FromConnectError(plugin.ToConnectError(plugin.ErrStoreInvalid("bad key"))),
+	} {
+		if r := plugin.ErrorReason(back); r != plugin.ReasonStoreFetchFailed && r != plugin.ReasonStoreInvalid {
+			t.Errorf("%s: %v", name, back)
+		}
+	}
+}
