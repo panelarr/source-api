@@ -908,7 +908,8 @@ type Limits struct {
 	DefaultRateLimit *RateLimit `protobuf:"bytes,2,opt,name=default_rate_limit,json=defaultRateLimit,proto3" json:"default_rate_limit,omitempty"`
 	// How fast a host may call FetchImage per source. Images often come from CDNs, and
 	// many plugins pace image downloads themselves; unset means the plugin does, and hosts
-	// should add no pacing of their own.
+	// should add no pacing of their own. A rate limit in a network profile the host pushes
+	// (SetNetworkProfile) still applies to all of the source's requests, images included.
 	ImageRateLimit *RateLimit `protobuf:"bytes,3,opt,name=image_rate_limit,json=imageRateLimit,proto3" json:"image_rate_limit,omitempty"`
 	// Maximum parallel FetchImage calls per source. 0 means no limit declared.
 	MaxImageConcurrencyPerSource uint32 `protobuf:"varint,4,opt,name=max_image_concurrency_per_source,json=maxImageConcurrencyPerSource,proto3" json:"max_image_concurrency_per_source,omitempty"`

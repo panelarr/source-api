@@ -649,7 +649,8 @@ components:
           description: |-
             How fast a host may call FetchImage per source. Images often come from CDNs, and
              many plugins pace image downloads themselves; unset means the plugin does, and hosts
-             should add no pacing of their own.
+             should add no pacing of their own. A rate limit in a network profile the host pushes
+             (SetNetworkProfile) still applies to all of the source's requests, images included.
         maxImageConcurrencyPerSource:
           type: integer
           title: max_image_concurrency_per_source

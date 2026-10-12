@@ -16,7 +16,7 @@ A host (the Panelarr server, or any program) talks to plugins through [`sdk/clie
 3. Watch `Health().instance_id`: when it changes, the plugin restarted, so repeat step 2 and the profile pushes below.
 4. `ListSources` (again whenever `DYNAMIC_SOURCES` is declared), then `SetNetworkProfile` per source for plugins that declare the network profile common service.
 5. For plugins with `PACKAGES`: list, install, update and remove packages, and set each one's languages. Install and update can take minutes; they're idempotent, so retrying is safe. Re-list sources after a change (`Source.package_id` says which package each comes from).
-6. Browse, search and fetch. `GetNetworkProfile(source)` shows which profile a source really uses (pushed, the plugin's own, or none). Respect `limits` and `RATE_LIMITED` retry hints: `default_rate_limit` and `max_concurrency_per_source` pace the API calls; `image_rate_limit` and `max_image_concurrency_per_source` pace `FetchImage` alone. No image rate limit means the plugin paces images itself, so don't add your own.
+6. Browse, search and fetch. `GetNetworkProfile(source)` shows which profile a source really uses (pushed, the plugin's own, or none). Respect `limits` and `RATE_LIMITED` retry hints: `default_rate_limit` and `max_concurrency_per_source` pace the API calls; `image_rate_limit` and `max_image_concurrency_per_source` pace `FetchImage` alone. No image rate limit means the plugin paces images itself, so don't add your own. That never means unthrottled when you push a network profile with a rate limit: the plugin applies the profile's limit to all of the source's requests, images included.
 
 ## Errors
 
