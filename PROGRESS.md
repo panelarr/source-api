@@ -14,6 +14,6 @@ All v0 slices are done.
 ## GOAL-0012: extension packages and languages
 
 - [x] **1. source.v1 package capability** (source-api): `PACKAGES`, the package calls, `Source.package_id`, store error reasons; SDK, fake, conformance, docs.
-- [ ] **2. mihon-source:** per-extension enabled languages; installs survive a cancelled caller; fixture store export for end-to-end tests.
-- [ ] **3. source-mihon:** the package capability over mihon-source, plugin-level languages, filtered sources; end to end.
-- [ ] **4. Docs and done.**
+- [x] **2. mihon-source:** per-extension enabled languages; installs survive a cancelled caller; fixture store export for end-to-end tests.
+- [x] **3. source-mihon:** the package capability over mihon-source, plugin-level languages, filtered sources; end to end.
+- [x] **4. Docs and done.**
