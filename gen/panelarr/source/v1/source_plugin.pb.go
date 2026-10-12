@@ -604,6 +604,62 @@ func (SeriesStatus) EnumDescriptor() ([]byte, []int) {
 	return file_panelarr_source_v1_source_plugin_proto_rawDescGZIP(), []int{9}
 }
 
+// NetworkProfileOrigin is where the profile a source uses comes from.
+type NetworkProfileOrigin int32
+
+const (
+	NetworkProfileOrigin_NETWORK_PROFILE_ORIGIN_UNSPECIFIED NetworkProfileOrigin = 0
+	// Pushed by a host with SetNetworkProfile.
+	NetworkProfileOrigin_NETWORK_PROFILE_ORIGIN_PUSHED NetworkProfileOrigin = 1
+	// The plugin's own configuration (e.g. a profile assigned in its own admin).
+	NetworkProfileOrigin_NETWORK_PROFILE_ORIGIN_PLUGIN NetworkProfileOrigin = 2
+	// None: a direct connection with the plugin's defaults.
+	NetworkProfileOrigin_NETWORK_PROFILE_ORIGIN_NONE NetworkProfileOrigin = 3
+)
+
+// Enum value maps for NetworkProfileOrigin.
+var (
+	NetworkProfileOrigin_name = map[int32]string{
+		0: "NETWORK_PROFILE_ORIGIN_UNSPECIFIED",
+		1: "NETWORK_PROFILE_ORIGIN_PUSHED",
+		2: "NETWORK_PROFILE_ORIGIN_PLUGIN",
+		3: "NETWORK_PROFILE_ORIGIN_NONE",
+	}
+	NetworkProfileOrigin_value = map[string]int32{
+		"NETWORK_PROFILE_ORIGIN_UNSPECIFIED": 0,
+		"NETWORK_PROFILE_ORIGIN_PUSHED":      1,
+		"NETWORK_PROFILE_ORIGIN_PLUGIN":      2,
+		"NETWORK_PROFILE_ORIGIN_NONE":        3,
+	}
+)
+
+func (x NetworkProfileOrigin) Enum() *NetworkProfileOrigin {
+	p := new(NetworkProfileOrigin)
+	*p = x
+	return p
+}
+
+func (x NetworkProfileOrigin) String() string {
+	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
+}
+
+func (NetworkProfileOrigin) Descriptor() protoreflect.EnumDescriptor {
+	return file_panelarr_source_v1_source_plugin_proto_enumTypes[10].Descriptor()
+}
+
+func (NetworkProfileOrigin) Type() protoreflect.EnumType {
+	return &file_panelarr_source_v1_source_plugin_proto_enumTypes[10]
+}
+
+func (x NetworkProfileOrigin) Number() protoreflect.EnumNumber {
+	return protoreflect.EnumNumber(x)
+}
+
+// Deprecated: Use NetworkProfileOrigin.Descriptor instead.
+func (NetworkProfileOrigin) EnumDescriptor() ([]byte, []int) {
+	return file_panelarr_source_v1_source_plugin_proto_rawDescGZIP(), []int{10}
+}
+
 type SolverType int32
 
 const (
@@ -637,11 +693,11 @@ func (x SolverType) String() string {
 }
 
 func (SolverType) Descriptor() protoreflect.EnumDescriptor {
-	return file_panelarr_source_v1_source_plugin_proto_enumTypes[10].Descriptor()
+	return file_panelarr_source_v1_source_plugin_proto_enumTypes[11].Descriptor()
 }
 
 func (SolverType) Type() protoreflect.EnumType {
-	return &file_panelarr_source_v1_source_plugin_proto_enumTypes[10]
+	return &file_panelarr_source_v1_source_plugin_proto_enumTypes[11]
 }
 
 func (x SolverType) Number() protoreflect.EnumNumber {
@@ -650,7 +706,7 @@ func (x SolverType) Number() protoreflect.EnumNumber {
 
 // Deprecated: Use SolverType.Descriptor instead.
 func (SolverType) EnumDescriptor() ([]byte, []int) {
-	return file_panelarr_source_v1_source_plugin_proto_rawDescGZIP(), []int{10}
+	return file_panelarr_source_v1_source_plugin_proto_rawDescGZIP(), []int{11}
 }
 
 type GetInfoRequest struct {
@@ -1176,7 +1232,11 @@ type HealthResponse struct {
 	state  protoimpl.MessageState `protogen:"open.v1"`
 	Status HealthStatus           `protobuf:"varint,1,opt,name=status,proto3,enum=panelarr.source.v1.HealthStatus" json:"status,omitempty"`
 	// Optional detail for humans.
-	Message       string `protobuf:"bytes,2,opt,name=message,proto3" json:"message,omitempty"`
+	Message string `protobuf:"bytes,2,opt,name=message,proto3" json:"message,omitempty"`
+	// Changes whenever the plugin starts (and may have lost what a host pushed to it),
+	// and stays the same while it runs. Hosts that see a new value push configuration and
+	// network profiles again. Empty when the plugin doesn't say.
+	InstanceId    string `protobuf:"bytes,3,opt,name=instance_id,json=instanceId,proto3" json:"instance_id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1221,6 +1281,13 @@ func (x *HealthResponse) GetStatus() HealthStatus {
 func (x *HealthResponse) GetMessage() string {
 	if x != nil {
 		return x.Message
+	}
+	return ""
+}
+
+func (x *HealthResponse) GetInstanceId() string {
+	if x != nil {
+		return x.InstanceId
 	}
 	return ""
 }
@@ -4994,6 +5061,104 @@ func (*SetNetworkProfileResponse) Descriptor() ([]byte, []int) {
 	return file_panelarr_source_v1_source_plugin_proto_rawDescGZIP(), []int{73}
 }
 
+type GetNetworkProfileRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	SourceId      string                 `protobuf:"bytes,1,opt,name=source_id,json=sourceId,proto3" json:"source_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetNetworkProfileRequest) Reset() {
+	*x = GetNetworkProfileRequest{}
+	mi := &file_panelarr_source_v1_source_plugin_proto_msgTypes[74]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetNetworkProfileRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetNetworkProfileRequest) ProtoMessage() {}
+
+func (x *GetNetworkProfileRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_panelarr_source_v1_source_plugin_proto_msgTypes[74]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetNetworkProfileRequest.ProtoReflect.Descriptor instead.
+func (*GetNetworkProfileRequest) Descriptor() ([]byte, []int) {
+	return file_panelarr_source_v1_source_plugin_proto_rawDescGZIP(), []int{74}
+}
+
+func (x *GetNetworkProfileRequest) GetSourceId() string {
+	if x != nil {
+		return x.SourceId
+	}
+	return ""
+}
+
+type GetNetworkProfileResponse struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// The profile in effect; unset for a direct connection with the plugin's defaults.
+	// Proxy passwords are left empty.
+	Profile       *NetworkProfile      `protobuf:"bytes,1,opt,name=profile,proto3" json:"profile,omitempty"`
+	Origin        NetworkProfileOrigin `protobuf:"varint,2,opt,name=origin,proto3,enum=panelarr.source.v1.NetworkProfileOrigin" json:"origin,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetNetworkProfileResponse) Reset() {
+	*x = GetNetworkProfileResponse{}
+	mi := &file_panelarr_source_v1_source_plugin_proto_msgTypes[75]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetNetworkProfileResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetNetworkProfileResponse) ProtoMessage() {}
+
+func (x *GetNetworkProfileResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_panelarr_source_v1_source_plugin_proto_msgTypes[75]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetNetworkProfileResponse.ProtoReflect.Descriptor instead.
+func (*GetNetworkProfileResponse) Descriptor() ([]byte, []int) {
+	return file_panelarr_source_v1_source_plugin_proto_rawDescGZIP(), []int{75}
+}
+
+func (x *GetNetworkProfileResponse) GetProfile() *NetworkProfile {
+	if x != nil {
+		return x.Profile
+	}
+	return nil
+}
+
+func (x *GetNetworkProfileResponse) GetOrigin() NetworkProfileOrigin {
+	if x != nil {
+		return x.Origin
+	}
+	return NetworkProfileOrigin_NETWORK_PROFILE_ORIGIN_UNSPECIFIED
+}
+
 // NetworkProfile is everything a plugin needs to make requests for one source.
 type NetworkProfile struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
@@ -5022,7 +5187,7 @@ type NetworkProfile struct {
 
 func (x *NetworkProfile) Reset() {
 	*x = NetworkProfile{}
-	mi := &file_panelarr_source_v1_source_plugin_proto_msgTypes[74]
+	mi := &file_panelarr_source_v1_source_plugin_proto_msgTypes[76]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -5034,7 +5199,7 @@ func (x *NetworkProfile) String() string {
 func (*NetworkProfile) ProtoMessage() {}
 
 func (x *NetworkProfile) ProtoReflect() protoreflect.Message {
-	mi := &file_panelarr_source_v1_source_plugin_proto_msgTypes[74]
+	mi := &file_panelarr_source_v1_source_plugin_proto_msgTypes[76]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -5047,7 +5212,7 @@ func (x *NetworkProfile) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use NetworkProfile.ProtoReflect.Descriptor instead.
 func (*NetworkProfile) Descriptor() ([]byte, []int) {
-	return file_panelarr_source_v1_source_plugin_proto_rawDescGZIP(), []int{74}
+	return file_panelarr_source_v1_source_plugin_proto_rawDescGZIP(), []int{76}
 }
 
 func (x *NetworkProfile) GetName() string {
@@ -5132,7 +5297,7 @@ type Proxy struct {
 
 func (x *Proxy) Reset() {
 	*x = Proxy{}
-	mi := &file_panelarr_source_v1_source_plugin_proto_msgTypes[75]
+	mi := &file_panelarr_source_v1_source_plugin_proto_msgTypes[77]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -5144,7 +5309,7 @@ func (x *Proxy) String() string {
 func (*Proxy) ProtoMessage() {}
 
 func (x *Proxy) ProtoReflect() protoreflect.Message {
-	mi := &file_panelarr_source_v1_source_plugin_proto_msgTypes[75]
+	mi := &file_panelarr_source_v1_source_plugin_proto_msgTypes[77]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -5157,7 +5322,7 @@ func (x *Proxy) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Proxy.ProtoReflect.Descriptor instead.
 func (*Proxy) Descriptor() ([]byte, []int) {
-	return file_panelarr_source_v1_source_plugin_proto_rawDescGZIP(), []int{75}
+	return file_panelarr_source_v1_source_plugin_proto_rawDescGZIP(), []int{77}
 }
 
 func (x *Proxy) GetUrl() string {
@@ -5198,7 +5363,7 @@ type Solver struct {
 
 func (x *Solver) Reset() {
 	*x = Solver{}
-	mi := &file_panelarr_source_v1_source_plugin_proto_msgTypes[76]
+	mi := &file_panelarr_source_v1_source_plugin_proto_msgTypes[78]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -5210,7 +5375,7 @@ func (x *Solver) String() string {
 func (*Solver) ProtoMessage() {}
 
 func (x *Solver) ProtoReflect() protoreflect.Message {
-	mi := &file_panelarr_source_v1_source_plugin_proto_msgTypes[76]
+	mi := &file_panelarr_source_v1_source_plugin_proto_msgTypes[78]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -5223,7 +5388,7 @@ func (x *Solver) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Solver.ProtoReflect.Descriptor instead.
 func (*Solver) Descriptor() ([]byte, []int) {
-	return file_panelarr_source_v1_source_plugin_proto_rawDescGZIP(), []int{76}
+	return file_panelarr_source_v1_source_plugin_proto_rawDescGZIP(), []int{78}
 }
 
 func (x *Solver) GetType() SolverType {
@@ -5275,7 +5440,7 @@ type UserAgent struct {
 
 func (x *UserAgent) Reset() {
 	*x = UserAgent{}
-	mi := &file_panelarr_source_v1_source_plugin_proto_msgTypes[77]
+	mi := &file_panelarr_source_v1_source_plugin_proto_msgTypes[79]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -5287,7 +5452,7 @@ func (x *UserAgent) String() string {
 func (*UserAgent) ProtoMessage() {}
 
 func (x *UserAgent) ProtoReflect() protoreflect.Message {
-	mi := &file_panelarr_source_v1_source_plugin_proto_msgTypes[77]
+	mi := &file_panelarr_source_v1_source_plugin_proto_msgTypes[79]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -5300,7 +5465,7 @@ func (x *UserAgent) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use UserAgent.ProtoReflect.Descriptor instead.
 func (*UserAgent) Descriptor() ([]byte, []int) {
-	return file_panelarr_source_v1_source_plugin_proto_rawDescGZIP(), []int{77}
+	return file_panelarr_source_v1_source_plugin_proto_rawDescGZIP(), []int{79}
 }
 
 func (x *UserAgent) GetMode() isUserAgent_Mode {
@@ -5374,7 +5539,7 @@ type Timeouts struct {
 
 func (x *Timeouts) Reset() {
 	*x = Timeouts{}
-	mi := &file_panelarr_source_v1_source_plugin_proto_msgTypes[78]
+	mi := &file_panelarr_source_v1_source_plugin_proto_msgTypes[80]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -5386,7 +5551,7 @@ func (x *Timeouts) String() string {
 func (*Timeouts) ProtoMessage() {}
 
 func (x *Timeouts) ProtoReflect() protoreflect.Message {
-	mi := &file_panelarr_source_v1_source_plugin_proto_msgTypes[78]
+	mi := &file_panelarr_source_v1_source_plugin_proto_msgTypes[80]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -5399,7 +5564,7 @@ func (x *Timeouts) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Timeouts.ProtoReflect.Descriptor instead.
 func (*Timeouts) Descriptor() ([]byte, []int) {
-	return file_panelarr_source_v1_source_plugin_proto_rawDescGZIP(), []int{78}
+	return file_panelarr_source_v1_source_plugin_proto_rawDescGZIP(), []int{80}
 }
 
 func (x *Timeouts) GetConnect() *durationpb.Duration {
@@ -5456,10 +5621,12 @@ const file_panelarr_source_v1_source_plugin_proto_rawDesc = "" +
 	"\x06values\x18\x01 \x01(\v2\x17.google.protobuf.StructR\x06values\"D\n" +
 	"\x11SetConfigResponse\x12/\n" +
 	"\x06values\x18\x01 \x01(\v2\x17.google.protobuf.StructR\x06values\"\x0f\n" +
-	"\rHealthRequest\"d\n" +
+	"\rHealthRequest\"\x85\x01\n" +
 	"\x0eHealthResponse\x128\n" +
 	"\x06status\x18\x01 \x01(\x0e2 .panelarr.source.v1.HealthStatusR\x06status\x12\x18\n" +
-	"\amessage\x18\x02 \x01(\tR\amessage\"\xe3\x02\n" +
+	"\amessage\x18\x02 \x01(\tR\amessage\x12\x1f\n" +
+	"\vinstance_id\x18\x03 \x01(\tR\n" +
+	"instanceId\"\xe3\x02\n" +
 	"\x06Source\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x12\n" +
 	"\x04name\x18\x02 \x01(\tR\x04name\x12\x12\n" +
@@ -5701,7 +5868,12 @@ const file_panelarr_source_v1_source_plugin_proto_rawDesc = "" +
 	"\x18SetNetworkProfileRequest\x12\x1b\n" +
 	"\tsource_id\x18\x01 \x01(\tR\bsourceId\x12<\n" +
 	"\aprofile\x18\x02 \x01(\v2\".panelarr.source.v1.NetworkProfileR\aprofile\"\x1b\n" +
-	"\x19SetNetworkProfileResponse\"\xad\x04\n" +
+	"\x19SetNetworkProfileResponse\"7\n" +
+	"\x18GetNetworkProfileRequest\x12\x1b\n" +
+	"\tsource_id\x18\x01 \x01(\tR\bsourceId\"\x9b\x01\n" +
+	"\x19GetNetworkProfileResponse\x12<\n" +
+	"\aprofile\x18\x01 \x01(\v2\".panelarr.source.v1.NetworkProfileR\aprofile\x12@\n" +
+	"\x06origin\x18\x02 \x01(\x0e2(.panelarr.source.v1.NetworkProfileOriginR\x06origin\"\xad\x04\n" +
 	"\x0eNetworkProfile\x12\x12\n" +
 	"\x04name\x18\x01 \x01(\tR\x04name\x12/\n" +
 	"\x05proxy\x18\x02 \x01(\v2\x19.panelarr.source.v1.ProxyR\x05proxy\x122\n" +
@@ -5799,12 +5971,17 @@ const file_panelarr_source_v1_source_plugin_proto_rawDesc = "" +
 	"\x16SERIES_STATUS_LICENSED\x10\x03\x12%\n" +
 	"!SERIES_STATUS_PUBLISHING_FINISHED\x10\x04\x12\x1b\n" +
 	"\x17SERIES_STATUS_CANCELLED\x10\x05\x12\x1b\n" +
-	"\x17SERIES_STATUS_ON_HIATUS\x10\x06*_\n" +
+	"\x17SERIES_STATUS_ON_HIATUS\x10\x06*\xa5\x01\n" +
+	"\x14NetworkProfileOrigin\x12&\n" +
+	"\"NETWORK_PROFILE_ORIGIN_UNSPECIFIED\x10\x00\x12!\n" +
+	"\x1dNETWORK_PROFILE_ORIGIN_PUSHED\x10\x01\x12!\n" +
+	"\x1dNETWORK_PROFILE_ORIGIN_PLUGIN\x10\x02\x12\x1f\n" +
+	"\x1bNETWORK_PROFILE_ORIGIN_NONE\x10\x03*_\n" +
 	"\n" +
 	"SolverType\x12\x1b\n" +
 	"\x17SOLVER_TYPE_UNSPECIFIED\x10\x00\x12\x1c\n" +
 	"\x18SOLVER_TYPE_FLARESOLVERR\x10\x01\x12\x16\n" +
-	"\x12SOLVER_TYPE_BYPARR\x10\x022\xe0\x19\n" +
+	"\x12SOLVER_TYPE_BYPARR\x10\x022\x84\x1b\n" +
 	"\x13SourcePluginService\x12d\n" +
 	"\aGetInfo\x12\".panelarr.source.v1.GetInfoRequest\x1a#.panelarr.source.v1.GetInfoResponse\"\x10\x82\xd3\xe4\x93\x02\n" +
 	"\x12\b/v1/info\x12l\n" +
@@ -5837,7 +6014,8 @@ const file_panelarr_source_v1_source_plugin_proto_rawDesc = "" +
 	"\x0eInstallPackage\x12).panelarr.source.v1.InstallPackageRequest\x1a*.panelarr.source.v1.InstallPackageResponse\",\x82\xd3\xe4\x93\x02&:\x01*\"!/v1/packages/{package_id}:install\x12\x91\x01\n" +
 	"\rUpdatePackage\x12(.panelarr.source.v1.UpdatePackageRequest\x1a).panelarr.source.v1.UpdatePackageResponse\"+\x82\xd3\xe4\x93\x02%:\x01*\" /v1/packages/{package_id}:update\x12\x9d\x01\n" +
 	"\x10UninstallPackage\x12+.panelarr.source.v1.UninstallPackageRequest\x1a,.panelarr.source.v1.UninstallPackageResponse\".\x82\xd3\xe4\x93\x02(:\x01*\"#/v1/packages/{package_id}:uninstall\x12\xa2\x01\n" +
-	"\x12SetPackageSettings\x12-.panelarr.source.v1.SetPackageSettingsRequest\x1a..panelarr.source.v1.SetPackageSettingsResponse\"-\x82\xd3\xe4\x93\x02':\x01*2\"/v1/packages/{package_id}/settings\x12\xa4\x01\n" +
+	"\x12SetPackageSettings\x12-.panelarr.source.v1.SetPackageSettingsRequest\x1a..panelarr.source.v1.SetPackageSettingsResponse\"-\x82\xd3\xe4\x93\x02':\x01*2\"/v1/packages/{package_id}/settings\x12\xa1\x01\n" +
+	"\x11GetNetworkProfile\x12,.panelarr.source.v1.GetNetworkProfileRequest\x1a-.panelarr.source.v1.GetNetworkProfileResponse\"/\x82\xd3\xe4\x93\x02)\x12'/v1/sources/{source_id}/network-profile\x12\xa4\x01\n" +
 	"\x11SetNetworkProfile\x12,.panelarr.source.v1.SetNetworkProfileRequest\x1a-.panelarr.source.v1.SetNetworkProfileResponse\"2\x82\xd3\xe4\x93\x02,:\x01*\x1a'/v1/sources/{source_id}/network-profileB\xd5\x01\n" +
 	"\x16com.panelarr.source.v1B\x11SourcePluginProtoP\x01Z>github.com/panelarr/source-api/gen/panelarr/source/v1;sourcev1\xa2\x02\x03PSX\xaa\x02\x12Panelarr.Source.V1\xca\x02\x12Panelarr\\Source\\V1\xe2\x02\x1ePanelarr\\Source\\V1\\GPBMetadata\xea\x02\x14Panelarr::Source::V1b\x06proto3"
 
@@ -5853,8 +6031,8 @@ func file_panelarr_source_v1_source_plugin_proto_rawDescGZIP() []byte {
 	return file_panelarr_source_v1_source_plugin_proto_rawDescData
 }
 
-var file_panelarr_source_v1_source_plugin_proto_enumTypes = make([]protoimpl.EnumInfo, 11)
-var file_panelarr_source_v1_source_plugin_proto_msgTypes = make([]protoimpl.MessageInfo, 80)
+var file_panelarr_source_v1_source_plugin_proto_enumTypes = make([]protoimpl.EnumInfo, 12)
+var file_panelarr_source_v1_source_plugin_proto_msgTypes = make([]protoimpl.MessageInfo, 82)
 var file_panelarr_source_v1_source_plugin_proto_goTypes = []any{
 	(PluginCapability)(0),              // 0: panelarr.source.v1.PluginCapability
 	(CommonService)(0),                 // 1: panelarr.source.v1.CommonService
@@ -5866,219 +6044,226 @@ var file_panelarr_source_v1_source_plugin_proto_goTypes = []any{
 	(ContentRating)(0),                 // 7: panelarr.source.v1.ContentRating
 	(TriState)(0),                      // 8: panelarr.source.v1.TriState
 	(SeriesStatus)(0),                  // 9: panelarr.source.v1.SeriesStatus
-	(SolverType)(0),                    // 10: panelarr.source.v1.SolverType
-	(*GetInfoRequest)(nil),             // 11: panelarr.source.v1.GetInfoRequest
-	(*GetInfoResponse)(nil),            // 12: panelarr.source.v1.GetInfoResponse
-	(*PluginInfo)(nil),                 // 13: panelarr.source.v1.PluginInfo
-	(*Limits)(nil),                     // 14: panelarr.source.v1.Limits
-	(*RateLimit)(nil),                  // 15: panelarr.source.v1.RateLimit
-	(*GetConfigRequest)(nil),           // 16: panelarr.source.v1.GetConfigRequest
-	(*GetConfigResponse)(nil),          // 17: panelarr.source.v1.GetConfigResponse
-	(*SetConfigRequest)(nil),           // 18: panelarr.source.v1.SetConfigRequest
-	(*SetConfigResponse)(nil),          // 19: panelarr.source.v1.SetConfigResponse
-	(*HealthRequest)(nil),              // 20: panelarr.source.v1.HealthRequest
-	(*HealthResponse)(nil),             // 21: panelarr.source.v1.HealthResponse
-	(*Source)(nil),                     // 22: panelarr.source.v1.Source
-	(*SourceHealth)(nil),               // 23: panelarr.source.v1.SourceHealth
-	(*ListSourcesRequest)(nil),         // 24: panelarr.source.v1.ListSourcesRequest
-	(*ListSourcesResponse)(nil),        // 25: panelarr.source.v1.ListSourcesResponse
-	(*GetSourceRequest)(nil),           // 26: panelarr.source.v1.GetSourceRequest
-	(*GetSourceResponse)(nil),          // 27: panelarr.source.v1.GetSourceResponse
-	(*GetFiltersRequest)(nil),          // 28: panelarr.source.v1.GetFiltersRequest
-	(*GetFiltersResponse)(nil),         // 29: panelarr.source.v1.GetFiltersResponse
-	(*Filter)(nil),                     // 30: panelarr.source.v1.Filter
-	(*HeaderFilter)(nil),               // 31: panelarr.source.v1.HeaderFilter
-	(*SeparatorFilter)(nil),            // 32: panelarr.source.v1.SeparatorFilter
-	(*TextFilter)(nil),                 // 33: panelarr.source.v1.TextFilter
-	(*CheckboxFilter)(nil),             // 34: panelarr.source.v1.CheckboxFilter
-	(*TriStateFilter)(nil),             // 35: panelarr.source.v1.TriStateFilter
-	(*SelectFilter)(nil),               // 36: panelarr.source.v1.SelectFilter
-	(*SortFilter)(nil),                 // 37: panelarr.source.v1.SortFilter
-	(*SortSelection)(nil),              // 38: panelarr.source.v1.SortSelection
-	(*GroupFilter)(nil),                // 39: panelarr.source.v1.GroupFilter
-	(*FilterValue)(nil),                // 40: panelarr.source.v1.FilterValue
-	(*Series)(nil),                     // 41: panelarr.source.v1.Series
-	(*PopularRequest)(nil),             // 42: panelarr.source.v1.PopularRequest
-	(*PopularResponse)(nil),            // 43: panelarr.source.v1.PopularResponse
-	(*LatestRequest)(nil),              // 44: panelarr.source.v1.LatestRequest
-	(*LatestResponse)(nil),             // 45: panelarr.source.v1.LatestResponse
-	(*SearchRequest)(nil),              // 46: panelarr.source.v1.SearchRequest
-	(*SearchResponse)(nil),             // 47: panelarr.source.v1.SearchResponse
-	(*ResolveUrlRequest)(nil),          // 48: panelarr.source.v1.ResolveUrlRequest
-	(*ResolveUrlResponse)(nil),         // 49: panelarr.source.v1.ResolveUrlResponse
-	(*GetSeriesRequest)(nil),           // 50: panelarr.source.v1.GetSeriesRequest
-	(*GetSeriesResponse)(nil),          // 51: panelarr.source.v1.GetSeriesResponse
-	(*Chapter)(nil),                    // 52: panelarr.source.v1.Chapter
-	(*ListChaptersRequest)(nil),        // 53: panelarr.source.v1.ListChaptersRequest
-	(*ListChaptersResponse)(nil),       // 54: panelarr.source.v1.ListChaptersResponse
-	(*Page)(nil),                       // 55: panelarr.source.v1.Page
-	(*ListPagesRequest)(nil),           // 56: panelarr.source.v1.ListPagesRequest
-	(*ListPagesResponse)(nil),          // 57: panelarr.source.v1.ListPagesResponse
-	(*FetchImageRequest)(nil),          // 58: panelarr.source.v1.FetchImageRequest
-	(*FetchImageResponse)(nil),         // 59: panelarr.source.v1.FetchImageResponse
-	(*ImageMetadata)(nil),              // 60: panelarr.source.v1.ImageMetadata
-	(*Package)(nil),                    // 61: panelarr.source.v1.Package
-	(*PackageOffer)(nil),               // 62: panelarr.source.v1.PackageOffer
-	(*PackageSource)(nil),              // 63: panelarr.source.v1.PackageSource
-	(*PackageSettings)(nil),            // 64: panelarr.source.v1.PackageSettings
-	(*ListPackagesRequest)(nil),        // 65: panelarr.source.v1.ListPackagesRequest
-	(*ListPackagesResponse)(nil),       // 66: panelarr.source.v1.ListPackagesResponse
-	(*GetPackageRequest)(nil),          // 67: panelarr.source.v1.GetPackageRequest
-	(*GetPackageResponse)(nil),         // 68: panelarr.source.v1.GetPackageResponse
-	(*InstallPackageRequest)(nil),      // 69: panelarr.source.v1.InstallPackageRequest
-	(*InstallPackageResponse)(nil),     // 70: panelarr.source.v1.InstallPackageResponse
-	(*UpdatePackageRequest)(nil),       // 71: panelarr.source.v1.UpdatePackageRequest
-	(*UpdatePackageResponse)(nil),      // 72: panelarr.source.v1.UpdatePackageResponse
-	(*UninstallPackageRequest)(nil),    // 73: panelarr.source.v1.UninstallPackageRequest
-	(*UninstallPackageResponse)(nil),   // 74: panelarr.source.v1.UninstallPackageResponse
-	(*SetPackageSettingsRequest)(nil),  // 75: panelarr.source.v1.SetPackageSettingsRequest
-	(*SetPackageSettingsResponse)(nil), // 76: panelarr.source.v1.SetPackageSettingsResponse
-	(*GetSettingsSchemaRequest)(nil),   // 77: panelarr.source.v1.GetSettingsSchemaRequest
-	(*GetSettingsSchemaResponse)(nil),  // 78: panelarr.source.v1.GetSettingsSchemaResponse
-	(*GetSettingsRequest)(nil),         // 79: panelarr.source.v1.GetSettingsRequest
-	(*GetSettingsResponse)(nil),        // 80: panelarr.source.v1.GetSettingsResponse
-	(*SetSettingsRequest)(nil),         // 81: panelarr.source.v1.SetSettingsRequest
-	(*SetSettingsResponse)(nil),        // 82: panelarr.source.v1.SetSettingsResponse
-	(*SetNetworkProfileRequest)(nil),   // 83: panelarr.source.v1.SetNetworkProfileRequest
-	(*SetNetworkProfileResponse)(nil),  // 84: panelarr.source.v1.SetNetworkProfileResponse
-	(*NetworkProfile)(nil),             // 85: panelarr.source.v1.NetworkProfile
-	(*Proxy)(nil),                      // 86: panelarr.source.v1.Proxy
-	(*Solver)(nil),                     // 87: panelarr.source.v1.Solver
-	(*UserAgent)(nil),                  // 88: panelarr.source.v1.UserAgent
-	(*Timeouts)(nil),                   // 89: panelarr.source.v1.Timeouts
-	nil,                                // 90: panelarr.source.v1.NetworkProfile.HeadersEntry
-	(*structpb.Struct)(nil),            // 91: google.protobuf.Struct
-	(*durationpb.Duration)(nil),        // 92: google.protobuf.Duration
-	(*timestamppb.Timestamp)(nil),      // 93: google.protobuf.Timestamp
+	(NetworkProfileOrigin)(0),          // 10: panelarr.source.v1.NetworkProfileOrigin
+	(SolverType)(0),                    // 11: panelarr.source.v1.SolverType
+	(*GetInfoRequest)(nil),             // 12: panelarr.source.v1.GetInfoRequest
+	(*GetInfoResponse)(nil),            // 13: panelarr.source.v1.GetInfoResponse
+	(*PluginInfo)(nil),                 // 14: panelarr.source.v1.PluginInfo
+	(*Limits)(nil),                     // 15: panelarr.source.v1.Limits
+	(*RateLimit)(nil),                  // 16: panelarr.source.v1.RateLimit
+	(*GetConfigRequest)(nil),           // 17: panelarr.source.v1.GetConfigRequest
+	(*GetConfigResponse)(nil),          // 18: panelarr.source.v1.GetConfigResponse
+	(*SetConfigRequest)(nil),           // 19: panelarr.source.v1.SetConfigRequest
+	(*SetConfigResponse)(nil),          // 20: panelarr.source.v1.SetConfigResponse
+	(*HealthRequest)(nil),              // 21: panelarr.source.v1.HealthRequest
+	(*HealthResponse)(nil),             // 22: panelarr.source.v1.HealthResponse
+	(*Source)(nil),                     // 23: panelarr.source.v1.Source
+	(*SourceHealth)(nil),               // 24: panelarr.source.v1.SourceHealth
+	(*ListSourcesRequest)(nil),         // 25: panelarr.source.v1.ListSourcesRequest
+	(*ListSourcesResponse)(nil),        // 26: panelarr.source.v1.ListSourcesResponse
+	(*GetSourceRequest)(nil),           // 27: panelarr.source.v1.GetSourceRequest
+	(*GetSourceResponse)(nil),          // 28: panelarr.source.v1.GetSourceResponse
+	(*GetFiltersRequest)(nil),          // 29: panelarr.source.v1.GetFiltersRequest
+	(*GetFiltersResponse)(nil),         // 30: panelarr.source.v1.GetFiltersResponse
+	(*Filter)(nil),                     // 31: panelarr.source.v1.Filter
+	(*HeaderFilter)(nil),               // 32: panelarr.source.v1.HeaderFilter
+	(*SeparatorFilter)(nil),            // 33: panelarr.source.v1.SeparatorFilter
+	(*TextFilter)(nil),                 // 34: panelarr.source.v1.TextFilter
+	(*CheckboxFilter)(nil),             // 35: panelarr.source.v1.CheckboxFilter
+	(*TriStateFilter)(nil),             // 36: panelarr.source.v1.TriStateFilter
+	(*SelectFilter)(nil),               // 37: panelarr.source.v1.SelectFilter
+	(*SortFilter)(nil),                 // 38: panelarr.source.v1.SortFilter
+	(*SortSelection)(nil),              // 39: panelarr.source.v1.SortSelection
+	(*GroupFilter)(nil),                // 40: panelarr.source.v1.GroupFilter
+	(*FilterValue)(nil),                // 41: panelarr.source.v1.FilterValue
+	(*Series)(nil),                     // 42: panelarr.source.v1.Series
+	(*PopularRequest)(nil),             // 43: panelarr.source.v1.PopularRequest
+	(*PopularResponse)(nil),            // 44: panelarr.source.v1.PopularResponse
+	(*LatestRequest)(nil),              // 45: panelarr.source.v1.LatestRequest
+	(*LatestResponse)(nil),             // 46: panelarr.source.v1.LatestResponse
+	(*SearchRequest)(nil),              // 47: panelarr.source.v1.SearchRequest
+	(*SearchResponse)(nil),             // 48: panelarr.source.v1.SearchResponse
+	(*ResolveUrlRequest)(nil),          // 49: panelarr.source.v1.ResolveUrlRequest
+	(*ResolveUrlResponse)(nil),         // 50: panelarr.source.v1.ResolveUrlResponse
+	(*GetSeriesRequest)(nil),           // 51: panelarr.source.v1.GetSeriesRequest
+	(*GetSeriesResponse)(nil),          // 52: panelarr.source.v1.GetSeriesResponse
+	(*Chapter)(nil),                    // 53: panelarr.source.v1.Chapter
+	(*ListChaptersRequest)(nil),        // 54: panelarr.source.v1.ListChaptersRequest
+	(*ListChaptersResponse)(nil),       // 55: panelarr.source.v1.ListChaptersResponse
+	(*Page)(nil),                       // 56: panelarr.source.v1.Page
+	(*ListPagesRequest)(nil),           // 57: panelarr.source.v1.ListPagesRequest
+	(*ListPagesResponse)(nil),          // 58: panelarr.source.v1.ListPagesResponse
+	(*FetchImageRequest)(nil),          // 59: panelarr.source.v1.FetchImageRequest
+	(*FetchImageResponse)(nil),         // 60: panelarr.source.v1.FetchImageResponse
+	(*ImageMetadata)(nil),              // 61: panelarr.source.v1.ImageMetadata
+	(*Package)(nil),                    // 62: panelarr.source.v1.Package
+	(*PackageOffer)(nil),               // 63: panelarr.source.v1.PackageOffer
+	(*PackageSource)(nil),              // 64: panelarr.source.v1.PackageSource
+	(*PackageSettings)(nil),            // 65: panelarr.source.v1.PackageSettings
+	(*ListPackagesRequest)(nil),        // 66: panelarr.source.v1.ListPackagesRequest
+	(*ListPackagesResponse)(nil),       // 67: panelarr.source.v1.ListPackagesResponse
+	(*GetPackageRequest)(nil),          // 68: panelarr.source.v1.GetPackageRequest
+	(*GetPackageResponse)(nil),         // 69: panelarr.source.v1.GetPackageResponse
+	(*InstallPackageRequest)(nil),      // 70: panelarr.source.v1.InstallPackageRequest
+	(*InstallPackageResponse)(nil),     // 71: panelarr.source.v1.InstallPackageResponse
+	(*UpdatePackageRequest)(nil),       // 72: panelarr.source.v1.UpdatePackageRequest
+	(*UpdatePackageResponse)(nil),      // 73: panelarr.source.v1.UpdatePackageResponse
+	(*UninstallPackageRequest)(nil),    // 74: panelarr.source.v1.UninstallPackageRequest
+	(*UninstallPackageResponse)(nil),   // 75: panelarr.source.v1.UninstallPackageResponse
+	(*SetPackageSettingsRequest)(nil),  // 76: panelarr.source.v1.SetPackageSettingsRequest
+	(*SetPackageSettingsResponse)(nil), // 77: panelarr.source.v1.SetPackageSettingsResponse
+	(*GetSettingsSchemaRequest)(nil),   // 78: panelarr.source.v1.GetSettingsSchemaRequest
+	(*GetSettingsSchemaResponse)(nil),  // 79: panelarr.source.v1.GetSettingsSchemaResponse
+	(*GetSettingsRequest)(nil),         // 80: panelarr.source.v1.GetSettingsRequest
+	(*GetSettingsResponse)(nil),        // 81: panelarr.source.v1.GetSettingsResponse
+	(*SetSettingsRequest)(nil),         // 82: panelarr.source.v1.SetSettingsRequest
+	(*SetSettingsResponse)(nil),        // 83: panelarr.source.v1.SetSettingsResponse
+	(*SetNetworkProfileRequest)(nil),   // 84: panelarr.source.v1.SetNetworkProfileRequest
+	(*SetNetworkProfileResponse)(nil),  // 85: panelarr.source.v1.SetNetworkProfileResponse
+	(*GetNetworkProfileRequest)(nil),   // 86: panelarr.source.v1.GetNetworkProfileRequest
+	(*GetNetworkProfileResponse)(nil),  // 87: panelarr.source.v1.GetNetworkProfileResponse
+	(*NetworkProfile)(nil),             // 88: panelarr.source.v1.NetworkProfile
+	(*Proxy)(nil),                      // 89: panelarr.source.v1.Proxy
+	(*Solver)(nil),                     // 90: panelarr.source.v1.Solver
+	(*UserAgent)(nil),                  // 91: panelarr.source.v1.UserAgent
+	(*Timeouts)(nil),                   // 92: panelarr.source.v1.Timeouts
+	nil,                                // 93: panelarr.source.v1.NetworkProfile.HeadersEntry
+	(*structpb.Struct)(nil),            // 94: google.protobuf.Struct
+	(*durationpb.Duration)(nil),        // 95: google.protobuf.Duration
+	(*timestamppb.Timestamp)(nil),      // 96: google.protobuf.Timestamp
 }
 var file_panelarr_source_v1_source_plugin_proto_depIdxs = []int32{
-	13, // 0: panelarr.source.v1.GetInfoResponse.info:type_name -> panelarr.source.v1.PluginInfo
-	0,  // 1: panelarr.source.v1.PluginInfo.capabilities:type_name -> panelarr.source.v1.PluginCapability
-	14, // 2: panelarr.source.v1.PluginInfo.limits:type_name -> panelarr.source.v1.Limits
-	91, // 3: panelarr.source.v1.PluginInfo.config_schema:type_name -> google.protobuf.Struct
-	1,  // 4: panelarr.source.v1.PluginInfo.common_services:type_name -> panelarr.source.v1.CommonService
-	15, // 5: panelarr.source.v1.Limits.default_rate_limit:type_name -> panelarr.source.v1.RateLimit
-	92, // 6: panelarr.source.v1.RateLimit.period:type_name -> google.protobuf.Duration
-	2,  // 7: panelarr.source.v1.RateLimit.scope:type_name -> panelarr.source.v1.RateLimitScope
-	91, // 8: panelarr.source.v1.GetConfigResponse.values:type_name -> google.protobuf.Struct
-	91, // 9: panelarr.source.v1.SetConfigRequest.values:type_name -> google.protobuf.Struct
-	91, // 10: panelarr.source.v1.SetConfigResponse.values:type_name -> google.protobuf.Struct
-	3,  // 11: panelarr.source.v1.HealthResponse.status:type_name -> panelarr.source.v1.HealthStatus
-	7,  // 12: panelarr.source.v1.Source.content_rating:type_name -> panelarr.source.v1.ContentRating
-	6,  // 13: panelarr.source.v1.Source.capabilities:type_name -> panelarr.source.v1.SourceCapability
-	23, // 14: panelarr.source.v1.Source.health:type_name -> panelarr.source.v1.SourceHealth
-	5,  // 15: panelarr.source.v1.SourceHealth.status:type_name -> panelarr.source.v1.SourceHealthStatus
-	92, // 16: panelarr.source.v1.SourceHealth.latency:type_name -> google.protobuf.Duration
-	93, // 17: panelarr.source.v1.SourceHealth.checked_at:type_name -> google.protobuf.Timestamp
-	22, // 18: panelarr.source.v1.ListSourcesResponse.sources:type_name -> panelarr.source.v1.Source
-	22, // 19: panelarr.source.v1.GetSourceResponse.source:type_name -> panelarr.source.v1.Source
-	30, // 20: panelarr.source.v1.GetFiltersResponse.filters:type_name -> panelarr.source.v1.Filter
-	31, // 21: panelarr.source.v1.Filter.header:type_name -> panelarr.source.v1.HeaderFilter
-	32, // 22: panelarr.source.v1.Filter.separator:type_name -> panelarr.source.v1.SeparatorFilter
-	33, // 23: panelarr.source.v1.Filter.text:type_name -> panelarr.source.v1.TextFilter
-	34, // 24: panelarr.source.v1.Filter.checkbox:type_name -> panelarr.source.v1.CheckboxFilter
-	35, // 25: panelarr.source.v1.Filter.tri_state:type_name -> panelarr.source.v1.TriStateFilter
-	36, // 26: panelarr.source.v1.Filter.select:type_name -> panelarr.source.v1.SelectFilter
-	37, // 27: panelarr.source.v1.Filter.sort:type_name -> panelarr.source.v1.SortFilter
-	39, // 28: panelarr.source.v1.Filter.group:type_name -> panelarr.source.v1.GroupFilter
-	8,  // 29: panelarr.source.v1.TriStateFilter.value:type_name -> panelarr.source.v1.TriState
-	38, // 30: panelarr.source.v1.SortFilter.selection:type_name -> panelarr.source.v1.SortSelection
-	30, // 31: panelarr.source.v1.GroupFilter.filters:type_name -> panelarr.source.v1.Filter
-	8,  // 32: panelarr.source.v1.FilterValue.tri_state:type_name -> panelarr.source.v1.TriState
-	38, // 33: panelarr.source.v1.FilterValue.sort:type_name -> panelarr.source.v1.SortSelection
-	9,  // 34: panelarr.source.v1.Series.status:type_name -> panelarr.source.v1.SeriesStatus
-	41, // 35: panelarr.source.v1.PopularResponse.series:type_name -> panelarr.source.v1.Series
-	41, // 36: panelarr.source.v1.LatestResponse.series:type_name -> panelarr.source.v1.Series
-	40, // 37: panelarr.source.v1.SearchRequest.filters:type_name -> panelarr.source.v1.FilterValue
-	41, // 38: panelarr.source.v1.SearchResponse.series:type_name -> panelarr.source.v1.Series
-	41, // 39: panelarr.source.v1.ResolveUrlResponse.series:type_name -> panelarr.source.v1.Series
-	41, // 40: panelarr.source.v1.GetSeriesResponse.series:type_name -> panelarr.source.v1.Series
-	93, // 41: panelarr.source.v1.Chapter.uploaded_at:type_name -> google.protobuf.Timestamp
-	52, // 42: panelarr.source.v1.ListChaptersResponse.chapters:type_name -> panelarr.source.v1.Chapter
-	55, // 43: panelarr.source.v1.ListPagesResponse.pages:type_name -> panelarr.source.v1.Page
-	60, // 44: panelarr.source.v1.FetchImageResponse.metadata:type_name -> panelarr.source.v1.ImageMetadata
-	7,  // 45: panelarr.source.v1.Package.content_rating:type_name -> panelarr.source.v1.ContentRating
-	62, // 46: panelarr.source.v1.Package.offers:type_name -> panelarr.source.v1.PackageOffer
-	63, // 47: panelarr.source.v1.Package.sources:type_name -> panelarr.source.v1.PackageSource
-	64, // 48: panelarr.source.v1.Package.settings:type_name -> panelarr.source.v1.PackageSettings
-	61, // 49: panelarr.source.v1.ListPackagesResponse.packages:type_name -> panelarr.source.v1.Package
-	61, // 50: panelarr.source.v1.GetPackageResponse.package:type_name -> panelarr.source.v1.Package
-	61, // 51: panelarr.source.v1.InstallPackageResponse.package:type_name -> panelarr.source.v1.Package
-	61, // 52: panelarr.source.v1.UpdatePackageResponse.package:type_name -> panelarr.source.v1.Package
-	64, // 53: panelarr.source.v1.SetPackageSettingsRequest.settings:type_name -> panelarr.source.v1.PackageSettings
-	61, // 54: panelarr.source.v1.SetPackageSettingsResponse.package:type_name -> panelarr.source.v1.Package
-	91, // 55: panelarr.source.v1.GetSettingsSchemaResponse.schema:type_name -> google.protobuf.Struct
-	91, // 56: panelarr.source.v1.GetSettingsResponse.values:type_name -> google.protobuf.Struct
-	91, // 57: panelarr.source.v1.SetSettingsRequest.values:type_name -> google.protobuf.Struct
-	91, // 58: panelarr.source.v1.SetSettingsResponse.values:type_name -> google.protobuf.Struct
-	85, // 59: panelarr.source.v1.SetNetworkProfileRequest.profile:type_name -> panelarr.source.v1.NetworkProfile
-	86, // 60: panelarr.source.v1.NetworkProfile.proxy:type_name -> panelarr.source.v1.Proxy
-	87, // 61: panelarr.source.v1.NetworkProfile.solver:type_name -> panelarr.source.v1.Solver
-	15, // 62: panelarr.source.v1.NetworkProfile.rate_limit:type_name -> panelarr.source.v1.RateLimit
-	88, // 63: panelarr.source.v1.NetworkProfile.user_agent:type_name -> panelarr.source.v1.UserAgent
-	90, // 64: panelarr.source.v1.NetworkProfile.headers:type_name -> panelarr.source.v1.NetworkProfile.HeadersEntry
-	89, // 65: panelarr.source.v1.NetworkProfile.timeouts:type_name -> panelarr.source.v1.Timeouts
-	10, // 66: panelarr.source.v1.Solver.type:type_name -> panelarr.source.v1.SolverType
-	92, // 67: panelarr.source.v1.Solver.session_ttl:type_name -> google.protobuf.Duration
-	92, // 68: panelarr.source.v1.Solver.max_timeout:type_name -> google.protobuf.Duration
-	92, // 69: panelarr.source.v1.Timeouts.connect:type_name -> google.protobuf.Duration
-	92, // 70: panelarr.source.v1.Timeouts.read:type_name -> google.protobuf.Duration
-	92, // 71: panelarr.source.v1.Timeouts.call:type_name -> google.protobuf.Duration
-	11, // 72: panelarr.source.v1.SourcePluginService.GetInfo:input_type -> panelarr.source.v1.GetInfoRequest
-	16, // 73: panelarr.source.v1.SourcePluginService.GetConfig:input_type -> panelarr.source.v1.GetConfigRequest
-	18, // 74: panelarr.source.v1.SourcePluginService.SetConfig:input_type -> panelarr.source.v1.SetConfigRequest
-	20, // 75: panelarr.source.v1.SourcePluginService.Health:input_type -> panelarr.source.v1.HealthRequest
-	24, // 76: panelarr.source.v1.SourcePluginService.ListSources:input_type -> panelarr.source.v1.ListSourcesRequest
-	26, // 77: panelarr.source.v1.SourcePluginService.GetSource:input_type -> panelarr.source.v1.GetSourceRequest
-	28, // 78: panelarr.source.v1.SourcePluginService.GetFilters:input_type -> panelarr.source.v1.GetFiltersRequest
-	42, // 79: panelarr.source.v1.SourcePluginService.Popular:input_type -> panelarr.source.v1.PopularRequest
-	44, // 80: panelarr.source.v1.SourcePluginService.Latest:input_type -> panelarr.source.v1.LatestRequest
-	46, // 81: panelarr.source.v1.SourcePluginService.Search:input_type -> panelarr.source.v1.SearchRequest
-	48, // 82: panelarr.source.v1.SourcePluginService.ResolveUrl:input_type -> panelarr.source.v1.ResolveUrlRequest
-	50, // 83: panelarr.source.v1.SourcePluginService.GetSeries:input_type -> panelarr.source.v1.GetSeriesRequest
-	53, // 84: panelarr.source.v1.SourcePluginService.ListChapters:input_type -> panelarr.source.v1.ListChaptersRequest
-	56, // 85: panelarr.source.v1.SourcePluginService.ListPages:input_type -> panelarr.source.v1.ListPagesRequest
-	58, // 86: panelarr.source.v1.SourcePluginService.FetchImage:input_type -> panelarr.source.v1.FetchImageRequest
-	77, // 87: panelarr.source.v1.SourcePluginService.GetSettingsSchema:input_type -> panelarr.source.v1.GetSettingsSchemaRequest
-	79, // 88: panelarr.source.v1.SourcePluginService.GetSettings:input_type -> panelarr.source.v1.GetSettingsRequest
-	81, // 89: panelarr.source.v1.SourcePluginService.SetSettings:input_type -> panelarr.source.v1.SetSettingsRequest
-	65, // 90: panelarr.source.v1.SourcePluginService.ListPackages:input_type -> panelarr.source.v1.ListPackagesRequest
-	67, // 91: panelarr.source.v1.SourcePluginService.GetPackage:input_type -> panelarr.source.v1.GetPackageRequest
-	69, // 92: panelarr.source.v1.SourcePluginService.InstallPackage:input_type -> panelarr.source.v1.InstallPackageRequest
-	71, // 93: panelarr.source.v1.SourcePluginService.UpdatePackage:input_type -> panelarr.source.v1.UpdatePackageRequest
-	73, // 94: panelarr.source.v1.SourcePluginService.UninstallPackage:input_type -> panelarr.source.v1.UninstallPackageRequest
-	75, // 95: panelarr.source.v1.SourcePluginService.SetPackageSettings:input_type -> panelarr.source.v1.SetPackageSettingsRequest
-	83, // 96: panelarr.source.v1.SourcePluginService.SetNetworkProfile:input_type -> panelarr.source.v1.SetNetworkProfileRequest
-	12, // 97: panelarr.source.v1.SourcePluginService.GetInfo:output_type -> panelarr.source.v1.GetInfoResponse
-	17, // 98: panelarr.source.v1.SourcePluginService.GetConfig:output_type -> panelarr.source.v1.GetConfigResponse
-	19, // 99: panelarr.source.v1.SourcePluginService.SetConfig:output_type -> panelarr.source.v1.SetConfigResponse
-	21, // 100: panelarr.source.v1.SourcePluginService.Health:output_type -> panelarr.source.v1.HealthResponse
-	25, // 101: panelarr.source.v1.SourcePluginService.ListSources:output_type -> panelarr.source.v1.ListSourcesResponse
-	27, // 102: panelarr.source.v1.SourcePluginService.GetSource:output_type -> panelarr.source.v1.GetSourceResponse
-	29, // 103: panelarr.source.v1.SourcePluginService.GetFilters:output_type -> panelarr.source.v1.GetFiltersResponse
-	43, // 104: panelarr.source.v1.SourcePluginService.Popular:output_type -> panelarr.source.v1.PopularResponse
-	45, // 105: panelarr.source.v1.SourcePluginService.Latest:output_type -> panelarr.source.v1.LatestResponse
-	47, // 106: panelarr.source.v1.SourcePluginService.Search:output_type -> panelarr.source.v1.SearchResponse
-	49, // 107: panelarr.source.v1.SourcePluginService.ResolveUrl:output_type -> panelarr.source.v1.ResolveUrlResponse
-	51, // 108: panelarr.source.v1.SourcePluginService.GetSeries:output_type -> panelarr.source.v1.GetSeriesResponse
-	54, // 109: panelarr.source.v1.SourcePluginService.ListChapters:output_type -> panelarr.source.v1.ListChaptersResponse
-	57, // 110: panelarr.source.v1.SourcePluginService.ListPages:output_type -> panelarr.source.v1.ListPagesResponse
-	59, // 111: panelarr.source.v1.SourcePluginService.FetchImage:output_type -> panelarr.source.v1.FetchImageResponse
-	78, // 112: panelarr.source.v1.SourcePluginService.GetSettingsSchema:output_type -> panelarr.source.v1.GetSettingsSchemaResponse
-	80, // 113: panelarr.source.v1.SourcePluginService.GetSettings:output_type -> panelarr.source.v1.GetSettingsResponse
-	82, // 114: panelarr.source.v1.SourcePluginService.SetSettings:output_type -> panelarr.source.v1.SetSettingsResponse
-	66, // 115: panelarr.source.v1.SourcePluginService.ListPackages:output_type -> panelarr.source.v1.ListPackagesResponse
-	68, // 116: panelarr.source.v1.SourcePluginService.GetPackage:output_type -> panelarr.source.v1.GetPackageResponse
-	70, // 117: panelarr.source.v1.SourcePluginService.InstallPackage:output_type -> panelarr.source.v1.InstallPackageResponse
-	72, // 118: panelarr.source.v1.SourcePluginService.UpdatePackage:output_type -> panelarr.source.v1.UpdatePackageResponse
-	74, // 119: panelarr.source.v1.SourcePluginService.UninstallPackage:output_type -> panelarr.source.v1.UninstallPackageResponse
-	76, // 120: panelarr.source.v1.SourcePluginService.SetPackageSettings:output_type -> panelarr.source.v1.SetPackageSettingsResponse
-	84, // 121: panelarr.source.v1.SourcePluginService.SetNetworkProfile:output_type -> panelarr.source.v1.SetNetworkProfileResponse
-	97, // [97:122] is the sub-list for method output_type
-	72, // [72:97] is the sub-list for method input_type
-	72, // [72:72] is the sub-list for extension type_name
-	72, // [72:72] is the sub-list for extension extendee
-	0,  // [0:72] is the sub-list for field type_name
+	14,  // 0: panelarr.source.v1.GetInfoResponse.info:type_name -> panelarr.source.v1.PluginInfo
+	0,   // 1: panelarr.source.v1.PluginInfo.capabilities:type_name -> panelarr.source.v1.PluginCapability
+	15,  // 2: panelarr.source.v1.PluginInfo.limits:type_name -> panelarr.source.v1.Limits
+	94,  // 3: panelarr.source.v1.PluginInfo.config_schema:type_name -> google.protobuf.Struct
+	1,   // 4: panelarr.source.v1.PluginInfo.common_services:type_name -> panelarr.source.v1.CommonService
+	16,  // 5: panelarr.source.v1.Limits.default_rate_limit:type_name -> panelarr.source.v1.RateLimit
+	95,  // 6: panelarr.source.v1.RateLimit.period:type_name -> google.protobuf.Duration
+	2,   // 7: panelarr.source.v1.RateLimit.scope:type_name -> panelarr.source.v1.RateLimitScope
+	94,  // 8: panelarr.source.v1.GetConfigResponse.values:type_name -> google.protobuf.Struct
+	94,  // 9: panelarr.source.v1.SetConfigRequest.values:type_name -> google.protobuf.Struct
+	94,  // 10: panelarr.source.v1.SetConfigResponse.values:type_name -> google.protobuf.Struct
+	3,   // 11: panelarr.source.v1.HealthResponse.status:type_name -> panelarr.source.v1.HealthStatus
+	7,   // 12: panelarr.source.v1.Source.content_rating:type_name -> panelarr.source.v1.ContentRating
+	6,   // 13: panelarr.source.v1.Source.capabilities:type_name -> panelarr.source.v1.SourceCapability
+	24,  // 14: panelarr.source.v1.Source.health:type_name -> panelarr.source.v1.SourceHealth
+	5,   // 15: panelarr.source.v1.SourceHealth.status:type_name -> panelarr.source.v1.SourceHealthStatus
+	95,  // 16: panelarr.source.v1.SourceHealth.latency:type_name -> google.protobuf.Duration
+	96,  // 17: panelarr.source.v1.SourceHealth.checked_at:type_name -> google.protobuf.Timestamp
+	23,  // 18: panelarr.source.v1.ListSourcesResponse.sources:type_name -> panelarr.source.v1.Source
+	23,  // 19: panelarr.source.v1.GetSourceResponse.source:type_name -> panelarr.source.v1.Source
+	31,  // 20: panelarr.source.v1.GetFiltersResponse.filters:type_name -> panelarr.source.v1.Filter
+	32,  // 21: panelarr.source.v1.Filter.header:type_name -> panelarr.source.v1.HeaderFilter
+	33,  // 22: panelarr.source.v1.Filter.separator:type_name -> panelarr.source.v1.SeparatorFilter
+	34,  // 23: panelarr.source.v1.Filter.text:type_name -> panelarr.source.v1.TextFilter
+	35,  // 24: panelarr.source.v1.Filter.checkbox:type_name -> panelarr.source.v1.CheckboxFilter
+	36,  // 25: panelarr.source.v1.Filter.tri_state:type_name -> panelarr.source.v1.TriStateFilter
+	37,  // 26: panelarr.source.v1.Filter.select:type_name -> panelarr.source.v1.SelectFilter
+	38,  // 27: panelarr.source.v1.Filter.sort:type_name -> panelarr.source.v1.SortFilter
+	40,  // 28: panelarr.source.v1.Filter.group:type_name -> panelarr.source.v1.GroupFilter
+	8,   // 29: panelarr.source.v1.TriStateFilter.value:type_name -> panelarr.source.v1.TriState
+	39,  // 30: panelarr.source.v1.SortFilter.selection:type_name -> panelarr.source.v1.SortSelection
+	31,  // 31: panelarr.source.v1.GroupFilter.filters:type_name -> panelarr.source.v1.Filter
+	8,   // 32: panelarr.source.v1.FilterValue.tri_state:type_name -> panelarr.source.v1.TriState
+	39,  // 33: panelarr.source.v1.FilterValue.sort:type_name -> panelarr.source.v1.SortSelection
+	9,   // 34: panelarr.source.v1.Series.status:type_name -> panelarr.source.v1.SeriesStatus
+	42,  // 35: panelarr.source.v1.PopularResponse.series:type_name -> panelarr.source.v1.Series
+	42,  // 36: panelarr.source.v1.LatestResponse.series:type_name -> panelarr.source.v1.Series
+	41,  // 37: panelarr.source.v1.SearchRequest.filters:type_name -> panelarr.source.v1.FilterValue
+	42,  // 38: panelarr.source.v1.SearchResponse.series:type_name -> panelarr.source.v1.Series
+	42,  // 39: panelarr.source.v1.ResolveUrlResponse.series:type_name -> panelarr.source.v1.Series
+	42,  // 40: panelarr.source.v1.GetSeriesResponse.series:type_name -> panelarr.source.v1.Series
+	96,  // 41: panelarr.source.v1.Chapter.uploaded_at:type_name -> google.protobuf.Timestamp
+	53,  // 42: panelarr.source.v1.ListChaptersResponse.chapters:type_name -> panelarr.source.v1.Chapter
+	56,  // 43: panelarr.source.v1.ListPagesResponse.pages:type_name -> panelarr.source.v1.Page
+	61,  // 44: panelarr.source.v1.FetchImageResponse.metadata:type_name -> panelarr.source.v1.ImageMetadata
+	7,   // 45: panelarr.source.v1.Package.content_rating:type_name -> panelarr.source.v1.ContentRating
+	63,  // 46: panelarr.source.v1.Package.offers:type_name -> panelarr.source.v1.PackageOffer
+	64,  // 47: panelarr.source.v1.Package.sources:type_name -> panelarr.source.v1.PackageSource
+	65,  // 48: panelarr.source.v1.Package.settings:type_name -> panelarr.source.v1.PackageSettings
+	62,  // 49: panelarr.source.v1.ListPackagesResponse.packages:type_name -> panelarr.source.v1.Package
+	62,  // 50: panelarr.source.v1.GetPackageResponse.package:type_name -> panelarr.source.v1.Package
+	62,  // 51: panelarr.source.v1.InstallPackageResponse.package:type_name -> panelarr.source.v1.Package
+	62,  // 52: panelarr.source.v1.UpdatePackageResponse.package:type_name -> panelarr.source.v1.Package
+	65,  // 53: panelarr.source.v1.SetPackageSettingsRequest.settings:type_name -> panelarr.source.v1.PackageSettings
+	62,  // 54: panelarr.source.v1.SetPackageSettingsResponse.package:type_name -> panelarr.source.v1.Package
+	94,  // 55: panelarr.source.v1.GetSettingsSchemaResponse.schema:type_name -> google.protobuf.Struct
+	94,  // 56: panelarr.source.v1.GetSettingsResponse.values:type_name -> google.protobuf.Struct
+	94,  // 57: panelarr.source.v1.SetSettingsRequest.values:type_name -> google.protobuf.Struct
+	94,  // 58: panelarr.source.v1.SetSettingsResponse.values:type_name -> google.protobuf.Struct
+	88,  // 59: panelarr.source.v1.SetNetworkProfileRequest.profile:type_name -> panelarr.source.v1.NetworkProfile
+	88,  // 60: panelarr.source.v1.GetNetworkProfileResponse.profile:type_name -> panelarr.source.v1.NetworkProfile
+	10,  // 61: panelarr.source.v1.GetNetworkProfileResponse.origin:type_name -> panelarr.source.v1.NetworkProfileOrigin
+	89,  // 62: panelarr.source.v1.NetworkProfile.proxy:type_name -> panelarr.source.v1.Proxy
+	90,  // 63: panelarr.source.v1.NetworkProfile.solver:type_name -> panelarr.source.v1.Solver
+	16,  // 64: panelarr.source.v1.NetworkProfile.rate_limit:type_name -> panelarr.source.v1.RateLimit
+	91,  // 65: panelarr.source.v1.NetworkProfile.user_agent:type_name -> panelarr.source.v1.UserAgent
+	93,  // 66: panelarr.source.v1.NetworkProfile.headers:type_name -> panelarr.source.v1.NetworkProfile.HeadersEntry
+	92,  // 67: panelarr.source.v1.NetworkProfile.timeouts:type_name -> panelarr.source.v1.Timeouts
+	11,  // 68: panelarr.source.v1.Solver.type:type_name -> panelarr.source.v1.SolverType
+	95,  // 69: panelarr.source.v1.Solver.session_ttl:type_name -> google.protobuf.Duration
+	95,  // 70: panelarr.source.v1.Solver.max_timeout:type_name -> google.protobuf.Duration
+	95,  // 71: panelarr.source.v1.Timeouts.connect:type_name -> google.protobuf.Duration
+	95,  // 72: panelarr.source.v1.Timeouts.read:type_name -> google.protobuf.Duration
+	95,  // 73: panelarr.source.v1.Timeouts.call:type_name -> google.protobuf.Duration
+	12,  // 74: panelarr.source.v1.SourcePluginService.GetInfo:input_type -> panelarr.source.v1.GetInfoRequest
+	17,  // 75: panelarr.source.v1.SourcePluginService.GetConfig:input_type -> panelarr.source.v1.GetConfigRequest
+	19,  // 76: panelarr.source.v1.SourcePluginService.SetConfig:input_type -> panelarr.source.v1.SetConfigRequest
+	21,  // 77: panelarr.source.v1.SourcePluginService.Health:input_type -> panelarr.source.v1.HealthRequest
+	25,  // 78: panelarr.source.v1.SourcePluginService.ListSources:input_type -> panelarr.source.v1.ListSourcesRequest
+	27,  // 79: panelarr.source.v1.SourcePluginService.GetSource:input_type -> panelarr.source.v1.GetSourceRequest
+	29,  // 80: panelarr.source.v1.SourcePluginService.GetFilters:input_type -> panelarr.source.v1.GetFiltersRequest
+	43,  // 81: panelarr.source.v1.SourcePluginService.Popular:input_type -> panelarr.source.v1.PopularRequest
+	45,  // 82: panelarr.source.v1.SourcePluginService.Latest:input_type -> panelarr.source.v1.LatestRequest
+	47,  // 83: panelarr.source.v1.SourcePluginService.Search:input_type -> panelarr.source.v1.SearchRequest
+	49,  // 84: panelarr.source.v1.SourcePluginService.ResolveUrl:input_type -> panelarr.source.v1.ResolveUrlRequest
+	51,  // 85: panelarr.source.v1.SourcePluginService.GetSeries:input_type -> panelarr.source.v1.GetSeriesRequest
+	54,  // 86: panelarr.source.v1.SourcePluginService.ListChapters:input_type -> panelarr.source.v1.ListChaptersRequest
+	57,  // 87: panelarr.source.v1.SourcePluginService.ListPages:input_type -> panelarr.source.v1.ListPagesRequest
+	59,  // 88: panelarr.source.v1.SourcePluginService.FetchImage:input_type -> panelarr.source.v1.FetchImageRequest
+	78,  // 89: panelarr.source.v1.SourcePluginService.GetSettingsSchema:input_type -> panelarr.source.v1.GetSettingsSchemaRequest
+	80,  // 90: panelarr.source.v1.SourcePluginService.GetSettings:input_type -> panelarr.source.v1.GetSettingsRequest
+	82,  // 91: panelarr.source.v1.SourcePluginService.SetSettings:input_type -> panelarr.source.v1.SetSettingsRequest
+	66,  // 92: panelarr.source.v1.SourcePluginService.ListPackages:input_type -> panelarr.source.v1.ListPackagesRequest
+	68,  // 93: panelarr.source.v1.SourcePluginService.GetPackage:input_type -> panelarr.source.v1.GetPackageRequest
+	70,  // 94: panelarr.source.v1.SourcePluginService.InstallPackage:input_type -> panelarr.source.v1.InstallPackageRequest
+	72,  // 95: panelarr.source.v1.SourcePluginService.UpdatePackage:input_type -> panelarr.source.v1.UpdatePackageRequest
+	74,  // 96: panelarr.source.v1.SourcePluginService.UninstallPackage:input_type -> panelarr.source.v1.UninstallPackageRequest
+	76,  // 97: panelarr.source.v1.SourcePluginService.SetPackageSettings:input_type -> panelarr.source.v1.SetPackageSettingsRequest
+	86,  // 98: panelarr.source.v1.SourcePluginService.GetNetworkProfile:input_type -> panelarr.source.v1.GetNetworkProfileRequest
+	84,  // 99: panelarr.source.v1.SourcePluginService.SetNetworkProfile:input_type -> panelarr.source.v1.SetNetworkProfileRequest
+	13,  // 100: panelarr.source.v1.SourcePluginService.GetInfo:output_type -> panelarr.source.v1.GetInfoResponse
+	18,  // 101: panelarr.source.v1.SourcePluginService.GetConfig:output_type -> panelarr.source.v1.GetConfigResponse
+	20,  // 102: panelarr.source.v1.SourcePluginService.SetConfig:output_type -> panelarr.source.v1.SetConfigResponse
+	22,  // 103: panelarr.source.v1.SourcePluginService.Health:output_type -> panelarr.source.v1.HealthResponse
+	26,  // 104: panelarr.source.v1.SourcePluginService.ListSources:output_type -> panelarr.source.v1.ListSourcesResponse
+	28,  // 105: panelarr.source.v1.SourcePluginService.GetSource:output_type -> panelarr.source.v1.GetSourceResponse
+	30,  // 106: panelarr.source.v1.SourcePluginService.GetFilters:output_type -> panelarr.source.v1.GetFiltersResponse
+	44,  // 107: panelarr.source.v1.SourcePluginService.Popular:output_type -> panelarr.source.v1.PopularResponse
+	46,  // 108: panelarr.source.v1.SourcePluginService.Latest:output_type -> panelarr.source.v1.LatestResponse
+	48,  // 109: panelarr.source.v1.SourcePluginService.Search:output_type -> panelarr.source.v1.SearchResponse
+	50,  // 110: panelarr.source.v1.SourcePluginService.ResolveUrl:output_type -> panelarr.source.v1.ResolveUrlResponse
+	52,  // 111: panelarr.source.v1.SourcePluginService.GetSeries:output_type -> panelarr.source.v1.GetSeriesResponse
+	55,  // 112: panelarr.source.v1.SourcePluginService.ListChapters:output_type -> panelarr.source.v1.ListChaptersResponse
+	58,  // 113: panelarr.source.v1.SourcePluginService.ListPages:output_type -> panelarr.source.v1.ListPagesResponse
+	60,  // 114: panelarr.source.v1.SourcePluginService.FetchImage:output_type -> panelarr.source.v1.FetchImageResponse
+	79,  // 115: panelarr.source.v1.SourcePluginService.GetSettingsSchema:output_type -> panelarr.source.v1.GetSettingsSchemaResponse
+	81,  // 116: panelarr.source.v1.SourcePluginService.GetSettings:output_type -> panelarr.source.v1.GetSettingsResponse
+	83,  // 117: panelarr.source.v1.SourcePluginService.SetSettings:output_type -> panelarr.source.v1.SetSettingsResponse
+	67,  // 118: panelarr.source.v1.SourcePluginService.ListPackages:output_type -> panelarr.source.v1.ListPackagesResponse
+	69,  // 119: panelarr.source.v1.SourcePluginService.GetPackage:output_type -> panelarr.source.v1.GetPackageResponse
+	71,  // 120: panelarr.source.v1.SourcePluginService.InstallPackage:output_type -> panelarr.source.v1.InstallPackageResponse
+	73,  // 121: panelarr.source.v1.SourcePluginService.UpdatePackage:output_type -> panelarr.source.v1.UpdatePackageResponse
+	75,  // 122: panelarr.source.v1.SourcePluginService.UninstallPackage:output_type -> panelarr.source.v1.UninstallPackageResponse
+	77,  // 123: panelarr.source.v1.SourcePluginService.SetPackageSettings:output_type -> panelarr.source.v1.SetPackageSettingsResponse
+	87,  // 124: panelarr.source.v1.SourcePluginService.GetNetworkProfile:output_type -> panelarr.source.v1.GetNetworkProfileResponse
+	85,  // 125: panelarr.source.v1.SourcePluginService.SetNetworkProfile:output_type -> panelarr.source.v1.SetNetworkProfileResponse
+	100, // [100:126] is the sub-list for method output_type
+	74,  // [74:100] is the sub-list for method input_type
+	74,  // [74:74] is the sub-list for extension type_name
+	74,  // [74:74] is the sub-list for extension extendee
+	0,   // [0:74] is the sub-list for field type_name
 }
 
 func init() { file_panelarr_source_v1_source_plugin_proto_init() }
@@ -6108,7 +6293,7 @@ func file_panelarr_source_v1_source_plugin_proto_init() {
 		(*FetchImageResponse_Metadata)(nil),
 		(*FetchImageResponse_Chunk)(nil),
 	}
-	file_panelarr_source_v1_source_plugin_proto_msgTypes[77].OneofWrappers = []any{
+	file_panelarr_source_v1_source_plugin_proto_msgTypes[79].OneofWrappers = []any{
 		(*UserAgent_Fixed)(nil),
 		(*UserAgent_RandomDesktop)(nil),
 		(*UserAgent_FromSolver)(nil),
@@ -6118,8 +6303,8 @@ func file_panelarr_source_v1_source_plugin_proto_init() {
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_panelarr_source_v1_source_plugin_proto_rawDesc), len(file_panelarr_source_v1_source_plugin_proto_rawDesc)),
-			NumEnums:      11,
-			NumMessages:   80,
+			NumEnums:      12,
+			NumMessages:   82,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

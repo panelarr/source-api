@@ -13,9 +13,10 @@ A host (the Panelarr server, or any program) talks to plugins through [`sdk/clie
 
 1. `GetInfo`: identity, capabilities, limits, `config_schema` and the common services it can use.
 2. `SetConfig` with the configuration the admin entered (render `config_schema` as a form). Call it again whenever it changes.
-3. `ListSources` (again whenever `DYNAMIC_SOURCES` is declared), then `SetNetworkProfile` per source for plugins that declare the network profile common service.
-4. For plugins with `PACKAGES`: list, install, update and remove packages, and set each one's languages. Install and update can take minutes; they're idempotent, so retrying is safe. Re-list sources after a change (`Source.package_id` says which package each comes from).
-5. Browse, search and fetch. Respect `limits` and `RATE_LIMITED` retry hints.
+3. Watch `Health().instance_id`: when it changes, the plugin restarted, so repeat step 2 and the profile pushes below.
+4. `ListSources` (again whenever `DYNAMIC_SOURCES` is declared), then `SetNetworkProfile` per source for plugins that declare the network profile common service.
+5. For plugins with `PACKAGES`: list, install, update and remove packages, and set each one's languages. Install and update can take minutes; they're idempotent, so retrying is safe. Re-list sources after a change (`Source.package_id` says which package each comes from).
+6. Browse, search and fetch. `GetNetworkProfile(source)` shows which profile a source really uses (pushed, the plugin's own, or none). Respect `limits` and `RATE_LIMITED` retry hints.
 
 ## Errors
 

@@ -37,6 +37,8 @@ Standalone plugins use ports from 8903 up. `plugin.WithRoutes(plugin.Route{Patte
 | `GetConfig`, `SetConfig` | embed a `*plugin.PluginConfig` (see below) if you need configuration |
 | settings calls | per-source settings as JSON Schema plus values |
 | `SetNetworkProfile` | pass straight to `httpx.Sources.SetNetworkProfile` |
+| `GetNetworkProfile` | optional: the profile a source uses and its origin, proxy password left out |
+| `Health` | the SDK adds `instance_id` (a random value per process start) unless you set your own |
 
 ## Packages
 

@@ -381,3 +381,57 @@ func TestStoreErrorReasonsTravel(t *testing.T) {
 		}
 	}
 }
+
+func TestInstanceID(t *testing.T) {
+	ctx := context.Background()
+	h, err := remote(t, plugintest.New(), "").Health(ctx)
+	if err != nil || h.GetInstanceId() != plugin.InstanceID || len(plugin.InstanceID) != 16 {
+		t.Fatalf("remote: %v %v", h, err)
+	}
+	// A plugin's own Health without an ID gets the process's.
+	h, err = remote(t, ownHealth{plugintest.New()}, "").Health(ctx)
+	if err != nil || h.GetInstanceId() != plugin.InstanceID || h.GetMessage() != "mine" {
+		t.Fatalf("filled in: %v %v", h, err)
+	}
+	// A managed plugin is another process with another ID.
+	if testing.Short() {
+		return
+	}
+	c, err := client.Managed(buildExample(t), client.ManagedOptions{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = c.Close() }()
+	a, _ := c.Health(ctx)
+	b, _ := c.Health(ctx)
+	if a.GetInstanceId() == "" || a.GetInstanceId() == plugin.InstanceID || a.GetInstanceId() != b.GetInstanceId() {
+		t.Fatalf("managed: %q %q (ours %q)", a.GetInstanceId(), b.GetInstanceId(), plugin.InstanceID)
+	}
+}
+
+type ownHealth struct{ *plugintest.Fake }
+
+func (ownHealth) Health(context.Context, *sourcev1.HealthRequest) (*sourcev1.HealthResponse, error) {
+	return &sourcev1.HealthResponse{Status: sourcev1.HealthStatus_HEALTH_STATUS_SERVING, Message: "mine"}, nil
+}
+
+func TestGetNetworkProfile(t *testing.T) {
+	c := remote(t, plugintest.New(), "")
+	ctx := context.Background()
+	got, err := c.GetNetworkProfile(ctx, "1001")
+	if err != nil || got.GetOrigin() != sourcev1.NetworkProfileOrigin_NETWORK_PROFILE_ORIGIN_NONE || got.GetProfile() != nil {
+		t.Fatalf("none: %v %v", got, err)
+	}
+	p := &sourcev1.NetworkProfile{Name: "vpn", Proxy: &sourcev1.Proxy{Url: "socks5://proxy.example:1080", Username: "u", Password: "secret"}}
+	if err := c.SetNetworkProfile(ctx, "1001", p); err != nil {
+		t.Fatal(err)
+	}
+	got, err = c.GetNetworkProfile(ctx, "1001")
+	if err != nil || got.GetOrigin() != sourcev1.NetworkProfileOrigin_NETWORK_PROFILE_ORIGIN_PUSHED ||
+		got.GetProfile().GetProxy().GetUsername() != "u" || got.GetProfile().GetProxy().GetPassword() != "" {
+		t.Fatalf("pushed: %v %v", got, err)
+	}
+	if _, err := c.GetNetworkProfile(ctx, "nope"); plugin.ErrorCode(err) != plugin.CodeNotFound {
+		t.Fatalf("unknown source: %v", err)
+	}
+}

@@ -555,6 +555,24 @@ func (f *Fake) SetSettings(_ context.Context, r *sourcev1.SetSettingsRequest) (*
 	return &sourcev1.SetSettingsResponse{Values: st}, err
 }
 
+// GetNetworkProfile returns the pushed profile, password left out, or none.
+func (f *Fake) GetNetworkProfile(_ context.Context, r *sourcev1.GetNetworkProfileRequest) (*sourcev1.GetNetworkProfileResponse, error) {
+	if _, err := f.source(r.GetSourceId()); err != nil {
+		return nil, err
+	}
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	p := f.profiles[r.GetSourceId()]
+	if p == nil {
+		return &sourcev1.GetNetworkProfileResponse{Origin: sourcev1.NetworkProfileOrigin_NETWORK_PROFILE_ORIGIN_NONE}, nil
+	}
+	out := proto.Clone(p).(*sourcev1.NetworkProfile)
+	if out.GetProxy() != nil {
+		out.Proxy.Password = ""
+	}
+	return &sourcev1.GetNetworkProfileResponse{Profile: out, Origin: sourcev1.NetworkProfileOrigin_NETWORK_PROFILE_ORIGIN_PUSHED}, nil
+}
+
 func (f *Fake) SetNetworkProfile(_ context.Context, r *sourcev1.SetNetworkProfileRequest) (*sourcev1.SetNetworkProfileResponse, error) {
 	if _, err := f.source(r.GetSourceId()); err != nil {
 		return nil, err

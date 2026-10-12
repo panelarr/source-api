@@ -60,6 +60,8 @@ type Client interface {
 	// FetchImage starts streaming an image. Read it with Recv, or use
 	// [ReadImage].
 	FetchImage(ctx context.Context, req *sourcev1.FetchImageRequest) (ImageStream, error)
+	// GetNetworkProfile returns the profile a source uses and its origin.
+	GetNetworkProfile(ctx context.Context, sourceID string) (*sourcev1.GetNetworkProfileResponse, error)
 	// SetNetworkProfile hands the plugin a source's network profile; nil
 	// removes the pushed profile.
 	SetNetworkProfile(ctx context.Context, sourceID string, profile *sourcev1.NetworkProfile) error
@@ -297,6 +299,10 @@ func (r *remoteClient) FetchImage(ctx context.Context, req *sourcev1.FetchImageR
 	return &connectStream{s: s}, nil
 }
 
+func (r *remoteClient) GetNetworkProfile(ctx context.Context, sourceID string) (*sourcev1.GetNetworkProfileResponse, error) {
+	return callConnect(ctx, &sourcev1.GetNetworkProfileRequest{SourceId: sourceID}, r.c.GetNetworkProfile)
+}
+
 func (r *remoteClient) SetNetworkProfile(ctx context.Context, sourceID string, p *sourcev1.NetworkProfile) error {
 	_, err := callConnect(ctx, &sourcev1.SetNetworkProfileRequest{SourceId: sourceID, Profile: p}, r.c.SetNetworkProfile)
 	return err
@@ -497,6 +503,10 @@ func (g *grpcClient) FetchImage(ctx context.Context, req *sourcev1.FetchImageReq
 		return nil, plugin.FromGRPCError(err)
 	}
 	return &grpcStream{s: s, cancel: cancel}, nil
+}
+
+func (g *grpcClient) GetNetworkProfile(ctx context.Context, sourceID string) (*sourcev1.GetNetworkProfileResponse, error) {
+	return callGRPC(ctx, &sourcev1.GetNetworkProfileRequest{SourceId: sourceID}, g.c.GetNetworkProfile)
 }
 
 func (g *grpcClient) SetNetworkProfile(ctx context.Context, sourceID string, p *sourcev1.NetworkProfile) error {

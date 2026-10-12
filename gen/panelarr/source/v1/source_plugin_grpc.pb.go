@@ -45,6 +45,7 @@ const (
 	SourcePluginService_UpdatePackage_FullMethodName      = "/panelarr.source.v1.SourcePluginService/UpdatePackage"
 	SourcePluginService_UninstallPackage_FullMethodName   = "/panelarr.source.v1.SourcePluginService/UninstallPackage"
 	SourcePluginService_SetPackageSettings_FullMethodName = "/panelarr.source.v1.SourcePluginService/SetPackageSettings"
+	SourcePluginService_GetNetworkProfile_FullMethodName  = "/panelarr.source.v1.SourcePluginService/GetNetworkProfile"
 	SourcePluginService_SetNetworkProfile_FullMethodName  = "/panelarr.source.v1.SourcePluginService/SetNetworkProfile"
 )
 
@@ -134,6 +135,10 @@ type SourcePluginServiceClient interface {
 	// SetPackageSettings replaces a package's settings, e.g. its enabled languages. It
 	// returns the package as it is after the change.
 	SetPackageSettings(ctx context.Context, in *SetPackageSettingsRequest, opts ...grpc.CallOption) (*SetPackageSettingsResponse, error)
+	// GetNetworkProfile returns the network profile a source uses now and where it comes
+	// from, so a host can show it. Proxy passwords come back empty. Optional: plugins that
+	// don't implement it answer UNIMPLEMENTED.
+	GetNetworkProfile(ctx context.Context, in *GetNetworkProfileRequest, opts ...grpc.CallOption) (*GetNetworkProfileResponse, error)
 	// SetNetworkProfile is how a host pushes the network profile a source must use.
 	// A pushed profile overrides anything the plugin configured locally. Leaving
 	// `profile` unset removes the override.
@@ -397,6 +402,16 @@ func (c *sourcePluginServiceClient) SetPackageSettings(ctx context.Context, in *
 	return out, nil
 }
 
+func (c *sourcePluginServiceClient) GetNetworkProfile(ctx context.Context, in *GetNetworkProfileRequest, opts ...grpc.CallOption) (*GetNetworkProfileResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(GetNetworkProfileResponse)
+	err := c.cc.Invoke(ctx, SourcePluginService_GetNetworkProfile_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 func (c *sourcePluginServiceClient) SetNetworkProfile(ctx context.Context, in *SetNetworkProfileRequest, opts ...grpc.CallOption) (*SetNetworkProfileResponse, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	out := new(SetNetworkProfileResponse)
@@ -493,6 +508,10 @@ type SourcePluginServiceServer interface {
 	// SetPackageSettings replaces a package's settings, e.g. its enabled languages. It
 	// returns the package as it is after the change.
 	SetPackageSettings(context.Context, *SetPackageSettingsRequest) (*SetPackageSettingsResponse, error)
+	// GetNetworkProfile returns the network profile a source uses now and where it comes
+	// from, so a host can show it. Proxy passwords come back empty. Optional: plugins that
+	// don't implement it answer UNIMPLEMENTED.
+	GetNetworkProfile(context.Context, *GetNetworkProfileRequest) (*GetNetworkProfileResponse, error)
 	// SetNetworkProfile is how a host pushes the network profile a source must use.
 	// A pushed profile overrides anything the plugin configured locally. Leaving
 	// `profile` unset removes the override.
@@ -578,6 +597,9 @@ func (UnimplementedSourcePluginServiceServer) UninstallPackage(context.Context, 
 }
 func (UnimplementedSourcePluginServiceServer) SetPackageSettings(context.Context, *SetPackageSettingsRequest) (*SetPackageSettingsResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method SetPackageSettings not implemented")
+}
+func (UnimplementedSourcePluginServiceServer) GetNetworkProfile(context.Context, *GetNetworkProfileRequest) (*GetNetworkProfileResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method GetNetworkProfile not implemented")
 }
 func (UnimplementedSourcePluginServiceServer) SetNetworkProfile(context.Context, *SetNetworkProfileRequest) (*SetNetworkProfileResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method SetNetworkProfile not implemented")
@@ -1028,6 +1050,24 @@ func _SourcePluginService_SetPackageSettings_Handler(srv interface{}, ctx contex
 	return interceptor(ctx, in, info, handler)
 }
 
+func _SourcePluginService_GetNetworkProfile_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(GetNetworkProfileRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(SourcePluginServiceServer).GetNetworkProfile(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: SourcePluginService_GetNetworkProfile_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(SourcePluginServiceServer).GetNetworkProfile(ctx, req.(*GetNetworkProfileRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 func _SourcePluginService_SetNetworkProfile_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(SetNetworkProfileRequest)
 	if err := dec(in); err != nil {
@@ -1144,6 +1184,10 @@ var SourcePluginService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "SetPackageSettings",
 			Handler:    _SourcePluginService_SetPackageSettings_Handler,
+		},
+		{
+			MethodName: "GetNetworkProfile",
+			Handler:    _SourcePluginService_GetNetworkProfile_Handler,
 		},
 		{
 			MethodName: "SetNetworkProfile",

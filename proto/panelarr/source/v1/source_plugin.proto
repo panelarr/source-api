@@ -188,6 +188,13 @@ service SourcePluginService {
     };
   }
 
+  // GetNetworkProfile returns the network profile a source uses now and where it comes
+  // from, so a host can show it. Proxy passwords come back empty. Optional: plugins that
+  // don't implement it answer UNIMPLEMENTED.
+  rpc GetNetworkProfile(GetNetworkProfileRequest) returns (GetNetworkProfileResponse) {
+    option (google.api.http) = {get: "/v1/sources/{source_id}/network-profile"};
+  }
+
   // SetNetworkProfile is how a host pushes the network profile a source must use.
   // A pushed profile overrides anything the plugin configured locally. Leaving
   // `profile` unset removes the override.
@@ -295,6 +302,10 @@ message HealthResponse {
   HealthStatus status = 1;
   // Optional detail for humans.
   string message = 2;
+  // Changes whenever the plugin starts (and may have lost what a host pushed to it),
+  // and stays the same while it runs. Hosts that see a new value push configuration and
+  // network profiles again. Empty when the plugin doesn't say.
+  string instance_id = 3;
 }
 
 enum HealthStatus {
@@ -843,6 +854,28 @@ message SetNetworkProfileRequest {
 }
 
 message SetNetworkProfileResponse {}
+
+message GetNetworkProfileRequest {
+  string source_id = 1;
+}
+
+message GetNetworkProfileResponse {
+  // The profile in effect; unset for a direct connection with the plugin's defaults.
+  // Proxy passwords are left empty.
+  NetworkProfile profile = 1;
+  NetworkProfileOrigin origin = 2;
+}
+
+// NetworkProfileOrigin is where the profile a source uses comes from.
+enum NetworkProfileOrigin {
+  NETWORK_PROFILE_ORIGIN_UNSPECIFIED = 0;
+  // Pushed by a host with SetNetworkProfile.
+  NETWORK_PROFILE_ORIGIN_PUSHED = 1;
+  // The plugin's own configuration (e.g. a profile assigned in its own admin).
+  NETWORK_PROFILE_ORIGIN_PLUGIN = 2;
+  // None: a direct connection with the plugin's defaults.
+  NETWORK_PROFILE_ORIGIN_NONE = 3;
+}
 
 // NetworkProfile is everything a plugin needs to make requests for one source.
 message NetworkProfile {

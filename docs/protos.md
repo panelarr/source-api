@@ -21,6 +21,11 @@ Plugins that host many sites (Mihon extensions, say) declare the `PACKAGES` capa
 - `Source.package_id` names the package a listed source comes from; `PackageSource.available` says whether a package's source passes the languages.
 - Failures of the package's origin carry `STORE_FETCH_FAILED` (UNAVAILABLE) or `STORE_INVALID` (FAILED_PRECONDITION).
 
+## Restarts and network profiles
+
+- **`HealthResponse.instance_id`** changes whenever the plugin starts and stays the same while it runs. A host that sees a new value pushes the plugin's configuration and network profiles again. The Go SDK fills it in for every plugin.
+- **`GetNetworkProfile(source_id)`** (optional) says which profile a source uses now and where it comes from: `PUSHED` (by a host), `PLUGIN` (the plugin's own configuration) or `NONE` (direct). Proxy passwords come back empty. A pushed profile wins over the plugin's own; removing it (`SetNetworkProfile` without a profile) falls back to the plugin's.
+
 ## Errors
 
 Errors are gRPC status codes. When the upstream source is the problem, the status carries a `google.rpc.ErrorInfo` with domain `source.panelarr` and a reason from `ErrorReason` without its prefix: `CLOUDFLARE_CHALLENGE`, `RATE_LIMITED` (with a `google.rpc.RetryInfo`), `SOURCE_DOWN`, `NOT_FOUND`, `LOGIN_REQUIRED`, `UNSUPPORTED`, and for packages `STORE_FETCH_FAILED` and `STORE_INVALID`.

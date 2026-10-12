@@ -107,6 +107,9 @@ const (
 	// SourcePluginServiceSetPackageSettingsProcedure is the fully-qualified name of the
 	// SourcePluginService's SetPackageSettings RPC.
 	SourcePluginServiceSetPackageSettingsProcedure = "/panelarr.source.v1.SourcePluginService/SetPackageSettings"
+	// SourcePluginServiceGetNetworkProfileProcedure is the fully-qualified name of the
+	// SourcePluginService's GetNetworkProfile RPC.
+	SourcePluginServiceGetNetworkProfileProcedure = "/panelarr.source.v1.SourcePluginService/GetNetworkProfile"
 	// SourcePluginServiceSetNetworkProfileProcedure is the fully-qualified name of the
 	// SourcePluginService's SetNetworkProfile RPC.
 	SourcePluginServiceSetNetworkProfileProcedure = "/panelarr.source.v1.SourcePluginService/SetNetworkProfile"
@@ -183,6 +186,10 @@ type SourcePluginServiceClient interface {
 	// SetPackageSettings replaces a package's settings, e.g. its enabled languages. It
 	// returns the package as it is after the change.
 	SetPackageSettings(context.Context, *connect.Request[v1.SetPackageSettingsRequest]) (*connect.Response[v1.SetPackageSettingsResponse], error)
+	// GetNetworkProfile returns the network profile a source uses now and where it comes
+	// from, so a host can show it. Proxy passwords come back empty. Optional: plugins that
+	// don't implement it answer UNIMPLEMENTED.
+	GetNetworkProfile(context.Context, *connect.Request[v1.GetNetworkProfileRequest]) (*connect.Response[v1.GetNetworkProfileResponse], error)
 	// SetNetworkProfile is how a host pushes the network profile a source must use.
 	// A pushed profile overrides anything the plugin configured locally. Leaving
 	// `profile` unset removes the override.
@@ -344,6 +351,12 @@ func NewSourcePluginServiceClient(httpClient connect.HTTPClient, baseURL string,
 			connect.WithSchema(sourcePluginServiceMethods.ByName("SetPackageSettings")),
 			connect.WithClientOptions(opts...),
 		),
+		getNetworkProfile: connect.NewClient[v1.GetNetworkProfileRequest, v1.GetNetworkProfileResponse](
+			httpClient,
+			baseURL+SourcePluginServiceGetNetworkProfileProcedure,
+			connect.WithSchema(sourcePluginServiceMethods.ByName("GetNetworkProfile")),
+			connect.WithClientOptions(opts...),
+		),
 		setNetworkProfile: connect.NewClient[v1.SetNetworkProfileRequest, v1.SetNetworkProfileResponse](
 			httpClient,
 			baseURL+SourcePluginServiceSetNetworkProfileProcedure,
@@ -379,6 +392,7 @@ type sourcePluginServiceClient struct {
 	updatePackage      *connect.Client[v1.UpdatePackageRequest, v1.UpdatePackageResponse]
 	uninstallPackage   *connect.Client[v1.UninstallPackageRequest, v1.UninstallPackageResponse]
 	setPackageSettings *connect.Client[v1.SetPackageSettingsRequest, v1.SetPackageSettingsResponse]
+	getNetworkProfile  *connect.Client[v1.GetNetworkProfileRequest, v1.GetNetworkProfileResponse]
 	setNetworkProfile  *connect.Client[v1.SetNetworkProfileRequest, v1.SetNetworkProfileResponse]
 }
 
@@ -502,6 +516,11 @@ func (c *sourcePluginServiceClient) SetPackageSettings(ctx context.Context, req 
 	return c.setPackageSettings.CallUnary(ctx, req)
 }
 
+// GetNetworkProfile calls panelarr.source.v1.SourcePluginService.GetNetworkProfile.
+func (c *sourcePluginServiceClient) GetNetworkProfile(ctx context.Context, req *connect.Request[v1.GetNetworkProfileRequest]) (*connect.Response[v1.GetNetworkProfileResponse], error) {
+	return c.getNetworkProfile.CallUnary(ctx, req)
+}
+
 // SetNetworkProfile calls panelarr.source.v1.SourcePluginService.SetNetworkProfile.
 func (c *sourcePluginServiceClient) SetNetworkProfile(ctx context.Context, req *connect.Request[v1.SetNetworkProfileRequest]) (*connect.Response[v1.SetNetworkProfileResponse], error) {
 	return c.setNetworkProfile.CallUnary(ctx, req)
@@ -579,6 +598,10 @@ type SourcePluginServiceHandler interface {
 	// SetPackageSettings replaces a package's settings, e.g. its enabled languages. It
 	// returns the package as it is after the change.
 	SetPackageSettings(context.Context, *connect.Request[v1.SetPackageSettingsRequest]) (*connect.Response[v1.SetPackageSettingsResponse], error)
+	// GetNetworkProfile returns the network profile a source uses now and where it comes
+	// from, so a host can show it. Proxy passwords come back empty. Optional: plugins that
+	// don't implement it answer UNIMPLEMENTED.
+	GetNetworkProfile(context.Context, *connect.Request[v1.GetNetworkProfileRequest]) (*connect.Response[v1.GetNetworkProfileResponse], error)
 	// SetNetworkProfile is how a host pushes the network profile a source must use.
 	// A pushed profile overrides anything the plugin configured locally. Leaving
 	// `profile` unset removes the override.
@@ -736,6 +759,12 @@ func NewSourcePluginServiceHandler(svc SourcePluginServiceHandler, opts ...conne
 		connect.WithSchema(sourcePluginServiceMethods.ByName("SetPackageSettings")),
 		connect.WithHandlerOptions(opts...),
 	)
+	sourcePluginServiceGetNetworkProfileHandler := connect.NewUnaryHandler(
+		SourcePluginServiceGetNetworkProfileProcedure,
+		svc.GetNetworkProfile,
+		connect.WithSchema(sourcePluginServiceMethods.ByName("GetNetworkProfile")),
+		connect.WithHandlerOptions(opts...),
+	)
 	sourcePluginServiceSetNetworkProfileHandler := connect.NewUnaryHandler(
 		SourcePluginServiceSetNetworkProfileProcedure,
 		svc.SetNetworkProfile,
@@ -792,6 +821,8 @@ func NewSourcePluginServiceHandler(svc SourcePluginServiceHandler, opts ...conne
 			sourcePluginServiceUninstallPackageHandler.ServeHTTP(w, r)
 		case SourcePluginServiceSetPackageSettingsProcedure:
 			sourcePluginServiceSetPackageSettingsHandler.ServeHTTP(w, r)
+		case SourcePluginServiceGetNetworkProfileProcedure:
+			sourcePluginServiceGetNetworkProfileHandler.ServeHTTP(w, r)
 		case SourcePluginServiceSetNetworkProfileProcedure:
 			sourcePluginServiceSetNetworkProfileHandler.ServeHTTP(w, r)
 		default:
@@ -897,6 +928,10 @@ func (UnimplementedSourcePluginServiceHandler) UninstallPackage(context.Context,
 
 func (UnimplementedSourcePluginServiceHandler) SetPackageSettings(context.Context, *connect.Request[v1.SetPackageSettingsRequest]) (*connect.Response[v1.SetPackageSettingsResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("panelarr.source.v1.SourcePluginService.SetPackageSettings is not implemented"))
+}
+
+func (UnimplementedSourcePluginServiceHandler) GetNetworkProfile(context.Context, *connect.Request[v1.GetNetworkProfileRequest]) (*connect.Response[v1.GetNetworkProfileResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("panelarr.source.v1.SourcePluginService.GetNetworkProfile is not implemented"))
 }
 
 func (UnimplementedSourcePluginServiceHandler) SetNetworkProfile(context.Context, *connect.Request[v1.SetNetworkProfileRequest]) (*connect.Response[v1.SetNetworkProfileResponse], error) {

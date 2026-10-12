@@ -46,7 +46,11 @@ func (s *connectServer) SetConfig(ctx context.Context, r *connect.Request[source
 }
 
 func (s *connectServer) Health(ctx context.Context, r *connect.Request[sourcev1.HealthRequest]) (*connect.Response[sourcev1.HealthResponse], error) {
-	return unaryConnect(ctx, r, s.p.Health)
+	return unaryConnect(ctx, r, health(s.p))
+}
+
+func (s *connectServer) GetNetworkProfile(ctx context.Context, r *connect.Request[sourcev1.GetNetworkProfileRequest]) (*connect.Response[sourcev1.GetNetworkProfileResponse], error) {
+	return unaryConnect(ctx, r, s.p.GetNetworkProfile)
 }
 
 func (s *connectServer) ListSources(ctx context.Context, r *connect.Request[sourcev1.ListSourcesRequest]) (*connect.Response[sourcev1.ListSourcesResponse], error) {
@@ -160,7 +164,23 @@ func (s *grpcServer) SetConfig(ctx context.Context, r *sourcev1.SetConfigRequest
 }
 
 func (s *grpcServer) Health(ctx context.Context, r *sourcev1.HealthRequest) (*sourcev1.HealthResponse, error) {
-	return unaryGRPC(ctx, r, s.p.Health)
+	return unaryGRPC(ctx, r, health(s.p))
+}
+
+func (s *grpcServer) GetNetworkProfile(ctx context.Context, r *sourcev1.GetNetworkProfileRequest) (*sourcev1.GetNetworkProfileResponse, error) {
+	return unaryGRPC(ctx, r, s.p.GetNetworkProfile)
+}
+
+// health answers Health with the process's InstanceID unless the plugin set
+// its own.
+func health(p Plugin) func(context.Context, *sourcev1.HealthRequest) (*sourcev1.HealthResponse, error) {
+	return func(ctx context.Context, r *sourcev1.HealthRequest) (*sourcev1.HealthResponse, error) {
+		res, err := p.Health(ctx, r)
+		if err == nil && res != nil && res.GetInstanceId() == "" {
+			res.InstanceId = InstanceID
+		}
+		return res, err
+	}
 }
 
 func (s *grpcServer) ListSources(ctx context.Context, r *sourcev1.ListSourcesRequest) (*sourcev1.ListSourcesResponse, error) {

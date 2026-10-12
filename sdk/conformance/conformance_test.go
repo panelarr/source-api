@@ -4,6 +4,7 @@ package conformance_test
 
 import (
 	"context"
+	"fmt"
 	"strings"
 	"testing"
 
@@ -130,6 +131,37 @@ func TestReportsPackageViolations(t *testing.T) {
 	}
 	problems := strings.Join(rep.Problems, "\n")
 	for _, want := range []string{`id "sync:bad" must match`, "installing the installed version again must answer OK"} {
+		if !strings.Contains(problems, want) {
+			t.Errorf("missing problem %q in:\n%s", want, problems)
+		}
+	}
+}
+
+// restless changes its instance on every Health call and leaks a password.
+type restless struct {
+	*plugintest.Fake
+	n int
+}
+
+func (r *restless) Health(context.Context, *sourcev1.HealthRequest) (*sourcev1.HealthResponse, error) {
+	r.n++
+	return &sourcev1.HealthResponse{Status: sourcev1.HealthStatus_HEALTH_STATUS_SERVING, InstanceId: fmt.Sprint(r.n)}, nil
+}
+
+func (r *restless) GetNetworkProfile(context.Context, *sourcev1.GetNetworkProfileRequest) (*sourcev1.GetNetworkProfileResponse, error) {
+	return &sourcev1.GetNetworkProfileResponse{
+		Origin:  sourcev1.NetworkProfileOrigin_NETWORK_PROFILE_ORIGIN_PUSHED,
+		Profile: &sourcev1.NetworkProfile{Proxy: &sourcev1.Proxy{Url: "http://p.example", Password: "leaked"}},
+	}, nil
+}
+
+func TestReportsInstanceAndProfileViolations(t *testing.T) {
+	rep, err := conformance.Check(context.Background(), client.InProcess(&restless{Fake: plugintest.New()}), conformance.Options{SkipImages: true})
+	if err != nil {
+		t.Fatal(err)
+	}
+	problems := strings.Join(rep.Problems, "\n")
+	for _, want := range []string{"instance_id changed", "still the pushed profile", "returned the proxy password"} {
 		if !strings.Contains(problems, want) {
 			t.Errorf("missing problem %q in:\n%s", want, problems)
 		}

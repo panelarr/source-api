@@ -17,3 +17,10 @@ All v0 slices are done.
 - [x] **2. mihon-source:** per-extension enabled languages; installs survive a cancelled caller; fixture store export for end-to-end tests.
 - [x] **3. source-mihon:** the package capability over mihon-source, plugin-level languages, filtered sources; end to end.
 - [x] **4. Docs and done.**
+
+## GOAL-0018: network profiles and per-source settings
+
+- [x] **1. source.v1:** `HealthResponse.instance_id` (filled by the SDK), `GetNetworkProfile` with its origin; SDK, fake, conformance, docs.
+- [ ] **2. mihon-source:** instance ID, GetNetworkProfile, writeOnly secrets in source settings.
+- [ ] **3. source-mihon:** instance ID covering mihon-source's, GetNetworkProfile; end to end: proxy, solver, fallback, restarts, settings.
+- [ ] **4. Docs and done.**

@@ -16,6 +16,8 @@ package plugin
 
 import (
 	"context"
+	"crypto/rand"
+	"encoding/hex"
 	"regexp"
 
 	sourcev1 "github.com/panelarr/source-api/gen/panelarr/source/v1"
@@ -61,6 +63,9 @@ type Plugin interface {
 	UpdatePackage(ctx context.Context, req *sourcev1.UpdatePackageRequest) (*sourcev1.UpdatePackageResponse, error)
 	UninstallPackage(ctx context.Context, req *sourcev1.UninstallPackageRequest) (*sourcev1.UninstallPackageResponse, error)
 	SetPackageSettings(ctx context.Context, req *sourcev1.SetPackageSettingsRequest) (*sourcev1.SetPackageSettingsResponse, error)
+	// GetNetworkProfile returns the profile a source uses and where it comes
+	// from (optional).
+	GetNetworkProfile(ctx context.Context, req *sourcev1.GetNetworkProfileRequest) (*sourcev1.GetNetworkProfileResponse, error)
 	// SetNetworkProfile receives a source's network profile from the host.
 	// Plugins that declare the network profile common service apply it to
 	// every request for that source; httpx.Sources does that for them.
@@ -91,7 +96,11 @@ func (Unimplemented) SetConfig(context.Context, *sourcev1.SetConfigRequest) (*so
 }
 
 func (Unimplemented) Health(context.Context, *sourcev1.HealthRequest) (*sourcev1.HealthResponse, error) {
-	return &sourcev1.HealthResponse{Status: sourcev1.HealthStatus_HEALTH_STATUS_SERVING}, nil
+	return &sourcev1.HealthResponse{Status: sourcev1.HealthStatus_HEALTH_STATUS_SERVING, InstanceId: InstanceID}, nil
+}
+
+func (Unimplemented) GetNetworkProfile(context.Context, *sourcev1.GetNetworkProfileRequest) (*sourcev1.GetNetworkProfileResponse, error) {
+	return nil, ErrUnimplemented("GetNetworkProfile")
 }
 
 func (Unimplemented) ListSources(context.Context, *sourcev1.ListSourcesRequest) (*sourcev1.ListSourcesResponse, error) {
@@ -181,3 +190,14 @@ func (Unimplemented) SetNetworkProfile(context.Context, *sourcev1.SetNetworkProf
 // PackageIDPattern is what package IDs look like: no ':', which HTTP paths
 // read as a custom verb (as in ":install").
 var PackageIDPattern = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9._-]*$`)
+
+// InstanceID identifies this run of the process: random, set at start. The
+// SDK puts it in Health answers that don't carry their own, so hosts notice a
+// restart and push configuration and profiles again.
+var InstanceID = func() string {
+	b := make([]byte, 8)
+	if _, err := rand.Read(b); err != nil {
+		panic(err)
+	}
+	return hex.EncodeToString(b)
+}()

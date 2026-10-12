@@ -154,6 +154,10 @@ func (c *inProcess) FetchImage(ctx context.Context, req *sourcev1.FetchImageRequ
 	return s, nil
 }
 
+func (c *inProcess) GetNetworkProfile(ctx context.Context, sourceID string) (*sourcev1.GetNetworkProfileResponse, error) {
+	return call(ctx, &sourcev1.GetNetworkProfileRequest{SourceId: sourceID}, c.p.GetNetworkProfile)
+}
+
 func (c *inProcess) SetNetworkProfile(ctx context.Context, sourceID string, p *sourcev1.NetworkProfile) error {
 	var cp *sourcev1.NetworkProfile
 	if p != nil {

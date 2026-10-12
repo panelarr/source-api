@@ -167,11 +167,7 @@ func Check(ctx context.Context, c client.Client, opts Options) (*Report, error) 
 	checkInfo(rep, info)
 	checkConfig(ctx, rep, c, info, opts.Config)
 
-	if h, err := c.Health(ctx); err != nil {
-		rep.problem("Health: %v", err)
-	} else if h.GetStatus() == sourcev1.HealthStatus_HEALTH_STATUS_UNSPECIFIED {
-		rep.problem("Health: status is unspecified")
-	}
+	checkHealth(ctx, rep, c)
 
 	sources := checkSources(ctx, rep, c)
 	if len(opts.SourceIDs) > 0 {
@@ -192,6 +188,7 @@ func Check(ctx context.Context, c client.Client, opts Options) (*Report, error) 
 		if err := c.SetNetworkProfile(ctx, sources[0].GetId(), nil); err != nil {
 			rep.problem("SetNetworkProfile: removing the profile of source %s failed: %v", sources[0].GetId(), err)
 		}
+		checkNetworkProfile(ctx, rep, c, sources[0].GetId())
 	}
 
 	for _, s := range sources {
@@ -204,6 +201,46 @@ func Check(ctx context.Context, c client.Client, opts Options) (*Report, error) 
 		rep.Sources = append(rep.Sources, w.out)
 	}
 	return rep, nil
+}
+
+func checkHealth(ctx context.Context, rep *Report, c client.Client) {
+	first, err := c.Health(ctx)
+	if err != nil {
+		rep.problem("Health: %v", err)
+		return
+	}
+	if first.GetStatus() == sourcev1.HealthStatus_HEALTH_STATUS_UNSPECIFIED {
+		rep.problem("Health: status is unspecified")
+	}
+	if first.GetInstanceId() == "" {
+		rep.warn("Health: no instance_id; hosts can't tell when the plugin restarted")
+		return
+	}
+	if again, err := c.Health(ctx); err == nil && again.GetInstanceId() != first.GetInstanceId() {
+		rep.problem("Health: instance_id changed from %q to %q while the plugin ran", first.GetInstanceId(), again.GetInstanceId())
+	}
+}
+
+// checkNetworkProfile, after a pushed profile was removed: the source's
+// profile isn't the pushed one, and no secret comes back. The call is optional.
+func checkNetworkProfile(ctx context.Context, rep *Report, c client.Client, sourceID string) {
+	res, err := c.GetNetworkProfile(ctx, sourceID)
+	if plugin.ErrorCode(err) == plugin.CodeUnimplemented {
+		return
+	}
+	if err != nil {
+		rep.problem("GetNetworkProfile (source %s): %v", sourceID, err)
+		return
+	}
+	switch {
+	case res.GetOrigin() == sourcev1.NetworkProfileOrigin_NETWORK_PROFILE_ORIGIN_UNSPECIFIED:
+		rep.problem("GetNetworkProfile (source %s): origin is unspecified", sourceID)
+	case res.GetOrigin() == sourcev1.NetworkProfileOrigin_NETWORK_PROFILE_ORIGIN_PUSHED:
+		rep.problem("GetNetworkProfile (source %s): still the pushed profile after it was removed", sourceID)
+	}
+	if res.GetProfile().GetProxy().GetPassword() != "" {
+		rep.problem("GetNetworkProfile (source %s): returned the proxy password", sourceID)
+	}
 }
 
 func checkInfo(rep *Report, info *sourcev1.PluginInfo) {

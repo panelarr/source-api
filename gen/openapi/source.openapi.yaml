@@ -397,6 +397,30 @@ components:
           title: info
       title: GetInfoResponse
       additionalProperties: false
+    panelarr.source.v1.GetNetworkProfileRequest:
+      type: object
+      properties:
+        sourceId:
+          type: string
+          title: source_id
+      title: GetNetworkProfileRequest
+      additionalProperties: false
+    panelarr.source.v1.GetNetworkProfileResponse:
+      type: object
+      properties:
+        profile:
+          allOf:
+            - $ref: '#/components/schemas/panelarr.source.v1.NetworkProfile'
+          title: profile
+          description: |-
+            The profile in effect; unset for a direct connection with the plugin's defaults.
+             Proxy passwords are left empty.
+        origin:
+          allOf:
+            - $ref: '#/components/schemas/panelarr.source.v1.NetworkProfileOrigin'
+          title: origin
+      title: GetNetworkProfileResponse
+      additionalProperties: false
     panelarr.source.v1.GetPackageRequest:
       type: object
       properties:
@@ -523,6 +547,13 @@ components:
           type: string
           title: message
           description: Optional detail for humans.
+        instanceId:
+          type: string
+          title: instance_id
+          description: |-
+            Changes whenever the plugin starts (and may have lost what a host pushed to it),
+             and stays the same while it runs. Hosts that see a new value push configuration and
+             network profiles again. Empty when the plugin doesn't say.
       title: HealthResponse
       additionalProperties: false
     panelarr.source.v1.HealthStatus:
@@ -775,6 +806,15 @@ components:
       title: NetworkProfile
       additionalProperties: false
       description: NetworkProfile is everything a plugin needs to make requests for one source.
+    panelarr.source.v1.NetworkProfileOrigin:
+      type: string
+      title: NetworkProfileOrigin
+      enum:
+        - NETWORK_PROFILE_ORIGIN_UNSPECIFIED
+        - NETWORK_PROFILE_ORIGIN_PUSHED
+        - NETWORK_PROFILE_ORIGIN_PLUGIN
+        - NETWORK_PROFILE_ORIGIN_NONE
+      description: NetworkProfileOrigin is where the profile a source uses comes from.
     panelarr.source.v1.Package:
       type: object
       properties:
@@ -1980,6 +2020,30 @@ paths:
               schema:
                 $ref: '#/components/schemas/panelarr.source.v1.LatestResponse'
   /v1/sources/{sourceId}/network-profile:
+    get:
+      tags:
+        - SourcePluginService
+      summary: GetNetworkProfile
+      description: |-
+        GetNetworkProfile returns the network profile a source uses now and where it comes
+         from, so a host can show it. Proxy passwords come back empty. Optional: plugins that
+         don't implement it answer UNIMPLEMENTED.
+      operationId: SourcePluginService_GetNetworkProfile
+      parameters:
+        - name: sourceId
+          in: path
+          description: The sourceId path parameter.
+          required: true
+          schema:
+            type: string
+            title: source_id
+      responses:
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/panelarr.source.v1.GetNetworkProfileResponse'
     put:
       tags:
         - SourcePluginService
