@@ -67,6 +67,8 @@ cfg := plugin.NewPluginConfig(schema, func(ctx context.Context, v map[string]any
 })
 ```
 
+`settings.Parse` stamps the order the properties are written in onto each of them as `"x-order": 1, 2, …`, at every depth (nested objects and array items included), because the schema's key order is lost on its way to the host's form. Set `x-order` (or `propertyOrder`) yourself to override it for a property.
+
 Embed `*plugin.PluginConfig` in the plugin to answer `GetConfig` and `SetConfig`, and put `cfg.SchemaStruct()` in `config_schema`. Properties marked `writeOnly` are secrets: they never come back from `GetConfig`, and an empty value keeps the current one.
 
 ## Networking
