@@ -96,7 +96,7 @@ func checkHealthChecks(ctx context.Context, rep *Report, c client.Client, info *
 		}
 		return
 	}
-	if plugin.ErrorCode(err) != plugin.CodeNotFound {
-		rep.problem("SetSourceHealthCheck: an unknown source must be NOT_FOUND, got %v", err)
+	if code := plugin.ErrorCode(err); code != plugin.CodeNotFound && code != plugin.CodeInvalidArgument {
+		rep.problem("SetSourceHealthCheck: an unknown source must be NOT_FOUND (or INVALID_ARGUMENT for a malformed id), got %v", err)
 	}
 }
