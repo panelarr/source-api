@@ -27,7 +27,7 @@ Standalone plugins use ports from 8903 up. `plugin.WithRoutes(plugin.Route{Patte
 
 | Call | Notes |
 |---|---|
-| `GetInfo` | id (`^[a-z0-9][a-z0-9._-]*$`), name, version, `contracts: ["panelarr.source.v1"]`, capabilities, **honest limits** (concurrency per source, rate limit: hosts schedule against them), `config_schema`, common services |
+| `GetInfo` | id (`^[a-z0-9][a-z0-9._-]*$`), name, version, `contracts: ["panelarr.source.v1"]`, capabilities, **honest limits** (concurrency and rate per source for API calls, and separately for `FetchImage`: hosts schedule against them; leave the image rate unset if the plugin paces images itself), `config_schema`, common services |
 | `ListSources`, `GetSource` | stable source IDs, language, capabilities, health if you check sources |
 | `Popular`, `Latest`, `Search` | 1-based pages and `has_next_page`. Hosts match series across sources by searching for titles and alternative titles, so **search by title must find the series** |
 | `GetFilters` | typed filters; values come back addressed by position |

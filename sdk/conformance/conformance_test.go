@@ -24,6 +24,7 @@ func (b broken) GetInfo(ctx context.Context, r *sourcev1.GetInfoRequest) (*sourc
 	res, _ := b.Fake.GetInfo(ctx, r)
 	res.Info.Id = "Not An ID"
 	res.Info.Contracts = nil
+	res.Info.Limits.ImageRateLimit = &sourcev1.RateLimit{Requests: 0}
 	return res, nil
 }
 
@@ -68,6 +69,7 @@ func TestReportsViolations(t *testing.T) {
 	for _, want := range []string{
 		`id "Not An ID"`,
 		"contracts must include",
+		"the image rate limit needs requests and a period",
 		"an unknown source must be NOT_FOUND",
 		"page 1 has index 7",
 		"the first message must carry the metadata",

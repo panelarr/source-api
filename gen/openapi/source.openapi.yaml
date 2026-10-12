@@ -632,12 +632,28 @@ components:
         maxConcurrencyPerSource:
           type: integer
           title: max_concurrency_per_source
-          description: Maximum parallel requests the plugin wants per source. 0 means no limit declared.
+          description: |-
+            Maximum parallel calls the plugin wants per source, FetchImage excepted. 0 means no
+             limit declared.
         defaultRateLimit:
           allOf:
             - $ref: '#/components/schemas/panelarr.source.v1.RateLimit'
           title: default_rate_limit
-          description: Default request rate per source. Unset means no limit declared.
+          description: |-
+            Call rate per source, FetchImage excepted (lists, search, details, chapters, pages).
+             Unset means no limit declared.
+        imageRateLimit:
+          allOf:
+            - $ref: '#/components/schemas/panelarr.source.v1.RateLimit'
+          title: image_rate_limit
+          description: |-
+            How fast a host may call FetchImage per source. Images often come from CDNs, and
+             many plugins pace image downloads themselves; unset means the plugin does, and hosts
+             should add no pacing of their own.
+        maxImageConcurrencyPerSource:
+          type: integer
+          title: max_image_concurrency_per_source
+          description: Maximum parallel FetchImage calls per source. 0 means no limit declared.
       title: Limits
       additionalProperties: false
     panelarr.source.v1.ListChaptersRequest:

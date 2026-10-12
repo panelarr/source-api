@@ -257,10 +257,18 @@ enum CommonService {
 }
 
 message Limits {
-  // Maximum parallel requests the plugin wants per source. 0 means no limit declared.
+  // Maximum parallel calls the plugin wants per source, FetchImage excepted. 0 means no
+  // limit declared.
   uint32 max_concurrency_per_source = 1;
-  // Default request rate per source. Unset means no limit declared.
+  // Call rate per source, FetchImage excepted (lists, search, details, chapters, pages).
+  // Unset means no limit declared.
   RateLimit default_rate_limit = 2;
+  // How fast a host may call FetchImage per source. Images often come from CDNs, and
+  // many plugins pace image downloads themselves; unset means the plugin does, and hosts
+  // should add no pacing of their own.
+  RateLimit image_rate_limit = 3;
+  // Maximum parallel FetchImage calls per source. 0 means no limit declared.
+  uint32 max_image_concurrency_per_source = 4;
 }
 
 message RateLimit {

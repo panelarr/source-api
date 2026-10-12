@@ -265,6 +265,9 @@ func checkInfo(rep *Report, info *sourcev1.PluginInfo) {
 	if rl := info.GetLimits().GetDefaultRateLimit(); rl != nil && (rl.GetRequests() == 0 || rl.GetPeriod().AsDuration() <= 0) {
 		rep.problem("GetInfo: the default rate limit needs requests and a period")
 	}
+	if rl := info.GetLimits().GetImageRateLimit(); rl != nil && (rl.GetRequests() == 0 || rl.GetPeriod().AsDuration() <= 0) {
+		rep.problem("GetInfo: the image rate limit needs requests and a period")
+	}
 	if s := info.GetConfigSchema(); s != nil {
 		if _, err := settings.FromStruct(s); err != nil {
 			rep.problem("GetInfo: config schema: %v", err)

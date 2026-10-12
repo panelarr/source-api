@@ -900,12 +900,20 @@ func (x *PluginInfo) GetCommonServices() []CommonService {
 
 type Limits struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
-	// Maximum parallel requests the plugin wants per source. 0 means no limit declared.
+	// Maximum parallel calls the plugin wants per source, FetchImage excepted. 0 means no
+	// limit declared.
 	MaxConcurrencyPerSource uint32 `protobuf:"varint,1,opt,name=max_concurrency_per_source,json=maxConcurrencyPerSource,proto3" json:"max_concurrency_per_source,omitempty"`
-	// Default request rate per source. Unset means no limit declared.
+	// Call rate per source, FetchImage excepted (lists, search, details, chapters, pages).
+	// Unset means no limit declared.
 	DefaultRateLimit *RateLimit `protobuf:"bytes,2,opt,name=default_rate_limit,json=defaultRateLimit,proto3" json:"default_rate_limit,omitempty"`
-	unknownFields    protoimpl.UnknownFields
-	sizeCache        protoimpl.SizeCache
+	// How fast a host may call FetchImage per source. Images often come from CDNs, and
+	// many plugins pace image downloads themselves; unset means the plugin does, and hosts
+	// should add no pacing of their own.
+	ImageRateLimit *RateLimit `protobuf:"bytes,3,opt,name=image_rate_limit,json=imageRateLimit,proto3" json:"image_rate_limit,omitempty"`
+	// Maximum parallel FetchImage calls per source. 0 means no limit declared.
+	MaxImageConcurrencyPerSource uint32 `protobuf:"varint,4,opt,name=max_image_concurrency_per_source,json=maxImageConcurrencyPerSource,proto3" json:"max_image_concurrency_per_source,omitempty"`
+	unknownFields                protoimpl.UnknownFields
+	sizeCache                    protoimpl.SizeCache
 }
 
 func (x *Limits) Reset() {
@@ -950,6 +958,20 @@ func (x *Limits) GetDefaultRateLimit() *RateLimit {
 		return x.DefaultRateLimit
 	}
 	return nil
+}
+
+func (x *Limits) GetImageRateLimit() *RateLimit {
+	if x != nil {
+		return x.ImageRateLimit
+	}
+	return nil
+}
+
+func (x *Limits) GetMaxImageConcurrencyPerSource() uint32 {
+	if x != nil {
+		return x.MaxImageConcurrencyPerSource
+	}
+	return 0
 }
 
 type RateLimit struct {
@@ -5605,10 +5627,12 @@ const file_panelarr_source_v1_source_plugin_proto_rawDesc = "" +
 	"\fcapabilities\x18\x05 \x03(\x0e2$.panelarr.source.v1.PluginCapabilityR\fcapabilities\x122\n" +
 	"\x06limits\x18\x06 \x01(\v2\x1a.panelarr.source.v1.LimitsR\x06limits\x12<\n" +
 	"\rconfig_schema\x18\a \x01(\v2\x17.google.protobuf.StructR\fconfigSchema\x12J\n" +
-	"\x0fcommon_services\x18\b \x03(\x0e2!.panelarr.source.v1.CommonServiceR\x0ecommonServices\"\x92\x01\n" +
+	"\x0fcommon_services\x18\b \x03(\x0e2!.panelarr.source.v1.CommonServiceR\x0ecommonServices\"\xa3\x02\n" +
 	"\x06Limits\x12;\n" +
 	"\x1amax_concurrency_per_source\x18\x01 \x01(\rR\x17maxConcurrencyPerSource\x12K\n" +
-	"\x12default_rate_limit\x18\x02 \x01(\v2\x1d.panelarr.source.v1.RateLimitR\x10defaultRateLimit\"\xaa\x01\n" +
+	"\x12default_rate_limit\x18\x02 \x01(\v2\x1d.panelarr.source.v1.RateLimitR\x10defaultRateLimit\x12G\n" +
+	"\x10image_rate_limit\x18\x03 \x01(\v2\x1d.panelarr.source.v1.RateLimitR\x0eimageRateLimit\x12F\n" +
+	" max_image_concurrency_per_source\x18\x04 \x01(\rR\x1cmaxImageConcurrencyPerSource\"\xaa\x01\n" +
 	"\tRateLimit\x12\x1a\n" +
 	"\brequests\x18\x01 \x01(\rR\brequests\x121\n" +
 	"\x06period\x18\x02 \x01(\v2\x19.google.protobuf.DurationR\x06period\x12\x14\n" +
@@ -6139,131 +6163,132 @@ var file_panelarr_source_v1_source_plugin_proto_depIdxs = []int32{
 	94,  // 3: panelarr.source.v1.PluginInfo.config_schema:type_name -> google.protobuf.Struct
 	1,   // 4: panelarr.source.v1.PluginInfo.common_services:type_name -> panelarr.source.v1.CommonService
 	16,  // 5: panelarr.source.v1.Limits.default_rate_limit:type_name -> panelarr.source.v1.RateLimit
-	95,  // 6: panelarr.source.v1.RateLimit.period:type_name -> google.protobuf.Duration
-	2,   // 7: panelarr.source.v1.RateLimit.scope:type_name -> panelarr.source.v1.RateLimitScope
-	94,  // 8: panelarr.source.v1.GetConfigResponse.values:type_name -> google.protobuf.Struct
-	94,  // 9: panelarr.source.v1.SetConfigRequest.values:type_name -> google.protobuf.Struct
-	94,  // 10: panelarr.source.v1.SetConfigResponse.values:type_name -> google.protobuf.Struct
-	3,   // 11: panelarr.source.v1.HealthResponse.status:type_name -> panelarr.source.v1.HealthStatus
-	7,   // 12: panelarr.source.v1.Source.content_rating:type_name -> panelarr.source.v1.ContentRating
-	6,   // 13: panelarr.source.v1.Source.capabilities:type_name -> panelarr.source.v1.SourceCapability
-	24,  // 14: panelarr.source.v1.Source.health:type_name -> panelarr.source.v1.SourceHealth
-	5,   // 15: panelarr.source.v1.SourceHealth.status:type_name -> panelarr.source.v1.SourceHealthStatus
-	95,  // 16: panelarr.source.v1.SourceHealth.latency:type_name -> google.protobuf.Duration
-	96,  // 17: panelarr.source.v1.SourceHealth.checked_at:type_name -> google.protobuf.Timestamp
-	23,  // 18: panelarr.source.v1.ListSourcesResponse.sources:type_name -> panelarr.source.v1.Source
-	23,  // 19: panelarr.source.v1.GetSourceResponse.source:type_name -> panelarr.source.v1.Source
-	31,  // 20: panelarr.source.v1.GetFiltersResponse.filters:type_name -> panelarr.source.v1.Filter
-	32,  // 21: panelarr.source.v1.Filter.header:type_name -> panelarr.source.v1.HeaderFilter
-	33,  // 22: panelarr.source.v1.Filter.separator:type_name -> panelarr.source.v1.SeparatorFilter
-	34,  // 23: panelarr.source.v1.Filter.text:type_name -> panelarr.source.v1.TextFilter
-	35,  // 24: panelarr.source.v1.Filter.checkbox:type_name -> panelarr.source.v1.CheckboxFilter
-	36,  // 25: panelarr.source.v1.Filter.tri_state:type_name -> panelarr.source.v1.TriStateFilter
-	37,  // 26: panelarr.source.v1.Filter.select:type_name -> panelarr.source.v1.SelectFilter
-	38,  // 27: panelarr.source.v1.Filter.sort:type_name -> panelarr.source.v1.SortFilter
-	40,  // 28: panelarr.source.v1.Filter.group:type_name -> panelarr.source.v1.GroupFilter
-	8,   // 29: panelarr.source.v1.TriStateFilter.value:type_name -> panelarr.source.v1.TriState
-	39,  // 30: panelarr.source.v1.SortFilter.selection:type_name -> panelarr.source.v1.SortSelection
-	31,  // 31: panelarr.source.v1.GroupFilter.filters:type_name -> panelarr.source.v1.Filter
-	8,   // 32: panelarr.source.v1.FilterValue.tri_state:type_name -> panelarr.source.v1.TriState
-	39,  // 33: panelarr.source.v1.FilterValue.sort:type_name -> panelarr.source.v1.SortSelection
-	9,   // 34: panelarr.source.v1.Series.status:type_name -> panelarr.source.v1.SeriesStatus
-	42,  // 35: panelarr.source.v1.PopularResponse.series:type_name -> panelarr.source.v1.Series
-	42,  // 36: panelarr.source.v1.LatestResponse.series:type_name -> panelarr.source.v1.Series
-	41,  // 37: panelarr.source.v1.SearchRequest.filters:type_name -> panelarr.source.v1.FilterValue
-	42,  // 38: panelarr.source.v1.SearchResponse.series:type_name -> panelarr.source.v1.Series
-	42,  // 39: panelarr.source.v1.ResolveUrlResponse.series:type_name -> panelarr.source.v1.Series
-	42,  // 40: panelarr.source.v1.GetSeriesResponse.series:type_name -> panelarr.source.v1.Series
-	96,  // 41: panelarr.source.v1.Chapter.uploaded_at:type_name -> google.protobuf.Timestamp
-	53,  // 42: panelarr.source.v1.ListChaptersResponse.chapters:type_name -> panelarr.source.v1.Chapter
-	56,  // 43: panelarr.source.v1.ListPagesResponse.pages:type_name -> panelarr.source.v1.Page
-	61,  // 44: panelarr.source.v1.FetchImageResponse.metadata:type_name -> panelarr.source.v1.ImageMetadata
-	7,   // 45: panelarr.source.v1.Package.content_rating:type_name -> panelarr.source.v1.ContentRating
-	63,  // 46: panelarr.source.v1.Package.offers:type_name -> panelarr.source.v1.PackageOffer
-	64,  // 47: panelarr.source.v1.Package.sources:type_name -> panelarr.source.v1.PackageSource
-	65,  // 48: panelarr.source.v1.Package.settings:type_name -> panelarr.source.v1.PackageSettings
-	62,  // 49: panelarr.source.v1.ListPackagesResponse.packages:type_name -> panelarr.source.v1.Package
-	62,  // 50: panelarr.source.v1.GetPackageResponse.package:type_name -> panelarr.source.v1.Package
-	62,  // 51: panelarr.source.v1.InstallPackageResponse.package:type_name -> panelarr.source.v1.Package
-	62,  // 52: panelarr.source.v1.UpdatePackageResponse.package:type_name -> panelarr.source.v1.Package
-	65,  // 53: panelarr.source.v1.SetPackageSettingsRequest.settings:type_name -> panelarr.source.v1.PackageSettings
-	62,  // 54: panelarr.source.v1.SetPackageSettingsResponse.package:type_name -> panelarr.source.v1.Package
-	94,  // 55: panelarr.source.v1.GetSettingsSchemaResponse.schema:type_name -> google.protobuf.Struct
-	94,  // 56: panelarr.source.v1.GetSettingsResponse.values:type_name -> google.protobuf.Struct
-	94,  // 57: panelarr.source.v1.SetSettingsRequest.values:type_name -> google.protobuf.Struct
-	94,  // 58: panelarr.source.v1.SetSettingsResponse.values:type_name -> google.protobuf.Struct
-	88,  // 59: panelarr.source.v1.SetNetworkProfileRequest.profile:type_name -> panelarr.source.v1.NetworkProfile
-	88,  // 60: panelarr.source.v1.GetNetworkProfileResponse.profile:type_name -> panelarr.source.v1.NetworkProfile
-	10,  // 61: panelarr.source.v1.GetNetworkProfileResponse.origin:type_name -> panelarr.source.v1.NetworkProfileOrigin
-	89,  // 62: panelarr.source.v1.NetworkProfile.proxy:type_name -> panelarr.source.v1.Proxy
-	90,  // 63: panelarr.source.v1.NetworkProfile.solver:type_name -> panelarr.source.v1.Solver
-	16,  // 64: panelarr.source.v1.NetworkProfile.rate_limit:type_name -> panelarr.source.v1.RateLimit
-	91,  // 65: panelarr.source.v1.NetworkProfile.user_agent:type_name -> panelarr.source.v1.UserAgent
-	93,  // 66: panelarr.source.v1.NetworkProfile.headers:type_name -> panelarr.source.v1.NetworkProfile.HeadersEntry
-	92,  // 67: panelarr.source.v1.NetworkProfile.timeouts:type_name -> panelarr.source.v1.Timeouts
-	11,  // 68: panelarr.source.v1.Solver.type:type_name -> panelarr.source.v1.SolverType
-	95,  // 69: panelarr.source.v1.Solver.session_ttl:type_name -> google.protobuf.Duration
-	95,  // 70: panelarr.source.v1.Solver.max_timeout:type_name -> google.protobuf.Duration
-	95,  // 71: panelarr.source.v1.Timeouts.connect:type_name -> google.protobuf.Duration
-	95,  // 72: panelarr.source.v1.Timeouts.read:type_name -> google.protobuf.Duration
-	95,  // 73: panelarr.source.v1.Timeouts.call:type_name -> google.protobuf.Duration
-	12,  // 74: panelarr.source.v1.SourcePluginService.GetInfo:input_type -> panelarr.source.v1.GetInfoRequest
-	17,  // 75: panelarr.source.v1.SourcePluginService.GetConfig:input_type -> panelarr.source.v1.GetConfigRequest
-	19,  // 76: panelarr.source.v1.SourcePluginService.SetConfig:input_type -> panelarr.source.v1.SetConfigRequest
-	21,  // 77: panelarr.source.v1.SourcePluginService.Health:input_type -> panelarr.source.v1.HealthRequest
-	25,  // 78: panelarr.source.v1.SourcePluginService.ListSources:input_type -> panelarr.source.v1.ListSourcesRequest
-	27,  // 79: panelarr.source.v1.SourcePluginService.GetSource:input_type -> panelarr.source.v1.GetSourceRequest
-	29,  // 80: panelarr.source.v1.SourcePluginService.GetFilters:input_type -> panelarr.source.v1.GetFiltersRequest
-	43,  // 81: panelarr.source.v1.SourcePluginService.Popular:input_type -> panelarr.source.v1.PopularRequest
-	45,  // 82: panelarr.source.v1.SourcePluginService.Latest:input_type -> panelarr.source.v1.LatestRequest
-	47,  // 83: panelarr.source.v1.SourcePluginService.Search:input_type -> panelarr.source.v1.SearchRequest
-	49,  // 84: panelarr.source.v1.SourcePluginService.ResolveUrl:input_type -> panelarr.source.v1.ResolveUrlRequest
-	51,  // 85: panelarr.source.v1.SourcePluginService.GetSeries:input_type -> panelarr.source.v1.GetSeriesRequest
-	54,  // 86: panelarr.source.v1.SourcePluginService.ListChapters:input_type -> panelarr.source.v1.ListChaptersRequest
-	57,  // 87: panelarr.source.v1.SourcePluginService.ListPages:input_type -> panelarr.source.v1.ListPagesRequest
-	59,  // 88: panelarr.source.v1.SourcePluginService.FetchImage:input_type -> panelarr.source.v1.FetchImageRequest
-	78,  // 89: panelarr.source.v1.SourcePluginService.GetSettingsSchema:input_type -> panelarr.source.v1.GetSettingsSchemaRequest
-	80,  // 90: panelarr.source.v1.SourcePluginService.GetSettings:input_type -> panelarr.source.v1.GetSettingsRequest
-	82,  // 91: panelarr.source.v1.SourcePluginService.SetSettings:input_type -> panelarr.source.v1.SetSettingsRequest
-	66,  // 92: panelarr.source.v1.SourcePluginService.ListPackages:input_type -> panelarr.source.v1.ListPackagesRequest
-	68,  // 93: panelarr.source.v1.SourcePluginService.GetPackage:input_type -> panelarr.source.v1.GetPackageRequest
-	70,  // 94: panelarr.source.v1.SourcePluginService.InstallPackage:input_type -> panelarr.source.v1.InstallPackageRequest
-	72,  // 95: panelarr.source.v1.SourcePluginService.UpdatePackage:input_type -> panelarr.source.v1.UpdatePackageRequest
-	74,  // 96: panelarr.source.v1.SourcePluginService.UninstallPackage:input_type -> panelarr.source.v1.UninstallPackageRequest
-	76,  // 97: panelarr.source.v1.SourcePluginService.SetPackageSettings:input_type -> panelarr.source.v1.SetPackageSettingsRequest
-	86,  // 98: panelarr.source.v1.SourcePluginService.GetNetworkProfile:input_type -> panelarr.source.v1.GetNetworkProfileRequest
-	84,  // 99: panelarr.source.v1.SourcePluginService.SetNetworkProfile:input_type -> panelarr.source.v1.SetNetworkProfileRequest
-	13,  // 100: panelarr.source.v1.SourcePluginService.GetInfo:output_type -> panelarr.source.v1.GetInfoResponse
-	18,  // 101: panelarr.source.v1.SourcePluginService.GetConfig:output_type -> panelarr.source.v1.GetConfigResponse
-	20,  // 102: panelarr.source.v1.SourcePluginService.SetConfig:output_type -> panelarr.source.v1.SetConfigResponse
-	22,  // 103: panelarr.source.v1.SourcePluginService.Health:output_type -> panelarr.source.v1.HealthResponse
-	26,  // 104: panelarr.source.v1.SourcePluginService.ListSources:output_type -> panelarr.source.v1.ListSourcesResponse
-	28,  // 105: panelarr.source.v1.SourcePluginService.GetSource:output_type -> panelarr.source.v1.GetSourceResponse
-	30,  // 106: panelarr.source.v1.SourcePluginService.GetFilters:output_type -> panelarr.source.v1.GetFiltersResponse
-	44,  // 107: panelarr.source.v1.SourcePluginService.Popular:output_type -> panelarr.source.v1.PopularResponse
-	46,  // 108: panelarr.source.v1.SourcePluginService.Latest:output_type -> panelarr.source.v1.LatestResponse
-	48,  // 109: panelarr.source.v1.SourcePluginService.Search:output_type -> panelarr.source.v1.SearchResponse
-	50,  // 110: panelarr.source.v1.SourcePluginService.ResolveUrl:output_type -> panelarr.source.v1.ResolveUrlResponse
-	52,  // 111: panelarr.source.v1.SourcePluginService.GetSeries:output_type -> panelarr.source.v1.GetSeriesResponse
-	55,  // 112: panelarr.source.v1.SourcePluginService.ListChapters:output_type -> panelarr.source.v1.ListChaptersResponse
-	58,  // 113: panelarr.source.v1.SourcePluginService.ListPages:output_type -> panelarr.source.v1.ListPagesResponse
-	60,  // 114: panelarr.source.v1.SourcePluginService.FetchImage:output_type -> panelarr.source.v1.FetchImageResponse
-	79,  // 115: panelarr.source.v1.SourcePluginService.GetSettingsSchema:output_type -> panelarr.source.v1.GetSettingsSchemaResponse
-	81,  // 116: panelarr.source.v1.SourcePluginService.GetSettings:output_type -> panelarr.source.v1.GetSettingsResponse
-	83,  // 117: panelarr.source.v1.SourcePluginService.SetSettings:output_type -> panelarr.source.v1.SetSettingsResponse
-	67,  // 118: panelarr.source.v1.SourcePluginService.ListPackages:output_type -> panelarr.source.v1.ListPackagesResponse
-	69,  // 119: panelarr.source.v1.SourcePluginService.GetPackage:output_type -> panelarr.source.v1.GetPackageResponse
-	71,  // 120: panelarr.source.v1.SourcePluginService.InstallPackage:output_type -> panelarr.source.v1.InstallPackageResponse
-	73,  // 121: panelarr.source.v1.SourcePluginService.UpdatePackage:output_type -> panelarr.source.v1.UpdatePackageResponse
-	75,  // 122: panelarr.source.v1.SourcePluginService.UninstallPackage:output_type -> panelarr.source.v1.UninstallPackageResponse
-	77,  // 123: panelarr.source.v1.SourcePluginService.SetPackageSettings:output_type -> panelarr.source.v1.SetPackageSettingsResponse
-	87,  // 124: panelarr.source.v1.SourcePluginService.GetNetworkProfile:output_type -> panelarr.source.v1.GetNetworkProfileResponse
-	85,  // 125: panelarr.source.v1.SourcePluginService.SetNetworkProfile:output_type -> panelarr.source.v1.SetNetworkProfileResponse
-	100, // [100:126] is the sub-list for method output_type
-	74,  // [74:100] is the sub-list for method input_type
-	74,  // [74:74] is the sub-list for extension type_name
-	74,  // [74:74] is the sub-list for extension extendee
-	0,   // [0:74] is the sub-list for field type_name
+	16,  // 6: panelarr.source.v1.Limits.image_rate_limit:type_name -> panelarr.source.v1.RateLimit
+	95,  // 7: panelarr.source.v1.RateLimit.period:type_name -> google.protobuf.Duration
+	2,   // 8: panelarr.source.v1.RateLimit.scope:type_name -> panelarr.source.v1.RateLimitScope
+	94,  // 9: panelarr.source.v1.GetConfigResponse.values:type_name -> google.protobuf.Struct
+	94,  // 10: panelarr.source.v1.SetConfigRequest.values:type_name -> google.protobuf.Struct
+	94,  // 11: panelarr.source.v1.SetConfigResponse.values:type_name -> google.protobuf.Struct
+	3,   // 12: panelarr.source.v1.HealthResponse.status:type_name -> panelarr.source.v1.HealthStatus
+	7,   // 13: panelarr.source.v1.Source.content_rating:type_name -> panelarr.source.v1.ContentRating
+	6,   // 14: panelarr.source.v1.Source.capabilities:type_name -> panelarr.source.v1.SourceCapability
+	24,  // 15: panelarr.source.v1.Source.health:type_name -> panelarr.source.v1.SourceHealth
+	5,   // 16: panelarr.source.v1.SourceHealth.status:type_name -> panelarr.source.v1.SourceHealthStatus
+	95,  // 17: panelarr.source.v1.SourceHealth.latency:type_name -> google.protobuf.Duration
+	96,  // 18: panelarr.source.v1.SourceHealth.checked_at:type_name -> google.protobuf.Timestamp
+	23,  // 19: panelarr.source.v1.ListSourcesResponse.sources:type_name -> panelarr.source.v1.Source
+	23,  // 20: panelarr.source.v1.GetSourceResponse.source:type_name -> panelarr.source.v1.Source
+	31,  // 21: panelarr.source.v1.GetFiltersResponse.filters:type_name -> panelarr.source.v1.Filter
+	32,  // 22: panelarr.source.v1.Filter.header:type_name -> panelarr.source.v1.HeaderFilter
+	33,  // 23: panelarr.source.v1.Filter.separator:type_name -> panelarr.source.v1.SeparatorFilter
+	34,  // 24: panelarr.source.v1.Filter.text:type_name -> panelarr.source.v1.TextFilter
+	35,  // 25: panelarr.source.v1.Filter.checkbox:type_name -> panelarr.source.v1.CheckboxFilter
+	36,  // 26: panelarr.source.v1.Filter.tri_state:type_name -> panelarr.source.v1.TriStateFilter
+	37,  // 27: panelarr.source.v1.Filter.select:type_name -> panelarr.source.v1.SelectFilter
+	38,  // 28: panelarr.source.v1.Filter.sort:type_name -> panelarr.source.v1.SortFilter
+	40,  // 29: panelarr.source.v1.Filter.group:type_name -> panelarr.source.v1.GroupFilter
+	8,   // 30: panelarr.source.v1.TriStateFilter.value:type_name -> panelarr.source.v1.TriState
+	39,  // 31: panelarr.source.v1.SortFilter.selection:type_name -> panelarr.source.v1.SortSelection
+	31,  // 32: panelarr.source.v1.GroupFilter.filters:type_name -> panelarr.source.v1.Filter
+	8,   // 33: panelarr.source.v1.FilterValue.tri_state:type_name -> panelarr.source.v1.TriState
+	39,  // 34: panelarr.source.v1.FilterValue.sort:type_name -> panelarr.source.v1.SortSelection
+	9,   // 35: panelarr.source.v1.Series.status:type_name -> panelarr.source.v1.SeriesStatus
+	42,  // 36: panelarr.source.v1.PopularResponse.series:type_name -> panelarr.source.v1.Series
+	42,  // 37: panelarr.source.v1.LatestResponse.series:type_name -> panelarr.source.v1.Series
+	41,  // 38: panelarr.source.v1.SearchRequest.filters:type_name -> panelarr.source.v1.FilterValue
+	42,  // 39: panelarr.source.v1.SearchResponse.series:type_name -> panelarr.source.v1.Series
+	42,  // 40: panelarr.source.v1.ResolveUrlResponse.series:type_name -> panelarr.source.v1.Series
+	42,  // 41: panelarr.source.v1.GetSeriesResponse.series:type_name -> panelarr.source.v1.Series
+	96,  // 42: panelarr.source.v1.Chapter.uploaded_at:type_name -> google.protobuf.Timestamp
+	53,  // 43: panelarr.source.v1.ListChaptersResponse.chapters:type_name -> panelarr.source.v1.Chapter
+	56,  // 44: panelarr.source.v1.ListPagesResponse.pages:type_name -> panelarr.source.v1.Page
+	61,  // 45: panelarr.source.v1.FetchImageResponse.metadata:type_name -> panelarr.source.v1.ImageMetadata
+	7,   // 46: panelarr.source.v1.Package.content_rating:type_name -> panelarr.source.v1.ContentRating
+	63,  // 47: panelarr.source.v1.Package.offers:type_name -> panelarr.source.v1.PackageOffer
+	64,  // 48: panelarr.source.v1.Package.sources:type_name -> panelarr.source.v1.PackageSource
+	65,  // 49: panelarr.source.v1.Package.settings:type_name -> panelarr.source.v1.PackageSettings
+	62,  // 50: panelarr.source.v1.ListPackagesResponse.packages:type_name -> panelarr.source.v1.Package
+	62,  // 51: panelarr.source.v1.GetPackageResponse.package:type_name -> panelarr.source.v1.Package
+	62,  // 52: panelarr.source.v1.InstallPackageResponse.package:type_name -> panelarr.source.v1.Package
+	62,  // 53: panelarr.source.v1.UpdatePackageResponse.package:type_name -> panelarr.source.v1.Package
+	65,  // 54: panelarr.source.v1.SetPackageSettingsRequest.settings:type_name -> panelarr.source.v1.PackageSettings
+	62,  // 55: panelarr.source.v1.SetPackageSettingsResponse.package:type_name -> panelarr.source.v1.Package
+	94,  // 56: panelarr.source.v1.GetSettingsSchemaResponse.schema:type_name -> google.protobuf.Struct
+	94,  // 57: panelarr.source.v1.GetSettingsResponse.values:type_name -> google.protobuf.Struct
+	94,  // 58: panelarr.source.v1.SetSettingsRequest.values:type_name -> google.protobuf.Struct
+	94,  // 59: panelarr.source.v1.SetSettingsResponse.values:type_name -> google.protobuf.Struct
+	88,  // 60: panelarr.source.v1.SetNetworkProfileRequest.profile:type_name -> panelarr.source.v1.NetworkProfile
+	88,  // 61: panelarr.source.v1.GetNetworkProfileResponse.profile:type_name -> panelarr.source.v1.NetworkProfile
+	10,  // 62: panelarr.source.v1.GetNetworkProfileResponse.origin:type_name -> panelarr.source.v1.NetworkProfileOrigin
+	89,  // 63: panelarr.source.v1.NetworkProfile.proxy:type_name -> panelarr.source.v1.Proxy
+	90,  // 64: panelarr.source.v1.NetworkProfile.solver:type_name -> panelarr.source.v1.Solver
+	16,  // 65: panelarr.source.v1.NetworkProfile.rate_limit:type_name -> panelarr.source.v1.RateLimit
+	91,  // 66: panelarr.source.v1.NetworkProfile.user_agent:type_name -> panelarr.source.v1.UserAgent
+	93,  // 67: panelarr.source.v1.NetworkProfile.headers:type_name -> panelarr.source.v1.NetworkProfile.HeadersEntry
+	92,  // 68: panelarr.source.v1.NetworkProfile.timeouts:type_name -> panelarr.source.v1.Timeouts
+	11,  // 69: panelarr.source.v1.Solver.type:type_name -> panelarr.source.v1.SolverType
+	95,  // 70: panelarr.source.v1.Solver.session_ttl:type_name -> google.protobuf.Duration
+	95,  // 71: panelarr.source.v1.Solver.max_timeout:type_name -> google.protobuf.Duration
+	95,  // 72: panelarr.source.v1.Timeouts.connect:type_name -> google.protobuf.Duration
+	95,  // 73: panelarr.source.v1.Timeouts.read:type_name -> google.protobuf.Duration
+	95,  // 74: panelarr.source.v1.Timeouts.call:type_name -> google.protobuf.Duration
+	12,  // 75: panelarr.source.v1.SourcePluginService.GetInfo:input_type -> panelarr.source.v1.GetInfoRequest
+	17,  // 76: panelarr.source.v1.SourcePluginService.GetConfig:input_type -> panelarr.source.v1.GetConfigRequest
+	19,  // 77: panelarr.source.v1.SourcePluginService.SetConfig:input_type -> panelarr.source.v1.SetConfigRequest
+	21,  // 78: panelarr.source.v1.SourcePluginService.Health:input_type -> panelarr.source.v1.HealthRequest
+	25,  // 79: panelarr.source.v1.SourcePluginService.ListSources:input_type -> panelarr.source.v1.ListSourcesRequest
+	27,  // 80: panelarr.source.v1.SourcePluginService.GetSource:input_type -> panelarr.source.v1.GetSourceRequest
+	29,  // 81: panelarr.source.v1.SourcePluginService.GetFilters:input_type -> panelarr.source.v1.GetFiltersRequest
+	43,  // 82: panelarr.source.v1.SourcePluginService.Popular:input_type -> panelarr.source.v1.PopularRequest
+	45,  // 83: panelarr.source.v1.SourcePluginService.Latest:input_type -> panelarr.source.v1.LatestRequest
+	47,  // 84: panelarr.source.v1.SourcePluginService.Search:input_type -> panelarr.source.v1.SearchRequest
+	49,  // 85: panelarr.source.v1.SourcePluginService.ResolveUrl:input_type -> panelarr.source.v1.ResolveUrlRequest
+	51,  // 86: panelarr.source.v1.SourcePluginService.GetSeries:input_type -> panelarr.source.v1.GetSeriesRequest
+	54,  // 87: panelarr.source.v1.SourcePluginService.ListChapters:input_type -> panelarr.source.v1.ListChaptersRequest
+	57,  // 88: panelarr.source.v1.SourcePluginService.ListPages:input_type -> panelarr.source.v1.ListPagesRequest
+	59,  // 89: panelarr.source.v1.SourcePluginService.FetchImage:input_type -> panelarr.source.v1.FetchImageRequest
+	78,  // 90: panelarr.source.v1.SourcePluginService.GetSettingsSchema:input_type -> panelarr.source.v1.GetSettingsSchemaRequest
+	80,  // 91: panelarr.source.v1.SourcePluginService.GetSettings:input_type -> panelarr.source.v1.GetSettingsRequest
+	82,  // 92: panelarr.source.v1.SourcePluginService.SetSettings:input_type -> panelarr.source.v1.SetSettingsRequest
+	66,  // 93: panelarr.source.v1.SourcePluginService.ListPackages:input_type -> panelarr.source.v1.ListPackagesRequest
+	68,  // 94: panelarr.source.v1.SourcePluginService.GetPackage:input_type -> panelarr.source.v1.GetPackageRequest
+	70,  // 95: panelarr.source.v1.SourcePluginService.InstallPackage:input_type -> panelarr.source.v1.InstallPackageRequest
+	72,  // 96: panelarr.source.v1.SourcePluginService.UpdatePackage:input_type -> panelarr.source.v1.UpdatePackageRequest
+	74,  // 97: panelarr.source.v1.SourcePluginService.UninstallPackage:input_type -> panelarr.source.v1.UninstallPackageRequest
+	76,  // 98: panelarr.source.v1.SourcePluginService.SetPackageSettings:input_type -> panelarr.source.v1.SetPackageSettingsRequest
+	86,  // 99: panelarr.source.v1.SourcePluginService.GetNetworkProfile:input_type -> panelarr.source.v1.GetNetworkProfileRequest
+	84,  // 100: panelarr.source.v1.SourcePluginService.SetNetworkProfile:input_type -> panelarr.source.v1.SetNetworkProfileRequest
+	13,  // 101: panelarr.source.v1.SourcePluginService.GetInfo:output_type -> panelarr.source.v1.GetInfoResponse
+	18,  // 102: panelarr.source.v1.SourcePluginService.GetConfig:output_type -> panelarr.source.v1.GetConfigResponse
+	20,  // 103: panelarr.source.v1.SourcePluginService.SetConfig:output_type -> panelarr.source.v1.SetConfigResponse
+	22,  // 104: panelarr.source.v1.SourcePluginService.Health:output_type -> panelarr.source.v1.HealthResponse
+	26,  // 105: panelarr.source.v1.SourcePluginService.ListSources:output_type -> panelarr.source.v1.ListSourcesResponse
+	28,  // 106: panelarr.source.v1.SourcePluginService.GetSource:output_type -> panelarr.source.v1.GetSourceResponse
+	30,  // 107: panelarr.source.v1.SourcePluginService.GetFilters:output_type -> panelarr.source.v1.GetFiltersResponse
+	44,  // 108: panelarr.source.v1.SourcePluginService.Popular:output_type -> panelarr.source.v1.PopularResponse
+	46,  // 109: panelarr.source.v1.SourcePluginService.Latest:output_type -> panelarr.source.v1.LatestResponse
+	48,  // 110: panelarr.source.v1.SourcePluginService.Search:output_type -> panelarr.source.v1.SearchResponse
+	50,  // 111: panelarr.source.v1.SourcePluginService.ResolveUrl:output_type -> panelarr.source.v1.ResolveUrlResponse
+	52,  // 112: panelarr.source.v1.SourcePluginService.GetSeries:output_type -> panelarr.source.v1.GetSeriesResponse
+	55,  // 113: panelarr.source.v1.SourcePluginService.ListChapters:output_type -> panelarr.source.v1.ListChaptersResponse
+	58,  // 114: panelarr.source.v1.SourcePluginService.ListPages:output_type -> panelarr.source.v1.ListPagesResponse
+	60,  // 115: panelarr.source.v1.SourcePluginService.FetchImage:output_type -> panelarr.source.v1.FetchImageResponse
+	79,  // 116: panelarr.source.v1.SourcePluginService.GetSettingsSchema:output_type -> panelarr.source.v1.GetSettingsSchemaResponse
+	81,  // 117: panelarr.source.v1.SourcePluginService.GetSettings:output_type -> panelarr.source.v1.GetSettingsResponse
+	83,  // 118: panelarr.source.v1.SourcePluginService.SetSettings:output_type -> panelarr.source.v1.SetSettingsResponse
+	67,  // 119: panelarr.source.v1.SourcePluginService.ListPackages:output_type -> panelarr.source.v1.ListPackagesResponse
+	69,  // 120: panelarr.source.v1.SourcePluginService.GetPackage:output_type -> panelarr.source.v1.GetPackageResponse
+	71,  // 121: panelarr.source.v1.SourcePluginService.InstallPackage:output_type -> panelarr.source.v1.InstallPackageResponse
+	73,  // 122: panelarr.source.v1.SourcePluginService.UpdatePackage:output_type -> panelarr.source.v1.UpdatePackageResponse
+	75,  // 123: panelarr.source.v1.SourcePluginService.UninstallPackage:output_type -> panelarr.source.v1.UninstallPackageResponse
+	77,  // 124: panelarr.source.v1.SourcePluginService.SetPackageSettings:output_type -> panelarr.source.v1.SetPackageSettingsResponse
+	87,  // 125: panelarr.source.v1.SourcePluginService.GetNetworkProfile:output_type -> panelarr.source.v1.GetNetworkProfileResponse
+	85,  // 126: panelarr.source.v1.SourcePluginService.SetNetworkProfile:output_type -> panelarr.source.v1.SetNetworkProfileResponse
+	101, // [101:127] is the sub-list for method output_type
+	75,  // [75:101] is the sub-list for method input_type
+	75,  // [75:75] is the sub-list for extension type_name
+	75,  // [75:75] is the sub-list for extension extendee
+	0,   // [0:75] is the sub-list for field type_name
 }
 
 func init() { file_panelarr_source_v1_source_plugin_proto_init() }

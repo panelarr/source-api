@@ -247,8 +247,9 @@ func (f *Fake) GetInfo(context.Context, *sourcev1.GetInfoRequest) (*sourcev1.Get
 		Capabilities:   f.capabilities(),
 		CommonServices: []sourcev1.CommonService{sourcev1.CommonService_COMMON_SERVICE_NETWORK_PROFILE},
 		Limits: &sourcev1.Limits{
-			MaxConcurrencyPerSource: 2,
-			DefaultRateLimit:        &sourcev1.RateLimit{Requests: 10, Period: durationpb.New(time.Second), Scope: sourcev1.RateLimitScope_RATE_LIMIT_SCOPE_SOURCE},
+			MaxConcurrencyPerSource:      2,
+			MaxImageConcurrencyPerSource: 4,
+			DefaultRateLimit:             &sourcev1.RateLimit{Requests: 10, Period: durationpb.New(time.Second), Scope: sourcev1.RateLimitScope_RATE_LIMIT_SCOPE_SOURCE},
 		},
 	}
 	if f.Config != nil {
