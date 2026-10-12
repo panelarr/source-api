@@ -75,6 +75,12 @@ type Job struct {
 	Params []*jobsv1.JobParam
 	// Cancellable jobs stop when their run's context is cancelled.
 	Cancellable bool
+	// DisabledReason, when set, says why the job can't run now; "" means it
+	// can. It's asked every time the job is shown or due, so it follows
+	// changes. While it gives a reason, starting the job fails with
+	// JOB_DISABLED and the schedule doesn't fire. It must not call the
+	// runner.
+	DisabledReason func() string
 	// Run does the work. Returning an error fails the run with its message;
 	// see [Run] for counts, notes, progress and skipping.
 	Run func(ctx context.Context, run *Run) error
@@ -104,6 +110,14 @@ type Runner struct {
 	jobs    map[string]*entry
 	runs    map[string]*Run
 	started bool
+}
+
+// disabled is why e can't run now, or "".
+func (e *entry) disabled() string {
+	if e.job.DisabledReason == nil {
+		return ""
+	}
+	return e.job.DisabledReason()
 }
 
 type entry struct {
@@ -155,7 +169,7 @@ func (r *Runner) Start() {
 	r.started = true
 	for _, id := range r.order {
 		e := r.jobs[id]
-		if e.job.AtStart {
+		if e.job.AtStart && e.disabled() == "" {
 			r.startLocked(e, jobsv1.JobTrigger_JOB_TRIGGER_STARTUP, r.defaults(e), "")
 		}
 		r.wg.Add(1)
@@ -241,7 +255,9 @@ func (r *Runner) schedule(e *entry) {
 			}
 		case <-tick:
 			r.mu.Lock()
-			r.startLocked(e, jobsv1.JobTrigger_JOB_TRIGGER_SCHEDULE, r.defaults(e), "")
+			if e.disabled() == "" {
+				r.startLocked(e, jobsv1.JobTrigger_JOB_TRIGGER_SCHEDULE, r.defaults(e), "")
+			}
 			r.mu.Unlock()
 		}
 	}
@@ -253,6 +269,9 @@ func (r *Runner) start(id string, trigger jobsv1.JobTrigger, params map[string]s
 	e := r.jobs[id]
 	if e == nil {
 		return nil, plugin.ErrNotFound("no job %q", id)
+	}
+	if reason := e.disabled(); reason != "" {
+		return nil, plugin.ErrJobDisabled(id, reason)
 	}
 	checked, err := checkParams(e.job.Params, params)
 	if err != nil {
@@ -444,10 +463,11 @@ func (r *Runner) jobView(e *entry) *jobsv1.Job {
 	for _, p := range e.job.Params {
 		j.Params = append(j.Params, proto.CloneOf(p))
 	}
+	j.DisabledReason = e.disabled()
 	if e.every > 0 {
 		j.Schedule.Kind = &jobsv1.Schedule_Interval{Interval: durationpb.New(e.every)}
 		j.Schedule.Enabled = true
-		if !e.next.IsZero() {
+		if !e.next.IsZero() && j.GetDisabledReason() == "" {
 			j.NextRunAt = timestamppb.New(e.next)
 		}
 	}

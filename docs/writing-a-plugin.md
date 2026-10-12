@@ -46,7 +46,7 @@ A plugin that installs things that provide sources (extensions) declares `PLUGIN
 
 ## Jobs
 
-A plugin with background work declares `PLUGIN_CAPABILITY_JOBS` and lets [`sdk/jobs`](../sdk/jobs/jobs.go) do the bookkeeping: add each `jobs.Job` (ID, name, schedule, params, a `Run` function) to a `jobs.Runner`, call `Start`, and forward the six job calls to the runner's methods of the same names. The runner keeps one run per job at a time, the last 100 runs in memory, schedules, skips scheduled runs while the job is busy, validates params and fills in their defaults, and cancels runs of `Cancellable` jobs. In `Run`, report through the `*jobs.Run`: `Count`, `Note`, `Progress`, `SetMessage`, or `Skip` when there's nothing to do; a returned error fails the run. `SetEvery` changes a schedule when the configuration does, and `Trigger` starts a run the plugin decides on itself.
+A plugin with background work declares `PLUGIN_CAPABILITY_JOBS` and lets [`sdk/jobs`](../sdk/jobs/jobs.go) do the bookkeeping: add each `jobs.Job` (ID, name, schedule, params, a `Run` function) to a `jobs.Runner`, call `Start`, and forward the six job calls to the runner's methods of the same names. The runner keeps one run per job at a time, the last 100 runs in memory, schedules, skips scheduled runs while the job is busy, validates params and fills in their defaults, and cancels runs of `Cancellable` jobs. In `Run`, report through the `*jobs.Run`: `Count`, `Note`, `Progress`, `SetMessage`, or `Skip` when there's nothing to do; a returned error fails the run. `SetEvery` changes a schedule when the configuration does, and `Trigger` starts a run the plugin decides on itself. Give a job a `DisabledReason` function when it can't always run (a feature it needs is off): while it returns a reason, hosts see it, starts answer `JOB_DISABLED` and the schedule waits.
 
 ## Errors
 
@@ -63,6 +63,7 @@ Return the SDK's errors so hosts see the right code and reason:
 | `plugin.ErrStoreFetchFailed` | UNAVAILABLE | `STORE_FETCH_FAILED` (a package's origin couldn't be downloaded) |
 | `plugin.ErrStoreInvalid` | FAILED_PRECONDITION | `STORE_INVALID` (a package's origin can't be used) |
 | `plugin.ErrAlreadyRunning(runID, …)` | ALREADY_EXISTS | `ALREADY_RUNNING`, with the running run (`sdk/jobs` returns it for you) |
+| `plugin.ErrJobDisabled(jobID, reason)` | FAILED_PRECONDITION | `JOB_DISABLED`, with the job (`sdk/jobs` returns it for you) |
 | `plugin.ErrInvalidArgument` | INVALID_ARGUMENT | — |
 
 `httpx.StatusError(resp)` and `httpx.Wrap(err)` turn HTTP responses and transport errors into these.

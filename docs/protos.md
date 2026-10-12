@@ -37,6 +37,7 @@ The jobs and runs are messages of `panelarr.jobs.v1` ([proto](../proto/panelarr/
 - **Job IDs** match `^[a-z0-9][a-z0-9._-]*$`: never a `:`, for the same reason as package IDs (`:run`).
 - **One run at a time.** `RunJob` returns once the run has started; follow it with `GetJobRun`. Starting a running job fails with `ALREADY_EXISTS`, reason `ALREADY_RUNNING` (metadata `current_run_id`) and a `JobAlreadyRunning` detail. A scheduled run that finds its job busy is recorded as `SKIPPED`.
 - **Params** are declared on the job (`bool`, `int`, `string`, `string_list`, with defaults and choices). Scheduled runs use the defaults; a run that leaves a param out gets its default. `RunJobRequest.on_behalf_of` names who asked the host, and becomes the run's `triggered_by`.
+- **Disabled jobs:** a job's `disabled_reason`, when set, says why it can't run now (worked out by the plugin as things change). Starting it answers `FAILED_PRECONDITION`, reason `JOB_DISABLED` (metadata `job_id`), and its schedule doesn't fire: `next_run_at` is unset while `schedule.enabled` stays as configured. Hosts show the reason.
 - Cancelling a run that isn't running, or of a job that isn't `cancellable`, answers `FAILED_PRECONDITION`. Unknown jobs and runs answer `NOT_FOUND`.
 
 ## Restarts and network profiles
@@ -46,7 +47,7 @@ The jobs and runs are messages of `panelarr.jobs.v1` ([proto](../proto/panelarr/
 
 ## Errors
 
-Errors are gRPC status codes. When the upstream source is the problem, the status carries a `google.rpc.ErrorInfo` with domain `source.panelarr` and a reason from `ErrorReason` without its prefix: `CLOUDFLARE_CHALLENGE`, `RATE_LIMITED` (with a `google.rpc.RetryInfo`), `SOURCE_DOWN`, `NOT_FOUND`, `LOGIN_REQUIRED`, `UNSUPPORTED`, for packages `STORE_FETCH_FAILED` and `STORE_INVALID`, and for jobs `ALREADY_RUNNING`.
+Errors are gRPC status codes. When the upstream source is the problem, the status carries a `google.rpc.ErrorInfo` with domain `source.panelarr` and a reason from `ErrorReason` without its prefix: `CLOUDFLARE_CHALLENGE`, `RATE_LIMITED` (with a `google.rpc.RetryInfo`), `SOURCE_DOWN`, `NOT_FOUND`, `LOGIN_REQUIRED`, `UNSUPPORTED`, for packages `STORE_FETCH_FAILED` and `STORE_INVALID`, and for jobs `ALREADY_RUNNING` and `JOB_DISABLED`.
 
 ## Wire
 

@@ -436,6 +436,9 @@ enum ErrorReason {
   // The job is already running. Sent with ALREADY_EXISTS; the ErrorInfo's metadata
   // `current_run_id` and a panelarr.jobs.v1.JobAlreadyRunning detail name the running run.
   ERROR_REASON_ALREADY_RUNNING = 9;
+  // The job can't run now; Job.disabled_reason says why. Sent with FAILED_PRECONDITION;
+  // the ErrorInfo's metadata `job_id` names the job.
+  ERROR_REASON_JOB_DISABLED = 10;
 }
 
 // ---------------------------------------------------------------------------

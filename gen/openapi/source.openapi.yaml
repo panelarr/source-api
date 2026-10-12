@@ -114,6 +114,15 @@ components:
           type: string
           title: group
           description: A label to group jobs by, such as "Stores".
+        disabledReason:
+          type: string
+          title: disabled_reason
+          description: |-
+            Why the job can't run now, e.g. a feature it needs is turned off. Empty means it
+             can. While set, starting it fails with FAILED_PRECONDITION and reason
+             `JOB_DISABLED` (metadata `job_id`), and its schedule doesn't fire (`next_run_at`
+             unset; `schedule.enabled` stays as configured). Output only, worked out by the
+             service as things change.
       title: Job
       additionalProperties: false
     panelarr.jobs.v1.JobParam:

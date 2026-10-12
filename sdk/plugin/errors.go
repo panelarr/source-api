@@ -59,6 +59,7 @@ const (
 	ReasonStoreInvalid     Reason = "STORE_INVALID"
 	// Jobs.
 	ReasonAlreadyRunning Reason = "ALREADY_RUNNING"
+	ReasonJobDisabled    Reason = "JOB_DISABLED"
 )
 
 // ReasonOf turns an ErrorReason value into its wire name.
@@ -82,6 +83,9 @@ type Error struct {
 	// CurrentRunID is the running run, when starting a job that is already
 	// running (reason ALREADY_RUNNING).
 	CurrentRunID string
+	// Metadata is extra detail for the ErrorInfo, e.g. the job_id of
+	// JOB_DISABLED.
+	Metadata map[string]string
 }
 
 func (e *Error) Error() string {
@@ -172,6 +176,13 @@ func ErrAlreadyRunning(runID, format string, args ...any) *Error {
 	return e
 }
 
+// ErrJobDisabled says a job can't run now, for the reason given.
+func ErrJobDisabled(jobID, reason string) *Error {
+	e := reasoned(CodeFailedPrecondition, ReasonJobDisabled, "job %s can't run now: %s", jobID, reason)
+	e.Metadata = map[string]string{"job_id": jobID}
+	return e
+}
+
 // ErrorCode returns the code of err: the code of an *Error, CodeCanceled or
 // CodeDeadlineExceeded for context errors, CodeInternal otherwise.
 func ErrorCode(err error) Code {
@@ -244,8 +255,17 @@ func details(pe *Error) []proto.Message {
 	var out []proto.Message
 	if pe.Reason != "" {
 		info := &errdetails.ErrorInfo{Reason: string(pe.Reason), Domain: ErrorDomain}
+		for k, v := range pe.Metadata {
+			if info.Metadata == nil {
+				info.Metadata = map[string]string{}
+			}
+			info.Metadata[k] = v
+		}
 		if pe.CurrentRunID != "" {
-			info.Metadata = map[string]string{"current_run_id": pe.CurrentRunID}
+			if info.Metadata == nil {
+				info.Metadata = map[string]string{}
+			}
+			info.Metadata["current_run_id"] = pe.CurrentRunID
 		}
 		out = append(out, info)
 	}
@@ -264,6 +284,15 @@ func fromDetail(pe *Error, v any) {
 		pe.Reason = Reason(d.GetReason())
 		if id := d.GetMetadata()["current_run_id"]; id != "" {
 			pe.CurrentRunID = id
+		}
+		for k, v := range d.GetMetadata() {
+			if k == "current_run_id" {
+				continue
+			}
+			if pe.Metadata == nil {
+				pe.Metadata = map[string]string{}
+			}
+			pe.Metadata[k] = v
 		}
 	case *jobsv1.JobAlreadyRunning:
 		pe.CurrentRunID = d.GetCurrentRunId()

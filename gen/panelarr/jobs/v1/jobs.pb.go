@@ -159,9 +159,15 @@ type Job struct {
 	// What a run accepts as params.
 	Params []*JobParam `protobuf:"bytes,10,rep,name=params,proto3" json:"params,omitempty"`
 	// A label to group jobs by, such as "Stores".
-	Group         string `protobuf:"bytes,11,opt,name=group,proto3" json:"group,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	Group string `protobuf:"bytes,11,opt,name=group,proto3" json:"group,omitempty"`
+	// Why the job can't run now, e.g. a feature it needs is turned off. Empty means it
+	// can. While set, starting it fails with FAILED_PRECONDITION and reason
+	// `JOB_DISABLED` (metadata `job_id`), and its schedule doesn't fire (`next_run_at`
+	// unset; `schedule.enabled` stays as configured). Output only, worked out by the
+	// service as things change.
+	DisabledReason string `protobuf:"bytes,12,opt,name=disabled_reason,json=disabledReason,proto3" json:"disabled_reason,omitempty"`
+	unknownFields  protoimpl.UnknownFields
+	sizeCache      protoimpl.SizeCache
 }
 
 func (x *Job) Reset() {
@@ -267,6 +273,13 @@ func (x *Job) GetParams() []*JobParam {
 func (x *Job) GetGroup() string {
 	if x != nil {
 		return x.Group
+	}
+	return ""
+}
+
+func (x *Job) GetDisabledReason() string {
+	if x != nil {
+		return x.DisabledReason
 	}
 	return ""
 }
@@ -829,7 +842,7 @@ var File_panelarr_jobs_v1_jobs_proto protoreflect.FileDescriptor
 
 const file_panelarr_jobs_v1_jobs_proto_rawDesc = "" +
 	"\n" +
-	"\x1bpanelarr/jobs/v1/jobs.proto\x12\x10panelarr.jobs.v1\x1a\x1egoogle/protobuf/duration.proto\x1a\x1fgoogle/protobuf/timestamp.proto\"\xa7\x03\n" +
+	"\x1bpanelarr/jobs/v1/jobs.proto\x12\x10panelarr.jobs.v1\x1a\x1egoogle/protobuf/duration.proto\x1a\x1fgoogle/protobuf/timestamp.proto\"\xd0\x03\n" +
 	"\x03Job\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x12\n" +
 	"\x04name\x18\x02 \x01(\tR\x04name\x12 \n" +
@@ -842,7 +855,8 @@ const file_panelarr_jobs_v1_jobs_proto_rawDesc = "" +
 	"\vcancellable\x18\t \x01(\bR\vcancellable\x122\n" +
 	"\x06params\x18\n" +
 	" \x03(\v2\x1a.panelarr.jobs.v1.JobParamR\x06params\x12\x14\n" +
-	"\x05group\x18\v \x01(\tR\x05group\"\x93\x01\n" +
+	"\x05group\x18\v \x01(\tR\x05group\x12'\n" +
+	"\x0fdisabled_reason\x18\f \x01(\tR\x0edisabledReason\"\x93\x01\n" +
 	"\bSchedule\x12\x14\n" +
 	"\x04cron\x18\x01 \x01(\tH\x00R\x04cron\x127\n" +
 	"\binterval\x18\x02 \x01(\v2\x19.google.protobuf.DurationH\x00R\binterval\x12\x18\n" +

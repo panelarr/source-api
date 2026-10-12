@@ -39,6 +39,9 @@ func checkJobs(ctx context.Context, rep *Report, c client.Client, info *sourcev1
 			rep.problem("%s: id appears twice", at)
 		}
 		seen[j.GetId()] = true
+		if j.GetDisabledReason() != "" {
+			checkDisabledJob(ctx, rep, c, at, j)
+		}
 		got, err := c.GetJob(ctx, &sourcev1.GetJobRequest{JobId: j.GetId()})
 		if err != nil || got.GetJob().GetId() != j.GetId() {
 			rep.problem("GetJob(%s): %v", j.GetId(), err)
@@ -98,5 +101,17 @@ func checkHealthChecks(ctx context.Context, rep *Report, c client.Client, info *
 	}
 	if code := plugin.ErrorCode(err); code != plugin.CodeNotFound && code != plugin.CodeInvalidArgument {
 		rep.problem("SetSourceHealthCheck: an unknown source must be NOT_FOUND (or INVALID_ARGUMENT for a malformed id), got %v", err)
+	}
+}
+
+// checkDisabledJob: a job with a disabled reason has no next run and refuses
+// to start. Starting it is safe: it must not run.
+func checkDisabledJob(ctx context.Context, rep *Report, c client.Client, at string, j *jobsv1.Job) {
+	if j.GetNextRunAt() != nil {
+		rep.problem("%s: disabled (%s) but has a next run", at, j.GetDisabledReason())
+	}
+	_, err := c.RunJob(ctx, &sourcev1.RunJobRequest{JobId: j.GetId()})
+	if plugin.ErrorCode(err) != plugin.CodeFailedPrecondition || plugin.ErrorReason(err) != plugin.ReasonJobDisabled {
+		rep.problem("RunJob(%s): a disabled job must answer FAILED_PRECONDITION with reason JOB_DISABLED, got %v", j.GetId(), err)
 	}
 }

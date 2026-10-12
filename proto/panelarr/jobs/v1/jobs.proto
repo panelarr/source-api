@@ -20,6 +20,8 @@ option java_package = "panelarr.jobs.v1";
 //   google.rpc.ErrorInfo with reason `ALREADY_RUNNING` (metadata `current_run_id`) and a
 //   JobAlreadyRunning detail. A scheduled run that finds its job busy is recorded as
 //   SKIPPED.
+// - A job with a `disabled_reason` doesn't start: FAILED_PRECONDITION, reason
+//   `JOB_DISABLED`.
 // - Unknown jobs and runs answer NOT_FOUND. Cancelling a run that isn't running, or of a
 //   job that can't be cancelled, answers FAILED_PRECONDITION.
 // - A run that was going on when the service stopped is marked FAILED ("interrupted").
@@ -44,6 +46,12 @@ message Job {
   repeated JobParam params = 10;
   // A label to group jobs by, such as "Stores".
   string group = 11;
+  // Why the job can't run now, e.g. a feature it needs is turned off. Empty means it
+  // can. While set, starting it fails with FAILED_PRECONDITION and reason
+  // `JOB_DISABLED` (metadata `job_id`), and its schedule doesn't fire (`next_run_at`
+  // unset; `schedule.enabled` stays as configured). Output only, worked out by the
+  // service as things change.
+  string disabled_reason = 12;
 }
 
 // When a job runs on its own. With neither `cron` nor `interval`, it only runs on

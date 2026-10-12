@@ -58,6 +58,7 @@ type Fake struct {
 	settings map[string]map[string]any
 	calls    map[string]int
 	release  chan struct{}
+	jobsOff  map[string]string
 	origins  map[string]*originState
 	// checksOff are the sources whose health checks are turned off.
 	checksOff map[string]bool

@@ -278,21 +278,25 @@ const (
 	// The job is already running. Sent with ALREADY_EXISTS; the ErrorInfo's metadata
 	// `current_run_id` and a panelarr.jobs.v1.JobAlreadyRunning detail name the running run.
 	ErrorReason_ERROR_REASON_ALREADY_RUNNING ErrorReason = 9
+	// The job can't run now; Job.disabled_reason says why. Sent with FAILED_PRECONDITION;
+	// the ErrorInfo's metadata `job_id` names the job.
+	ErrorReason_ERROR_REASON_JOB_DISABLED ErrorReason = 10
 )
 
 // Enum value maps for ErrorReason.
 var (
 	ErrorReason_name = map[int32]string{
-		0: "ERROR_REASON_UNSPECIFIED",
-		1: "ERROR_REASON_CLOUDFLARE_CHALLENGE",
-		2: "ERROR_REASON_RATE_LIMITED",
-		3: "ERROR_REASON_SOURCE_DOWN",
-		4: "ERROR_REASON_NOT_FOUND",
-		5: "ERROR_REASON_LOGIN_REQUIRED",
-		6: "ERROR_REASON_UNSUPPORTED",
-		7: "ERROR_REASON_STORE_FETCH_FAILED",
-		8: "ERROR_REASON_STORE_INVALID",
-		9: "ERROR_REASON_ALREADY_RUNNING",
+		0:  "ERROR_REASON_UNSPECIFIED",
+		1:  "ERROR_REASON_CLOUDFLARE_CHALLENGE",
+		2:  "ERROR_REASON_RATE_LIMITED",
+		3:  "ERROR_REASON_SOURCE_DOWN",
+		4:  "ERROR_REASON_NOT_FOUND",
+		5:  "ERROR_REASON_LOGIN_REQUIRED",
+		6:  "ERROR_REASON_UNSUPPORTED",
+		7:  "ERROR_REASON_STORE_FETCH_FAILED",
+		8:  "ERROR_REASON_STORE_INVALID",
+		9:  "ERROR_REASON_ALREADY_RUNNING",
+		10: "ERROR_REASON_JOB_DISABLED",
 	}
 	ErrorReason_value = map[string]int32{
 		"ERROR_REASON_UNSPECIFIED":          0,
@@ -305,6 +309,7 @@ var (
 		"ERROR_REASON_STORE_FETCH_FAILED":   7,
 		"ERROR_REASON_STORE_INVALID":        8,
 		"ERROR_REASON_ALREADY_RUNNING":      9,
+		"ERROR_REASON_JOB_DISABLED":         10,
 	}
 )
 
@@ -7160,7 +7165,7 @@ const file_panelarr_source_v1_source_plugin_proto_rawDesc = "" +
 	"\x19HEALTH_STATUS_UNSPECIFIED\x10\x00\x12\x19\n" +
 	"\x15HEALTH_STATUS_SERVING\x10\x01\x12\x1a\n" +
 	"\x16HEALTH_STATUS_DEGRADED\x10\x02\x12\x1d\n" +
-	"\x19HEALTH_STATUS_NOT_SERVING\x10\x03*\xd1\x02\n" +
+	"\x19HEALTH_STATUS_NOT_SERVING\x10\x03*\xf0\x02\n" +
 	"\vErrorReason\x12\x1c\n" +
 	"\x18ERROR_REASON_UNSPECIFIED\x10\x00\x12%\n" +
 	"!ERROR_REASON_CLOUDFLARE_CHALLENGE\x10\x01\x12\x1d\n" +
@@ -7171,7 +7176,9 @@ const file_panelarr_source_v1_source_plugin_proto_rawDesc = "" +
 	"\x18ERROR_REASON_UNSUPPORTED\x10\x06\x12#\n" +
 	"\x1fERROR_REASON_STORE_FETCH_FAILED\x10\a\x12\x1e\n" +
 	"\x1aERROR_REASON_STORE_INVALID\x10\b\x12 \n" +
-	"\x1cERROR_REASON_ALREADY_RUNNING\x10\t*y\n" +
+	"\x1cERROR_REASON_ALREADY_RUNNING\x10\t\x12\x1d\n" +
+	"\x19ERROR_REASON_JOB_DISABLED\x10\n" +
+	"*y\n" +
 	"\x12SourceHealthStatus\x12$\n" +
 	" SOURCE_HEALTH_STATUS_UNSPECIFIED\x10\x00\x12\x1b\n" +
 	"\x17SOURCE_HEALTH_STATUS_OK\x10\x01\x12 \n" +

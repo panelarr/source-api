@@ -5,6 +5,7 @@ package jobs_test
 import (
 	"context"
 	"errors"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -252,6 +253,48 @@ func TestHistoryPagesAndLimits(t *testing.T) {
 	}
 	if _, err := r.GetJobRun(context.Background(), &sourcev1.GetJobRunRequest{RunId: ids[0]}); plugin.ErrorCode(err) != plugin.CodeNotFound {
 		t.Fatalf("a dropped run: %v", err)
+	}
+}
+
+func TestDisabledJobs(t *testing.T) {
+	var reason atomic.Value
+	reason.Store("the search engine is off")
+	ran := make(chan struct{}, 10)
+	r := newRunner(t, jobs.Job{
+		ID: "rebuild", Every: 20 * time.Millisecond,
+		DisabledReason: func() string { return reason.Load().(string) },
+		Run:            func(context.Context, *jobs.Run) error { ran <- struct{}{}; return nil },
+	})
+	ctx := context.Background()
+	_, err := r.RunJob(ctx, &sourcev1.RunJobRequest{JobId: "rebuild"})
+	var pe *plugin.Error
+	if !errors.As(err, &pe) || pe.Code != plugin.CodeFailedPrecondition || pe.Reason != plugin.ReasonJobDisabled || pe.Metadata["job_id"] != "rebuild" {
+		t.Fatalf("run a disabled job: %#v", err)
+	}
+	if _, err := r.Trigger("rebuild", nil); plugin.ErrorReason(err) != plugin.ReasonJobDisabled {
+		t.Fatalf("trigger a disabled job: %v", err)
+	}
+	job, _ := r.GetJob(ctx, &sourcev1.GetJobRequest{JobId: "rebuild"})
+	if job.GetJob().GetDisabledReason() != "the search engine is off" || job.GetJob().GetNextRunAt() != nil || !job.GetJob().GetSchedule().GetEnabled() {
+		t.Fatalf("disabled job: %v", job.GetJob())
+	}
+	time.Sleep(80 * time.Millisecond)
+	if len(ran) != 0 {
+		t.Fatal("the schedule fired while disabled")
+	}
+	runs, _ := r.ListJobRuns(ctx, &sourcev1.ListJobRunsRequest{JobId: "rebuild"})
+	if len(runs.GetRuns()) != 0 {
+		t.Fatalf("runs while disabled: %v", runs)
+	}
+
+	reason.Store("")
+	select {
+	case <-ran:
+	case <-time.After(5 * time.Second):
+		t.Fatal("the schedule didn't fire once enabled")
+	}
+	if job, _ := r.GetJob(ctx, &sourcev1.GetJobRequest{JobId: "rebuild"}); job.GetJob().GetDisabledReason() != "" {
+		t.Fatalf("enabled job: %v", job.GetJob())
 	}
 }
 

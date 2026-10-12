@@ -73,6 +73,19 @@ func TestAlreadyRunningCarriesTheRun(t *testing.T) {
 	}
 }
 
+func TestJobDisabledCarriesTheJob(t *testing.T) {
+	e := plugin.ErrJobDisabled("rebuild", "off")
+	for name, back := range map[string]error{
+		"grpc":    plugin.FromGRPCError(plugin.ToGRPCError(e)),
+		"connect": plugin.FromConnectError(plugin.ToConnectError(e)),
+	} {
+		var pe *plugin.Error
+		if !errors.As(back, &pe) || pe.Code != plugin.CodeFailedPrecondition || pe.Reason != plugin.ReasonJobDisabled || pe.Metadata["job_id"] != "rebuild" {
+			t.Errorf("%s: %#v", name, back)
+		}
+	}
+}
+
 func TestUnimplementedDefaults(t *testing.T) {
 	var u plugin.Unimplemented
 	ctx := context.Background()

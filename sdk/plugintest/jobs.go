@@ -13,15 +13,17 @@ import (
 
 // newJobs returns the fake's jobs: "refresh", which counts the sources and
 // finishes at once, and "hold", which runs until it's cancelled or
-// [Fake.Release] is called, so hosts can test a busy job.
+// [Fake.Release] is called, so hosts can test a busy job. [Fake.DisableJob]
+// disables either.
 func (f *Fake) newJobs() *jobs.Runner {
 	r := jobs.New(jobs.Options{})
 	must(r.Add(jobs.Job{
-		ID:          "refresh",
-		Name:        "Refresh the catalogue",
-		Description: "Counts the sources. Made up.",
-		Group:       "Catalogue",
-		Params:      []*jobsv1.JobParam{{Name: "force", Type: jobs.TypeBool, Description: "Refresh even when nothing changed.", Default: "false"}},
+		ID:             "refresh",
+		DisabledReason: f.disabledReason("refresh"),
+		Name:           "Refresh the catalogue",
+		Description:    "Counts the sources. Made up.",
+		Group:          "Catalogue",
+		Params:         []*jobsv1.JobParam{{Name: "force", Type: jobs.TypeBool, Description: "Refresh even when nothing changed.", Default: "false"}},
 		Run: func(_ context.Context, run *jobs.Run) error {
 			run.Count("sources", int64(len(f.Sources)))
 			run.SetMessage("Refreshed")
@@ -29,11 +31,12 @@ func (f *Fake) newJobs() *jobs.Runner {
 		},
 	}))
 	must(r.Add(jobs.Job{
-		ID:          "hold",
-		Name:        "Hold",
-		Description: "Runs until cancelled or released.",
-		Group:       "Catalogue",
-		Cancellable: true,
+		ID:             "hold",
+		DisabledReason: f.disabledReason("hold"),
+		Name:           "Hold",
+		Description:    "Runs until cancelled or released.",
+		Group:          "Catalogue",
+		Cancellable:    true,
 		Run: func(ctx context.Context, run *jobs.Run) error {
 			run.Progress("Holding", 0, 1, "steps")
 			select {
@@ -52,6 +55,25 @@ func (f *Fake) newJobs() *jobs.Runner {
 func must(err error) {
 	if err != nil {
 		panic(err)
+	}
+}
+
+// DisableJob gives a job a disabled reason, so it refuses to run with
+// JOB_DISABLED; "" enables it again.
+func (f *Fake) DisableJob(id, reason string) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	if f.jobsOff == nil {
+		f.jobsOff = map[string]string{}
+	}
+	f.jobsOff[id] = reason
+}
+
+func (f *Fake) disabledReason(id string) func() string {
+	return func() string {
+		f.mu.Lock()
+		defer f.mu.Unlock()
+		return f.jobsOff[id]
 	}
 }
 

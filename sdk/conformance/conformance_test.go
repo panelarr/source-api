@@ -199,6 +199,31 @@ func TestReportsJobViolations(t *testing.T) {
 	}
 }
 
+// startsDisabled runs a job it calls disabled.
+type startsDisabled struct{ *plugintest.Fake }
+
+func (s startsDisabled) RunJob(ctx context.Context, r *sourcev1.RunJobRequest) (*sourcev1.RunJobResponse, error) {
+	s.DisableJob("refresh", "")
+	defer s.DisableJob("refresh", "off for the test")
+	return s.Fake.RunJob(ctx, r)
+}
+
+func TestDisabledJobsMustRefuseToRun(t *testing.T) {
+	f := plugintest.New()
+	f.DisableJob("refresh", "off for the test")
+	rep, err := conformance.Check(context.Background(), client.InProcess(f), conformance.Options{SkipImages: true})
+	if err != nil || !rep.OK() {
+		t.Fatalf("a well-behaved disabled job: %+v, %v", rep, err)
+	}
+	rep, err = conformance.Check(context.Background(), client.InProcess(startsDisabled{f}), conformance.Options{SkipImages: true})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if problems := strings.Join(rep.Problems, "\n"); !strings.Contains(problems, "a disabled job must answer FAILED_PRECONDITION") {
+		t.Fatalf("problems: %s", problems)
+	}
+}
+
 func TestReadsJobsWithoutRunningThem(t *testing.T) {
 	f := plugintest.New()
 	rep, err := conformance.Check(context.Background(), client.InProcess(f), conformance.Options{SkipImages: true})
