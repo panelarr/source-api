@@ -66,6 +66,272 @@ components:
         - type: object
           additionalProperties: true
       description: 'Any JSON value: `null`, number, string, boolean, array, or object.'
+    panelarr.jobs.v1.Job:
+      type: object
+      properties:
+        id:
+          type: string
+          title: id
+          description: |-
+            Stable ID, such as `store-refresh`. Matches `^[a-z0-9][a-z0-9._-]*$`: never a `:`,
+             which HTTP paths would read as a custom verb (as in `:run`).
+        name:
+          type: string
+          title: name
+        description:
+          type: string
+          title: description
+        schedule:
+          allOf:
+            - $ref: '#/components/schemas/panelarr.jobs.v1.Schedule'
+          title: schedule
+        running:
+          type: boolean
+          title: running
+        currentRunId:
+          type: string
+          title: current_run_id
+          description: The running run, when `running`.
+        lastRun:
+          allOf:
+            - $ref: '#/components/schemas/panelarr.jobs.v1.JobRunSummary'
+          title: last_run
+        nextRunAt:
+          allOf:
+            - $ref: '#/components/schemas/google.protobuf.Timestamp'
+          title: next_run_at
+          description: When the next scheduled run starts. Unset when the job only runs on request.
+        cancellable:
+          type: boolean
+          title: cancellable
+        params:
+          type: array
+          items:
+            $ref: '#/components/schemas/panelarr.jobs.v1.JobParam'
+          title: params
+          description: What a run accepts as params.
+        group:
+          type: string
+          title: group
+          description: A label to group jobs by, such as "Stores".
+      title: Job
+      additionalProperties: false
+    panelarr.jobs.v1.JobParam:
+      type: object
+      properties:
+        name:
+          type: string
+          title: name
+        type:
+          type: string
+          title: type
+          description: '`bool`, `int`, `string` or `string_list` (comma-separated in a run''s params).'
+        description:
+          type: string
+          title: description
+        required:
+          type: boolean
+          title: required
+        default:
+          type: string
+          title: default
+          description: The value used when the param isn't given, if any.
+        choices:
+          type: array
+          items:
+            type: string
+          title: choices
+          description: The allowed values, when there is a fixed set. For a `string_list`, any subset.
+      title: JobParam
+      additionalProperties: false
+    panelarr.jobs.v1.JobProgress:
+      type: object
+      properties:
+        phase:
+          type: string
+          title: phase
+        done:
+          type: string
+          title: done
+          format: int64
+        total:
+          type: string
+          title: total
+          format: int64
+        unit:
+          type: string
+          title: unit
+          description: What is counted, such as "sources".
+      title: JobProgress
+      additionalProperties: false
+    panelarr.jobs.v1.JobRun:
+      type: object
+      properties:
+        summary:
+          allOf:
+            - $ref: '#/components/schemas/panelarr.jobs.v1.JobRunSummary'
+          title: summary
+        params:
+          type: object
+          title: params
+          additionalProperties:
+            type: string
+            title: value
+          description: The parameters it ran with.
+        notes:
+          type: array
+          items:
+            $ref: '#/components/schemas/panelarr.jobs.v1.JobRunNote'
+          title: notes
+          description: Warnings, errors and notable events, oldest first (at most 200).
+        progress:
+          allOf:
+            - $ref: '#/components/schemas/panelarr.jobs.v1.JobProgress'
+          title: progress
+          description: While running.
+      title: JobRun
+      additionalProperties: false
+    panelarr.jobs.v1.JobRunNote:
+      type: object
+      properties:
+        at:
+          allOf:
+            - $ref: '#/components/schemas/google.protobuf.Timestamp'
+          title: at
+        level:
+          type: string
+          title: level
+          description: '`info`, `warn` or `error`.'
+        message:
+          type: string
+          title: message
+        ref:
+          type: string
+          title: ref
+          description: What the note is about, such as a store or source ID.
+      title: JobRunNote
+      additionalProperties: false
+    panelarr.jobs.v1.JobRunStatus:
+      type: string
+      title: JobRunStatus
+      enum:
+        - JOB_RUN_STATUS_UNSPECIFIED
+        - JOB_RUN_STATUS_RUNNING
+        - JOB_RUN_STATUS_SUCCEEDED
+        - JOB_RUN_STATUS_FAILED
+        - JOB_RUN_STATUS_CANCELLED
+        - JOB_RUN_STATUS_SKIPPED
+    panelarr.jobs.v1.JobRunSummary:
+      type: object
+      properties:
+        id:
+          type: string
+          title: id
+        jobId:
+          type: string
+          title: job_id
+        status:
+          allOf:
+            - $ref: '#/components/schemas/panelarr.jobs.v1.JobRunStatus'
+          title: status
+        trigger:
+          allOf:
+            - $ref: '#/components/schemas/panelarr.jobs.v1.JobTrigger'
+          title: trigger
+        startedAt:
+          allOf:
+            - $ref: '#/components/schemas/google.protobuf.Timestamp'
+          title: started_at
+        finishedAt:
+          allOf:
+            - $ref: '#/components/schemas/google.protobuf.Timestamp'
+          title: finished_at
+        message:
+          type: string
+          title: message
+          description: 'One line: the outcome, or the error.'
+        counts:
+          type: object
+          title: counts
+          additionalProperties:
+            type: string
+            title: value
+            format: int64
+          description: 'What the run did, such as {"stores": 2, "updates": 5}.'
+        triggeredBy:
+          type: string
+          title: triggered_by
+          description: Who started a manual run.
+      title: JobRunSummary
+      additionalProperties: false
+    panelarr.jobs.v1.JobTrigger:
+      type: string
+      title: JobTrigger
+      enum:
+        - JOB_TRIGGER_UNSPECIFIED
+        - JOB_TRIGGER_SCHEDULE
+        - JOB_TRIGGER_MANUAL
+        - JOB_TRIGGER_STARTUP
+        - JOB_TRIGGER_SYSTEM
+    panelarr.jobs.v1.Schedule:
+      type: object
+      anyOf:
+        - type: object
+          properties:
+            cron:
+              type: string
+              title: cron
+          title: cron
+        - type: object
+          properties:
+            interval:
+              allOf:
+                - $ref: '#/components/schemas/google.protobuf.Duration'
+              title: interval
+          title: interval
+      unevaluatedProperties: false
+      not:
+        allOf:
+          - anyOf:
+              - required:
+                  - cron
+              - required:
+                  - interval
+          - not:
+              oneOf:
+                - required:
+                    - cron
+                - required:
+                    - interval
+      properties:
+        enabled:
+          type: boolean
+          title: enabled
+        source:
+          type: string
+          title: source
+          description: Where the schedule is configured, such as an environment variable.
+      title: Schedule
+      description: |-
+        When a job runs on its own. With neither `cron` nor `interval`, it only runs on
+         request.
+    panelarr.source.v1.CancelJobRunRequest:
+      type: object
+      properties:
+        runId:
+          type: string
+          title: run_id
+      title: CancelJobRunRequest
+      additionalProperties: false
+    panelarr.source.v1.CancelJobRunResponse:
+      type: object
+      properties:
+        run:
+          allOf:
+            - $ref: '#/components/schemas/panelarr.jobs.v1.JobRunSummary'
+          title: run
+      title: CancelJobRunResponse
+      additionalProperties: false
     panelarr.source.v1.Chapter:
       type: object
       properties:
@@ -397,6 +663,40 @@ components:
           title: info
       title: GetInfoResponse
       additionalProperties: false
+    panelarr.source.v1.GetJobRequest:
+      type: object
+      properties:
+        jobId:
+          type: string
+          title: job_id
+      title: GetJobRequest
+      additionalProperties: false
+    panelarr.source.v1.GetJobResponse:
+      type: object
+      properties:
+        job:
+          allOf:
+            - $ref: '#/components/schemas/panelarr.jobs.v1.Job'
+          title: job
+      title: GetJobResponse
+      additionalProperties: false
+    panelarr.source.v1.GetJobRunRequest:
+      type: object
+      properties:
+        runId:
+          type: string
+          title: run_id
+      title: GetJobRunRequest
+      additionalProperties: false
+    panelarr.source.v1.GetJobRunResponse:
+      type: object
+      properties:
+        run:
+          allOf:
+            - $ref: '#/components/schemas/panelarr.jobs.v1.JobRun'
+          title: run
+      title: GetJobRunResponse
+      additionalProperties: false
     panelarr.source.v1.GetNetworkProfileRequest:
       type: object
       properties:
@@ -683,6 +983,56 @@ components:
             $ref: '#/components/schemas/panelarr.source.v1.Chapter'
           title: chapters
       title: ListChaptersResponse
+      additionalProperties: false
+    panelarr.source.v1.ListJobRunsRequest:
+      type: object
+      properties:
+        jobId:
+          type: string
+          title: job_id
+        pageSize:
+          type: integer
+          title: page_size
+          format: int32
+          description: At most 100; 20 when unset.
+        pageToken:
+          type: string
+          title: page_token
+          description: From the previous response's `next_page_token`.
+        status:
+          allOf:
+            - $ref: '#/components/schemas/panelarr.jobs.v1.JobRunStatus'
+          title: status
+          description: Only runs with this status, when set.
+      title: ListJobRunsRequest
+      additionalProperties: false
+    panelarr.source.v1.ListJobRunsResponse:
+      type: object
+      properties:
+        runs:
+          type: array
+          items:
+            $ref: '#/components/schemas/panelarr.jobs.v1.JobRunSummary'
+          title: runs
+        nextPageToken:
+          type: string
+          title: next_page_token
+          description: Empty on the last page.
+      title: ListJobRunsResponse
+      additionalProperties: false
+    panelarr.source.v1.ListJobsRequest:
+      type: object
+      title: ListJobsRequest
+      additionalProperties: false
+    panelarr.source.v1.ListJobsResponse:
+      type: object
+      properties:
+        jobs:
+          type: array
+          items:
+            $ref: '#/components/schemas/panelarr.jobs.v1.Job'
+          title: jobs
+      title: ListJobsResponse
       additionalProperties: false
     panelarr.source.v1.ListPackagesRequest:
       type: object
@@ -985,6 +1335,7 @@ components:
         - PLUGIN_CAPABILITY_NETWORK_PROFILES
         - PLUGIN_CAPABILITY_DYNAMIC_SOURCES
         - PLUGIN_CAPABILITY_PACKAGES
+        - PLUGIN_CAPABILITY_JOBS
     panelarr.source.v1.PluginInfo:
       type: object
       properties:
@@ -1131,6 +1482,38 @@ components:
             The source has no URL resolver of its own and the plugin found the series another
              way (e.g. by searching for the URL). The match may be wrong.
       title: ResolveUrlResponse
+      additionalProperties: false
+    panelarr.source.v1.RunJobRequest:
+      type: object
+      properties:
+        jobId:
+          type: string
+          title: job_id
+        params:
+          type: object
+          title: params
+          additionalProperties:
+            type: string
+            title: value
+          description: |-
+            Values for the job's params; lists are comma-separated. Params left out get their
+             defaults.
+        onBehalfOf:
+          type: string
+          title: on_behalf_of
+          description: |-
+            Who asked the host for the run, e.g. its user. The plugin records it in the run's
+             `triggered_by`.
+      title: RunJobRequest
+      additionalProperties: false
+    panelarr.source.v1.RunJobResponse:
+      type: object
+      properties:
+        run:
+          allOf:
+            - $ref: '#/components/schemas/panelarr.jobs.v1.JobRunSummary'
+          title: run
+      title: RunJobResponse
       additionalProperties: false
     panelarr.source.v1.SearchRequest:
       type: object
@@ -1674,6 +2057,182 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/panelarr.source.v1.GetInfoResponse'
+  /v1/job-runs/{runId}:
+    get:
+      tags:
+        - SourcePluginService
+      summary: GetJobRun
+      description: GetJobRun returns a run with its params, notes and, while it runs, progress.
+      operationId: SourcePluginService_GetJobRun
+      parameters:
+        - name: runId
+          in: path
+          description: The runId path parameter.
+          required: true
+          schema:
+            type: string
+            title: run_id
+      responses:
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/panelarr.source.v1.GetJobRunResponse'
+  /v1/job-runs/{runId}:cancel:
+    post:
+      tags:
+        - SourcePluginService
+      summary: CancelJobRun
+      description: |-
+        CancelJobRun stops a running run. Fails with FAILED_PRECONDITION when the run isn't
+         running or its job can't be cancelled.
+      operationId: SourcePluginService_CancelJobRun
+      parameters:
+        - name: runId
+          in: path
+          description: The runId path parameter.
+          required: true
+          schema:
+            type: string
+            title: run_id
+      responses:
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/panelarr.source.v1.CancelJobRunResponse'
+  /v1/jobs:
+    get:
+      tags:
+        - SourcePluginService
+      summary: ListJobs
+      description: |-
+        ListJobs lists the plugin's background jobs (with the JOBS capability), such as
+         refreshing what it can install or checking its sources. Jobs use the shared
+         panelarr.jobs.v1 model and its rules. Plugins without the capability answer
+         UNIMPLEMENTED, and so do the other job calls.
+      operationId: SourcePluginService_ListJobs
+      responses:
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/panelarr.source.v1.ListJobsResponse'
+  /v1/jobs/{jobId}:
+    get:
+      tags:
+        - SourcePluginService
+      summary: GetJob
+      operationId: SourcePluginService_GetJob
+      parameters:
+        - name: jobId
+          in: path
+          description: The jobId path parameter.
+          required: true
+          schema:
+            type: string
+            title: job_id
+      responses:
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/panelarr.source.v1.GetJobResponse'
+  /v1/jobs/{jobId}/runs:
+    get:
+      tags:
+        - SourcePluginService
+      summary: ListJobRuns
+      description: ListJobRuns lists a job's runs, newest first.
+      operationId: SourcePluginService_ListJobRuns
+      parameters:
+        - name: jobId
+          in: path
+          description: The jobId path parameter.
+          required: true
+          schema:
+            type: string
+            title: job_id
+        - name: pageSize
+          in: query
+          description: At most 100; 20 when unset.
+          schema:
+            type: integer
+            title: page_size
+            format: int32
+        - name: pageToken
+          in: query
+          description: From the previous response's `next_page_token`.
+          schema:
+            type: string
+            title: page_token
+        - name: status
+          in: query
+          description: Only runs with this status, when set.
+          schema:
+            allOf:
+              - $ref: '#/components/schemas/panelarr.jobs.v1.JobRunStatus'
+            title: status
+      responses:
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/panelarr.source.v1.ListJobRunsResponse'
+  /v1/jobs/{jobId}:run:
+    post:
+      tags:
+        - SourcePluginService
+      summary: RunJob
+      description: |-
+        RunJob starts a run now and returns at once. If the job is already running, it
+         fails with ALREADY_EXISTS, an ErrorInfo with reason `ALREADY_RUNNING` and a
+         panelarr.jobs.v1.JobAlreadyRunning detail naming the running run.
+      operationId: SourcePluginService_RunJob
+      parameters:
+        - name: jobId
+          in: path
+          description: The jobId path parameter.
+          required: true
+          schema:
+            type: string
+            title: job_id
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                params:
+                  type: object
+                  title: params
+                  additionalProperties:
+                    type: string
+                    title: value
+                  description: |-
+                    Values for the job's params; lists are comma-separated. Params left out get their
+                     defaults.
+                onBehalfOf:
+                  type: string
+                  title: on_behalf_of
+                  description: |-
+                    Who asked the host for the run, e.g. its user. The plugin records it in the run's
+                     `triggered_by`.
+              title: RunJobRequest
+              additionalProperties: false
+        required: true
+      responses:
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/panelarr.source.v1.RunJobResponse'
   /v1/packages:
     get:
       tags:

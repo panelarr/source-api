@@ -70,6 +70,9 @@ func (f *Fake) capabilities() []sourcev1.PluginCapability {
 	if f.Packages != nil {
 		caps = append(caps, sourcev1.PluginCapability_PLUGIN_CAPABILITY_PACKAGES, sourcev1.PluginCapability_PLUGIN_CAPABILITY_DYNAMIC_SOURCES)
 	}
+	if f.Jobs != nil {
+		caps = append(caps, sourcev1.PluginCapability_PLUGIN_CAPABILITY_JOBS)
+	}
 	return caps
 }
 

@@ -9,6 +9,7 @@
 package sourcev1
 
 import (
+	v1 "github.com/panelarr/source-api/gen/panelarr/jobs/v1"
 	_ "google.golang.org/genproto/googleapis/api/annotations"
 	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
 	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
@@ -38,6 +39,9 @@ const (
 	// The plugin lists, installs, updates and removes packages (ListPackages and the
 	// other package calls), e.g. extensions that each provide some sources.
 	PluginCapability_PLUGIN_CAPABILITY_PACKAGES PluginCapability = 3
+	// The plugin has background jobs that hosts can list, run and cancel (ListJobs and
+	// the other job calls).
+	PluginCapability_PLUGIN_CAPABILITY_JOBS PluginCapability = 4
 )
 
 // Enum value maps for PluginCapability.
@@ -47,12 +51,14 @@ var (
 		1: "PLUGIN_CAPABILITY_NETWORK_PROFILES",
 		2: "PLUGIN_CAPABILITY_DYNAMIC_SOURCES",
 		3: "PLUGIN_CAPABILITY_PACKAGES",
+		4: "PLUGIN_CAPABILITY_JOBS",
 	}
 	PluginCapability_value = map[string]int32{
 		"PLUGIN_CAPABILITY_UNSPECIFIED":      0,
 		"PLUGIN_CAPABILITY_NETWORK_PROFILES": 1,
 		"PLUGIN_CAPABILITY_DYNAMIC_SOURCES":  2,
 		"PLUGIN_CAPABILITY_PACKAGES":         3,
+		"PLUGIN_CAPABILITY_JOBS":             4,
 	}
 )
 
@@ -264,6 +270,9 @@ const (
 	// signing key that doesn't match. Sent with FAILED_PRECONDITION. (A bad signature or
 	// checksum of the package file itself is INVALID_ARGUMENT.)
 	ErrorReason_ERROR_REASON_STORE_INVALID ErrorReason = 8
+	// The job is already running. Sent with ALREADY_EXISTS; the ErrorInfo's metadata
+	// `current_run_id` and a panelarr.jobs.v1.JobAlreadyRunning detail name the running run.
+	ErrorReason_ERROR_REASON_ALREADY_RUNNING ErrorReason = 9
 )
 
 // Enum value maps for ErrorReason.
@@ -278,6 +287,7 @@ var (
 		6: "ERROR_REASON_UNSUPPORTED",
 		7: "ERROR_REASON_STORE_FETCH_FAILED",
 		8: "ERROR_REASON_STORE_INVALID",
+		9: "ERROR_REASON_ALREADY_RUNNING",
 	}
 	ErrorReason_value = map[string]int32{
 		"ERROR_REASON_UNSPECIFIED":          0,
@@ -289,6 +299,7 @@ var (
 		"ERROR_REASON_UNSUPPORTED":          6,
 		"ERROR_REASON_STORE_FETCH_FAILED":   7,
 		"ERROR_REASON_STORE_INVALID":        8,
+		"ERROR_REASON_ALREADY_RUNNING":      9,
 	}
 )
 
@@ -5611,11 +5622,587 @@ func (x *Timeouts) GetCall() *durationpb.Duration {
 	return nil
 }
 
+type ListJobsRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ListJobsRequest) Reset() {
+	*x = ListJobsRequest{}
+	mi := &file_panelarr_source_v1_source_plugin_proto_msgTypes[81]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ListJobsRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ListJobsRequest) ProtoMessage() {}
+
+func (x *ListJobsRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_panelarr_source_v1_source_plugin_proto_msgTypes[81]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ListJobsRequest.ProtoReflect.Descriptor instead.
+func (*ListJobsRequest) Descriptor() ([]byte, []int) {
+	return file_panelarr_source_v1_source_plugin_proto_rawDescGZIP(), []int{81}
+}
+
+type ListJobsResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Jobs          []*v1.Job              `protobuf:"bytes,1,rep,name=jobs,proto3" json:"jobs,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ListJobsResponse) Reset() {
+	*x = ListJobsResponse{}
+	mi := &file_panelarr_source_v1_source_plugin_proto_msgTypes[82]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ListJobsResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ListJobsResponse) ProtoMessage() {}
+
+func (x *ListJobsResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_panelarr_source_v1_source_plugin_proto_msgTypes[82]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ListJobsResponse.ProtoReflect.Descriptor instead.
+func (*ListJobsResponse) Descriptor() ([]byte, []int) {
+	return file_panelarr_source_v1_source_plugin_proto_rawDescGZIP(), []int{82}
+}
+
+func (x *ListJobsResponse) GetJobs() []*v1.Job {
+	if x != nil {
+		return x.Jobs
+	}
+	return nil
+}
+
+type GetJobRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	JobId         string                 `protobuf:"bytes,1,opt,name=job_id,json=jobId,proto3" json:"job_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetJobRequest) Reset() {
+	*x = GetJobRequest{}
+	mi := &file_panelarr_source_v1_source_plugin_proto_msgTypes[83]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetJobRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetJobRequest) ProtoMessage() {}
+
+func (x *GetJobRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_panelarr_source_v1_source_plugin_proto_msgTypes[83]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetJobRequest.ProtoReflect.Descriptor instead.
+func (*GetJobRequest) Descriptor() ([]byte, []int) {
+	return file_panelarr_source_v1_source_plugin_proto_rawDescGZIP(), []int{83}
+}
+
+func (x *GetJobRequest) GetJobId() string {
+	if x != nil {
+		return x.JobId
+	}
+	return ""
+}
+
+type GetJobResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Job           *v1.Job                `protobuf:"bytes,1,opt,name=job,proto3" json:"job,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetJobResponse) Reset() {
+	*x = GetJobResponse{}
+	mi := &file_panelarr_source_v1_source_plugin_proto_msgTypes[84]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetJobResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetJobResponse) ProtoMessage() {}
+
+func (x *GetJobResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_panelarr_source_v1_source_plugin_proto_msgTypes[84]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetJobResponse.ProtoReflect.Descriptor instead.
+func (*GetJobResponse) Descriptor() ([]byte, []int) {
+	return file_panelarr_source_v1_source_plugin_proto_rawDescGZIP(), []int{84}
+}
+
+func (x *GetJobResponse) GetJob() *v1.Job {
+	if x != nil {
+		return x.Job
+	}
+	return nil
+}
+
+type ListJobRunsRequest struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	JobId string                 `protobuf:"bytes,1,opt,name=job_id,json=jobId,proto3" json:"job_id,omitempty"`
+	// At most 100; 20 when unset.
+	PageSize int32 `protobuf:"varint,2,opt,name=page_size,json=pageSize,proto3" json:"page_size,omitempty"`
+	// From the previous response's `next_page_token`.
+	PageToken string `protobuf:"bytes,3,opt,name=page_token,json=pageToken,proto3" json:"page_token,omitempty"`
+	// Only runs with this status, when set.
+	Status        v1.JobRunStatus `protobuf:"varint,4,opt,name=status,proto3,enum=panelarr.jobs.v1.JobRunStatus" json:"status,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ListJobRunsRequest) Reset() {
+	*x = ListJobRunsRequest{}
+	mi := &file_panelarr_source_v1_source_plugin_proto_msgTypes[85]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ListJobRunsRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ListJobRunsRequest) ProtoMessage() {}
+
+func (x *ListJobRunsRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_panelarr_source_v1_source_plugin_proto_msgTypes[85]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ListJobRunsRequest.ProtoReflect.Descriptor instead.
+func (*ListJobRunsRequest) Descriptor() ([]byte, []int) {
+	return file_panelarr_source_v1_source_plugin_proto_rawDescGZIP(), []int{85}
+}
+
+func (x *ListJobRunsRequest) GetJobId() string {
+	if x != nil {
+		return x.JobId
+	}
+	return ""
+}
+
+func (x *ListJobRunsRequest) GetPageSize() int32 {
+	if x != nil {
+		return x.PageSize
+	}
+	return 0
+}
+
+func (x *ListJobRunsRequest) GetPageToken() string {
+	if x != nil {
+		return x.PageToken
+	}
+	return ""
+}
+
+func (x *ListJobRunsRequest) GetStatus() v1.JobRunStatus {
+	if x != nil {
+		return x.Status
+	}
+	return v1.JobRunStatus(0)
+}
+
+type ListJobRunsResponse struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	Runs  []*v1.JobRunSummary    `protobuf:"bytes,1,rep,name=runs,proto3" json:"runs,omitempty"`
+	// Empty on the last page.
+	NextPageToken string `protobuf:"bytes,2,opt,name=next_page_token,json=nextPageToken,proto3" json:"next_page_token,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ListJobRunsResponse) Reset() {
+	*x = ListJobRunsResponse{}
+	mi := &file_panelarr_source_v1_source_plugin_proto_msgTypes[86]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ListJobRunsResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ListJobRunsResponse) ProtoMessage() {}
+
+func (x *ListJobRunsResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_panelarr_source_v1_source_plugin_proto_msgTypes[86]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ListJobRunsResponse.ProtoReflect.Descriptor instead.
+func (*ListJobRunsResponse) Descriptor() ([]byte, []int) {
+	return file_panelarr_source_v1_source_plugin_proto_rawDescGZIP(), []int{86}
+}
+
+func (x *ListJobRunsResponse) GetRuns() []*v1.JobRunSummary {
+	if x != nil {
+		return x.Runs
+	}
+	return nil
+}
+
+func (x *ListJobRunsResponse) GetNextPageToken() string {
+	if x != nil {
+		return x.NextPageToken
+	}
+	return ""
+}
+
+type GetJobRunRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	RunId         string                 `protobuf:"bytes,1,opt,name=run_id,json=runId,proto3" json:"run_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetJobRunRequest) Reset() {
+	*x = GetJobRunRequest{}
+	mi := &file_panelarr_source_v1_source_plugin_proto_msgTypes[87]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetJobRunRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetJobRunRequest) ProtoMessage() {}
+
+func (x *GetJobRunRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_panelarr_source_v1_source_plugin_proto_msgTypes[87]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetJobRunRequest.ProtoReflect.Descriptor instead.
+func (*GetJobRunRequest) Descriptor() ([]byte, []int) {
+	return file_panelarr_source_v1_source_plugin_proto_rawDescGZIP(), []int{87}
+}
+
+func (x *GetJobRunRequest) GetRunId() string {
+	if x != nil {
+		return x.RunId
+	}
+	return ""
+}
+
+type GetJobRunResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Run           *v1.JobRun             `protobuf:"bytes,1,opt,name=run,proto3" json:"run,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetJobRunResponse) Reset() {
+	*x = GetJobRunResponse{}
+	mi := &file_panelarr_source_v1_source_plugin_proto_msgTypes[88]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetJobRunResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetJobRunResponse) ProtoMessage() {}
+
+func (x *GetJobRunResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_panelarr_source_v1_source_plugin_proto_msgTypes[88]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetJobRunResponse.ProtoReflect.Descriptor instead.
+func (*GetJobRunResponse) Descriptor() ([]byte, []int) {
+	return file_panelarr_source_v1_source_plugin_proto_rawDescGZIP(), []int{88}
+}
+
+func (x *GetJobRunResponse) GetRun() *v1.JobRun {
+	if x != nil {
+		return x.Run
+	}
+	return nil
+}
+
+type RunJobRequest struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	JobId string                 `protobuf:"bytes,1,opt,name=job_id,json=jobId,proto3" json:"job_id,omitempty"`
+	// Values for the job's params; lists are comma-separated. Params left out get their
+	// defaults.
+	Params map[string]string `protobuf:"bytes,2,rep,name=params,proto3" json:"params,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
+	// Who asked the host for the run, e.g. its user. The plugin records it in the run's
+	// `triggered_by`.
+	OnBehalfOf    string `protobuf:"bytes,3,opt,name=on_behalf_of,json=onBehalfOf,proto3" json:"on_behalf_of,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *RunJobRequest) Reset() {
+	*x = RunJobRequest{}
+	mi := &file_panelarr_source_v1_source_plugin_proto_msgTypes[89]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *RunJobRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*RunJobRequest) ProtoMessage() {}
+
+func (x *RunJobRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_panelarr_source_v1_source_plugin_proto_msgTypes[89]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use RunJobRequest.ProtoReflect.Descriptor instead.
+func (*RunJobRequest) Descriptor() ([]byte, []int) {
+	return file_panelarr_source_v1_source_plugin_proto_rawDescGZIP(), []int{89}
+}
+
+func (x *RunJobRequest) GetJobId() string {
+	if x != nil {
+		return x.JobId
+	}
+	return ""
+}
+
+func (x *RunJobRequest) GetParams() map[string]string {
+	if x != nil {
+		return x.Params
+	}
+	return nil
+}
+
+func (x *RunJobRequest) GetOnBehalfOf() string {
+	if x != nil {
+		return x.OnBehalfOf
+	}
+	return ""
+}
+
+type RunJobResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Run           *v1.JobRunSummary      `protobuf:"bytes,1,opt,name=run,proto3" json:"run,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *RunJobResponse) Reset() {
+	*x = RunJobResponse{}
+	mi := &file_panelarr_source_v1_source_plugin_proto_msgTypes[90]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *RunJobResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*RunJobResponse) ProtoMessage() {}
+
+func (x *RunJobResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_panelarr_source_v1_source_plugin_proto_msgTypes[90]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use RunJobResponse.ProtoReflect.Descriptor instead.
+func (*RunJobResponse) Descriptor() ([]byte, []int) {
+	return file_panelarr_source_v1_source_plugin_proto_rawDescGZIP(), []int{90}
+}
+
+func (x *RunJobResponse) GetRun() *v1.JobRunSummary {
+	if x != nil {
+		return x.Run
+	}
+	return nil
+}
+
+type CancelJobRunRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	RunId         string                 `protobuf:"bytes,1,opt,name=run_id,json=runId,proto3" json:"run_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *CancelJobRunRequest) Reset() {
+	*x = CancelJobRunRequest{}
+	mi := &file_panelarr_source_v1_source_plugin_proto_msgTypes[91]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *CancelJobRunRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*CancelJobRunRequest) ProtoMessage() {}
+
+func (x *CancelJobRunRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_panelarr_source_v1_source_plugin_proto_msgTypes[91]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use CancelJobRunRequest.ProtoReflect.Descriptor instead.
+func (*CancelJobRunRequest) Descriptor() ([]byte, []int) {
+	return file_panelarr_source_v1_source_plugin_proto_rawDescGZIP(), []int{91}
+}
+
+func (x *CancelJobRunRequest) GetRunId() string {
+	if x != nil {
+		return x.RunId
+	}
+	return ""
+}
+
+type CancelJobRunResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Run           *v1.JobRunSummary      `protobuf:"bytes,1,opt,name=run,proto3" json:"run,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *CancelJobRunResponse) Reset() {
+	*x = CancelJobRunResponse{}
+	mi := &file_panelarr_source_v1_source_plugin_proto_msgTypes[92]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *CancelJobRunResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*CancelJobRunResponse) ProtoMessage() {}
+
+func (x *CancelJobRunResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_panelarr_source_v1_source_plugin_proto_msgTypes[92]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use CancelJobRunResponse.ProtoReflect.Descriptor instead.
+func (*CancelJobRunResponse) Descriptor() ([]byte, []int) {
+	return file_panelarr_source_v1_source_plugin_proto_rawDescGZIP(), []int{92}
+}
+
+func (x *CancelJobRunResponse) GetRun() *v1.JobRunSummary {
+	if x != nil {
+		return x.Run
+	}
+	return nil
+}
+
 var File_panelarr_source_v1_source_plugin_proto protoreflect.FileDescriptor
 
 const file_panelarr_source_v1_source_plugin_proto_rawDesc = "" +
 	"\n" +
-	"&panelarr/source/v1/source_plugin.proto\x12\x12panelarr.source.v1\x1a\x1cgoogle/api/annotations.proto\x1a\x1egoogle/protobuf/duration.proto\x1a\x1cgoogle/protobuf/struct.proto\x1a\x1fgoogle/protobuf/timestamp.proto\"\x10\n" +
+	"&panelarr/source/v1/source_plugin.proto\x12\x12panelarr.source.v1\x1a\x1cgoogle/api/annotations.proto\x1a\x1egoogle/protobuf/duration.proto\x1a\x1cgoogle/protobuf/struct.proto\x1a\x1fgoogle/protobuf/timestamp.proto\x1a\x1bpanelarr/jobs/v1/jobs.proto\"\x10\n" +
 	"\x0eGetInfoRequest\"E\n" +
 	"\x0fGetInfoResponse\x122\n" +
 	"\x04info\x18\x01 \x01(\v2\x1e.panelarr.source.v1.PluginInfoR\x04info\"\xf0\x02\n" +
@@ -5937,12 +6524,47 @@ const file_panelarr_source_v1_source_plugin_proto_rawDesc = "" +
 	"\bTimeouts\x123\n" +
 	"\aconnect\x18\x01 \x01(\v2\x19.google.protobuf.DurationR\aconnect\x12-\n" +
 	"\x04read\x18\x02 \x01(\v2\x19.google.protobuf.DurationR\x04read\x12-\n" +
-	"\x04call\x18\x03 \x01(\v2\x19.google.protobuf.DurationR\x04call*\xa4\x01\n" +
+	"\x04call\x18\x03 \x01(\v2\x19.google.protobuf.DurationR\x04call\"\x11\n" +
+	"\x0fListJobsRequest\"=\n" +
+	"\x10ListJobsResponse\x12)\n" +
+	"\x04jobs\x18\x01 \x03(\v2\x15.panelarr.jobs.v1.JobR\x04jobs\"&\n" +
+	"\rGetJobRequest\x12\x15\n" +
+	"\x06job_id\x18\x01 \x01(\tR\x05jobId\"9\n" +
+	"\x0eGetJobResponse\x12'\n" +
+	"\x03job\x18\x01 \x01(\v2\x15.panelarr.jobs.v1.JobR\x03job\"\x9f\x01\n" +
+	"\x12ListJobRunsRequest\x12\x15\n" +
+	"\x06job_id\x18\x01 \x01(\tR\x05jobId\x12\x1b\n" +
+	"\tpage_size\x18\x02 \x01(\x05R\bpageSize\x12\x1d\n" +
+	"\n" +
+	"page_token\x18\x03 \x01(\tR\tpageToken\x126\n" +
+	"\x06status\x18\x04 \x01(\x0e2\x1e.panelarr.jobs.v1.JobRunStatusR\x06status\"r\n" +
+	"\x13ListJobRunsResponse\x123\n" +
+	"\x04runs\x18\x01 \x03(\v2\x1f.panelarr.jobs.v1.JobRunSummaryR\x04runs\x12&\n" +
+	"\x0fnext_page_token\x18\x02 \x01(\tR\rnextPageToken\")\n" +
+	"\x10GetJobRunRequest\x12\x15\n" +
+	"\x06run_id\x18\x01 \x01(\tR\x05runId\"?\n" +
+	"\x11GetJobRunResponse\x12*\n" +
+	"\x03run\x18\x01 \x01(\v2\x18.panelarr.jobs.v1.JobRunR\x03run\"\xca\x01\n" +
+	"\rRunJobRequest\x12\x15\n" +
+	"\x06job_id\x18\x01 \x01(\tR\x05jobId\x12E\n" +
+	"\x06params\x18\x02 \x03(\v2-.panelarr.source.v1.RunJobRequest.ParamsEntryR\x06params\x12 \n" +
+	"\fon_behalf_of\x18\x03 \x01(\tR\n" +
+	"onBehalfOf\x1a9\n" +
+	"\vParamsEntry\x12\x10\n" +
+	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
+	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\"C\n" +
+	"\x0eRunJobResponse\x121\n" +
+	"\x03run\x18\x01 \x01(\v2\x1f.panelarr.jobs.v1.JobRunSummaryR\x03run\",\n" +
+	"\x13CancelJobRunRequest\x12\x15\n" +
+	"\x06run_id\x18\x01 \x01(\tR\x05runId\"I\n" +
+	"\x14CancelJobRunResponse\x121\n" +
+	"\x03run\x18\x01 \x01(\v2\x1f.panelarr.jobs.v1.JobRunSummaryR\x03run*\xc0\x01\n" +
 	"\x10PluginCapability\x12!\n" +
 	"\x1dPLUGIN_CAPABILITY_UNSPECIFIED\x10\x00\x12&\n" +
 	"\"PLUGIN_CAPABILITY_NETWORK_PROFILES\x10\x01\x12%\n" +
 	"!PLUGIN_CAPABILITY_DYNAMIC_SOURCES\x10\x02\x12\x1e\n" +
-	"\x1aPLUGIN_CAPABILITY_PACKAGES\x10\x03*n\n" +
+	"\x1aPLUGIN_CAPABILITY_PACKAGES\x10\x03\x12\x1a\n" +
+	"\x16PLUGIN_CAPABILITY_JOBS\x10\x04*n\n" +
 	"\rCommonService\x12\x1e\n" +
 	"\x1aCOMMON_SERVICE_UNSPECIFIED\x10\x00\x12\"\n" +
 	"\x1eCOMMON_SERVICE_NETWORK_PROFILE\x10\x01\x12\x19\n" +
@@ -5955,7 +6577,7 @@ const file_panelarr_source_v1_source_plugin_proto_rawDesc = "" +
 	"\x19HEALTH_STATUS_UNSPECIFIED\x10\x00\x12\x19\n" +
 	"\x15HEALTH_STATUS_SERVING\x10\x01\x12\x1a\n" +
 	"\x16HEALTH_STATUS_DEGRADED\x10\x02\x12\x1d\n" +
-	"\x19HEALTH_STATUS_NOT_SERVING\x10\x03*\xaf\x02\n" +
+	"\x19HEALTH_STATUS_NOT_SERVING\x10\x03*\xd1\x02\n" +
 	"\vErrorReason\x12\x1c\n" +
 	"\x18ERROR_REASON_UNSPECIFIED\x10\x00\x12%\n" +
 	"!ERROR_REASON_CLOUDFLARE_CHALLENGE\x10\x01\x12\x1d\n" +
@@ -5965,7 +6587,8 @@ const file_panelarr_source_v1_source_plugin_proto_rawDesc = "" +
 	"\x1bERROR_REASON_LOGIN_REQUIRED\x10\x05\x12\x1c\n" +
 	"\x18ERROR_REASON_UNSUPPORTED\x10\x06\x12#\n" +
 	"\x1fERROR_REASON_STORE_FETCH_FAILED\x10\a\x12\x1e\n" +
-	"\x1aERROR_REASON_STORE_INVALID\x10\b*y\n" +
+	"\x1aERROR_REASON_STORE_INVALID\x10\b\x12 \n" +
+	"\x1cERROR_REASON_ALREADY_RUNNING\x10\t*y\n" +
 	"\x12SourceHealthStatus\x12$\n" +
 	" SOURCE_HEALTH_STATUS_UNSPECIFIED\x10\x00\x12\x1b\n" +
 	"\x17SOURCE_HEALTH_STATUS_OK\x10\x01\x12 \n" +
@@ -6006,7 +6629,7 @@ const file_panelarr_source_v1_source_plugin_proto_rawDesc = "" +
 	"SolverType\x12\x1b\n" +
 	"\x17SOLVER_TYPE_UNSPECIFIED\x10\x00\x12\x1c\n" +
 	"\x18SOLVER_TYPE_FLARESOLVERR\x10\x01\x12\x16\n" +
-	"\x12SOLVER_TYPE_BYPARR\x10\x022\x84\x1b\n" +
+	"\x12SOLVER_TYPE_BYPARR\x10\x022\xd2 \n" +
 	"\x13SourcePluginService\x12d\n" +
 	"\aGetInfo\x12\".panelarr.source.v1.GetInfoRequest\x1a#.panelarr.source.v1.GetInfoResponse\"\x10\x82\xd3\xe4\x93\x02\n" +
 	"\x12\b/v1/info\x12l\n" +
@@ -6041,7 +6664,14 @@ const file_panelarr_source_v1_source_plugin_proto_rawDesc = "" +
 	"\x10UninstallPackage\x12+.panelarr.source.v1.UninstallPackageRequest\x1a,.panelarr.source.v1.UninstallPackageResponse\".\x82\xd3\xe4\x93\x02(:\x01*\"#/v1/packages/{package_id}:uninstall\x12\xa2\x01\n" +
 	"\x12SetPackageSettings\x12-.panelarr.source.v1.SetPackageSettingsRequest\x1a..panelarr.source.v1.SetPackageSettingsResponse\"-\x82\xd3\xe4\x93\x02':\x01*2\"/v1/packages/{package_id}/settings\x12\xa1\x01\n" +
 	"\x11GetNetworkProfile\x12,.panelarr.source.v1.GetNetworkProfileRequest\x1a-.panelarr.source.v1.GetNetworkProfileResponse\"/\x82\xd3\xe4\x93\x02)\x12'/v1/sources/{source_id}/network-profile\x12\xa4\x01\n" +
-	"\x11SetNetworkProfile\x12,.panelarr.source.v1.SetNetworkProfileRequest\x1a-.panelarr.source.v1.SetNetworkProfileResponse\"2\x82\xd3\xe4\x93\x02,:\x01*\x1a'/v1/sources/{source_id}/network-profileB\xd5\x01\n" +
+	"\x11SetNetworkProfile\x12,.panelarr.source.v1.SetNetworkProfileRequest\x1a-.panelarr.source.v1.SetNetworkProfileResponse\"2\x82\xd3\xe4\x93\x02,:\x01*\x1a'/v1/sources/{source_id}/network-profile\x12g\n" +
+	"\bListJobs\x12#.panelarr.source.v1.ListJobsRequest\x1a$.panelarr.source.v1.ListJobsResponse\"\x10\x82\xd3\xe4\x93\x02\n" +
+	"\x12\b/v1/jobs\x12j\n" +
+	"\x06GetJob\x12!.panelarr.source.v1.GetJobRequest\x1a\".panelarr.source.v1.GetJobResponse\"\x19\x82\xd3\xe4\x93\x02\x13\x12\x11/v1/jobs/{job_id}\x12~\n" +
+	"\vListJobRuns\x12&.panelarr.source.v1.ListJobRunsRequest\x1a'.panelarr.source.v1.ListJobRunsResponse\"\x1e\x82\xd3\xe4\x93\x02\x18\x12\x16/v1/jobs/{job_id}/runs\x12w\n" +
+	"\tGetJobRun\x12$.panelarr.source.v1.GetJobRunRequest\x1a%.panelarr.source.v1.GetJobRunResponse\"\x1d\x82\xd3\xe4\x93\x02\x17\x12\x15/v1/job-runs/{run_id}\x12q\n" +
+	"\x06RunJob\x12!.panelarr.source.v1.RunJobRequest\x1a\".panelarr.source.v1.RunJobResponse\" \x82\xd3\xe4\x93\x02\x1a:\x01*\"\x15/v1/jobs/{job_id}:run\x12\x8a\x01\n" +
+	"\fCancelJobRun\x12'.panelarr.source.v1.CancelJobRunRequest\x1a(.panelarr.source.v1.CancelJobRunResponse\"'\x82\xd3\xe4\x93\x02!:\x01*\"\x1c/v1/job-runs/{run_id}:cancelB\xd5\x01\n" +
 	"\x16com.panelarr.source.v1B\x11SourcePluginProtoP\x01Z>github.com/panelarr/source-api/gen/panelarr/source/v1;sourcev1\xa2\x02\x03PSX\xaa\x02\x12Panelarr.Source.V1\xca\x02\x12Panelarr\\Source\\V1\xe2\x02\x1ePanelarr\\Source\\V1\\GPBMetadata\xea\x02\x14Panelarr::Source::V1b\x06proto3"
 
 var (
@@ -6057,7 +6687,7 @@ func file_panelarr_source_v1_source_plugin_proto_rawDescGZIP() []byte {
 }
 
 var file_panelarr_source_v1_source_plugin_proto_enumTypes = make([]protoimpl.EnumInfo, 12)
-var file_panelarr_source_v1_source_plugin_proto_msgTypes = make([]protoimpl.MessageInfo, 82)
+var file_panelarr_source_v1_source_plugin_proto_msgTypes = make([]protoimpl.MessageInfo, 95)
 var file_panelarr_source_v1_source_plugin_proto_goTypes = []any{
 	(PluginCapability)(0),              // 0: panelarr.source.v1.PluginCapability
 	(CommonService)(0),                 // 1: panelarr.source.v1.CommonService
@@ -6152,31 +6782,48 @@ var file_panelarr_source_v1_source_plugin_proto_goTypes = []any{
 	(*Solver)(nil),                     // 90: panelarr.source.v1.Solver
 	(*UserAgent)(nil),                  // 91: panelarr.source.v1.UserAgent
 	(*Timeouts)(nil),                   // 92: panelarr.source.v1.Timeouts
-	nil,                                // 93: panelarr.source.v1.NetworkProfile.HeadersEntry
-	(*structpb.Struct)(nil),            // 94: google.protobuf.Struct
-	(*durationpb.Duration)(nil),        // 95: google.protobuf.Duration
-	(*timestamppb.Timestamp)(nil),      // 96: google.protobuf.Timestamp
+	(*ListJobsRequest)(nil),            // 93: panelarr.source.v1.ListJobsRequest
+	(*ListJobsResponse)(nil),           // 94: panelarr.source.v1.ListJobsResponse
+	(*GetJobRequest)(nil),              // 95: panelarr.source.v1.GetJobRequest
+	(*GetJobResponse)(nil),             // 96: panelarr.source.v1.GetJobResponse
+	(*ListJobRunsRequest)(nil),         // 97: panelarr.source.v1.ListJobRunsRequest
+	(*ListJobRunsResponse)(nil),        // 98: panelarr.source.v1.ListJobRunsResponse
+	(*GetJobRunRequest)(nil),           // 99: panelarr.source.v1.GetJobRunRequest
+	(*GetJobRunResponse)(nil),          // 100: panelarr.source.v1.GetJobRunResponse
+	(*RunJobRequest)(nil),              // 101: panelarr.source.v1.RunJobRequest
+	(*RunJobResponse)(nil),             // 102: panelarr.source.v1.RunJobResponse
+	(*CancelJobRunRequest)(nil),        // 103: panelarr.source.v1.CancelJobRunRequest
+	(*CancelJobRunResponse)(nil),       // 104: panelarr.source.v1.CancelJobRunResponse
+	nil,                                // 105: panelarr.source.v1.NetworkProfile.HeadersEntry
+	nil,                                // 106: panelarr.source.v1.RunJobRequest.ParamsEntry
+	(*structpb.Struct)(nil),            // 107: google.protobuf.Struct
+	(*durationpb.Duration)(nil),        // 108: google.protobuf.Duration
+	(*timestamppb.Timestamp)(nil),      // 109: google.protobuf.Timestamp
+	(*v1.Job)(nil),                     // 110: panelarr.jobs.v1.Job
+	(v1.JobRunStatus)(0),               // 111: panelarr.jobs.v1.JobRunStatus
+	(*v1.JobRunSummary)(nil),           // 112: panelarr.jobs.v1.JobRunSummary
+	(*v1.JobRun)(nil),                  // 113: panelarr.jobs.v1.JobRun
 }
 var file_panelarr_source_v1_source_plugin_proto_depIdxs = []int32{
 	14,  // 0: panelarr.source.v1.GetInfoResponse.info:type_name -> panelarr.source.v1.PluginInfo
 	0,   // 1: panelarr.source.v1.PluginInfo.capabilities:type_name -> panelarr.source.v1.PluginCapability
 	15,  // 2: panelarr.source.v1.PluginInfo.limits:type_name -> panelarr.source.v1.Limits
-	94,  // 3: panelarr.source.v1.PluginInfo.config_schema:type_name -> google.protobuf.Struct
+	107, // 3: panelarr.source.v1.PluginInfo.config_schema:type_name -> google.protobuf.Struct
 	1,   // 4: panelarr.source.v1.PluginInfo.common_services:type_name -> panelarr.source.v1.CommonService
 	16,  // 5: panelarr.source.v1.Limits.default_rate_limit:type_name -> panelarr.source.v1.RateLimit
 	16,  // 6: panelarr.source.v1.Limits.image_rate_limit:type_name -> panelarr.source.v1.RateLimit
-	95,  // 7: panelarr.source.v1.RateLimit.period:type_name -> google.protobuf.Duration
+	108, // 7: panelarr.source.v1.RateLimit.period:type_name -> google.protobuf.Duration
 	2,   // 8: panelarr.source.v1.RateLimit.scope:type_name -> panelarr.source.v1.RateLimitScope
-	94,  // 9: panelarr.source.v1.GetConfigResponse.values:type_name -> google.protobuf.Struct
-	94,  // 10: panelarr.source.v1.SetConfigRequest.values:type_name -> google.protobuf.Struct
-	94,  // 11: panelarr.source.v1.SetConfigResponse.values:type_name -> google.protobuf.Struct
+	107, // 9: panelarr.source.v1.GetConfigResponse.values:type_name -> google.protobuf.Struct
+	107, // 10: panelarr.source.v1.SetConfigRequest.values:type_name -> google.protobuf.Struct
+	107, // 11: panelarr.source.v1.SetConfigResponse.values:type_name -> google.protobuf.Struct
 	3,   // 12: panelarr.source.v1.HealthResponse.status:type_name -> panelarr.source.v1.HealthStatus
 	7,   // 13: panelarr.source.v1.Source.content_rating:type_name -> panelarr.source.v1.ContentRating
 	6,   // 14: panelarr.source.v1.Source.capabilities:type_name -> panelarr.source.v1.SourceCapability
 	24,  // 15: panelarr.source.v1.Source.health:type_name -> panelarr.source.v1.SourceHealth
 	5,   // 16: panelarr.source.v1.SourceHealth.status:type_name -> panelarr.source.v1.SourceHealthStatus
-	95,  // 17: panelarr.source.v1.SourceHealth.latency:type_name -> google.protobuf.Duration
-	96,  // 18: panelarr.source.v1.SourceHealth.checked_at:type_name -> google.protobuf.Timestamp
+	108, // 17: panelarr.source.v1.SourceHealth.latency:type_name -> google.protobuf.Duration
+	109, // 18: panelarr.source.v1.SourceHealth.checked_at:type_name -> google.protobuf.Timestamp
 	23,  // 19: panelarr.source.v1.ListSourcesResponse.sources:type_name -> panelarr.source.v1.Source
 	23,  // 20: panelarr.source.v1.GetSourceResponse.source:type_name -> panelarr.source.v1.Source
 	31,  // 21: panelarr.source.v1.GetFiltersResponse.filters:type_name -> panelarr.source.v1.Filter
@@ -6200,7 +6847,7 @@ var file_panelarr_source_v1_source_plugin_proto_depIdxs = []int32{
 	42,  // 39: panelarr.source.v1.SearchResponse.series:type_name -> panelarr.source.v1.Series
 	42,  // 40: panelarr.source.v1.ResolveUrlResponse.series:type_name -> panelarr.source.v1.Series
 	42,  // 41: panelarr.source.v1.GetSeriesResponse.series:type_name -> panelarr.source.v1.Series
-	96,  // 42: panelarr.source.v1.Chapter.uploaded_at:type_name -> google.protobuf.Timestamp
+	109, // 42: panelarr.source.v1.Chapter.uploaded_at:type_name -> google.protobuf.Timestamp
 	53,  // 43: panelarr.source.v1.ListChaptersResponse.chapters:type_name -> panelarr.source.v1.Chapter
 	56,  // 44: panelarr.source.v1.ListPagesResponse.pages:type_name -> panelarr.source.v1.Page
 	61,  // 45: panelarr.source.v1.FetchImageResponse.metadata:type_name -> panelarr.source.v1.ImageMetadata
@@ -6214,10 +6861,10 @@ var file_panelarr_source_v1_source_plugin_proto_depIdxs = []int32{
 	62,  // 53: panelarr.source.v1.UpdatePackageResponse.package:type_name -> panelarr.source.v1.Package
 	65,  // 54: panelarr.source.v1.SetPackageSettingsRequest.settings:type_name -> panelarr.source.v1.PackageSettings
 	62,  // 55: panelarr.source.v1.SetPackageSettingsResponse.package:type_name -> panelarr.source.v1.Package
-	94,  // 56: panelarr.source.v1.GetSettingsSchemaResponse.schema:type_name -> google.protobuf.Struct
-	94,  // 57: panelarr.source.v1.GetSettingsResponse.values:type_name -> google.protobuf.Struct
-	94,  // 58: panelarr.source.v1.SetSettingsRequest.values:type_name -> google.protobuf.Struct
-	94,  // 59: panelarr.source.v1.SetSettingsResponse.values:type_name -> google.protobuf.Struct
+	107, // 56: panelarr.source.v1.GetSettingsSchemaResponse.schema:type_name -> google.protobuf.Struct
+	107, // 57: panelarr.source.v1.GetSettingsResponse.values:type_name -> google.protobuf.Struct
+	107, // 58: panelarr.source.v1.SetSettingsRequest.values:type_name -> google.protobuf.Struct
+	107, // 59: panelarr.source.v1.SetSettingsResponse.values:type_name -> google.protobuf.Struct
 	88,  // 60: panelarr.source.v1.SetNetworkProfileRequest.profile:type_name -> panelarr.source.v1.NetworkProfile
 	88,  // 61: panelarr.source.v1.GetNetworkProfileResponse.profile:type_name -> panelarr.source.v1.NetworkProfile
 	10,  // 62: panelarr.source.v1.GetNetworkProfileResponse.origin:type_name -> panelarr.source.v1.NetworkProfileOrigin
@@ -6225,71 +6872,91 @@ var file_panelarr_source_v1_source_plugin_proto_depIdxs = []int32{
 	90,  // 64: panelarr.source.v1.NetworkProfile.solver:type_name -> panelarr.source.v1.Solver
 	16,  // 65: panelarr.source.v1.NetworkProfile.rate_limit:type_name -> panelarr.source.v1.RateLimit
 	91,  // 66: panelarr.source.v1.NetworkProfile.user_agent:type_name -> panelarr.source.v1.UserAgent
-	93,  // 67: panelarr.source.v1.NetworkProfile.headers:type_name -> panelarr.source.v1.NetworkProfile.HeadersEntry
+	105, // 67: panelarr.source.v1.NetworkProfile.headers:type_name -> panelarr.source.v1.NetworkProfile.HeadersEntry
 	92,  // 68: panelarr.source.v1.NetworkProfile.timeouts:type_name -> panelarr.source.v1.Timeouts
 	11,  // 69: panelarr.source.v1.Solver.type:type_name -> panelarr.source.v1.SolverType
-	95,  // 70: panelarr.source.v1.Solver.session_ttl:type_name -> google.protobuf.Duration
-	95,  // 71: panelarr.source.v1.Solver.max_timeout:type_name -> google.protobuf.Duration
-	95,  // 72: panelarr.source.v1.Timeouts.connect:type_name -> google.protobuf.Duration
-	95,  // 73: panelarr.source.v1.Timeouts.read:type_name -> google.protobuf.Duration
-	95,  // 74: panelarr.source.v1.Timeouts.call:type_name -> google.protobuf.Duration
-	12,  // 75: panelarr.source.v1.SourcePluginService.GetInfo:input_type -> panelarr.source.v1.GetInfoRequest
-	17,  // 76: panelarr.source.v1.SourcePluginService.GetConfig:input_type -> panelarr.source.v1.GetConfigRequest
-	19,  // 77: panelarr.source.v1.SourcePluginService.SetConfig:input_type -> panelarr.source.v1.SetConfigRequest
-	21,  // 78: panelarr.source.v1.SourcePluginService.Health:input_type -> panelarr.source.v1.HealthRequest
-	25,  // 79: panelarr.source.v1.SourcePluginService.ListSources:input_type -> panelarr.source.v1.ListSourcesRequest
-	27,  // 80: panelarr.source.v1.SourcePluginService.GetSource:input_type -> panelarr.source.v1.GetSourceRequest
-	29,  // 81: panelarr.source.v1.SourcePluginService.GetFilters:input_type -> panelarr.source.v1.GetFiltersRequest
-	43,  // 82: panelarr.source.v1.SourcePluginService.Popular:input_type -> panelarr.source.v1.PopularRequest
-	45,  // 83: panelarr.source.v1.SourcePluginService.Latest:input_type -> panelarr.source.v1.LatestRequest
-	47,  // 84: panelarr.source.v1.SourcePluginService.Search:input_type -> panelarr.source.v1.SearchRequest
-	49,  // 85: panelarr.source.v1.SourcePluginService.ResolveUrl:input_type -> panelarr.source.v1.ResolveUrlRequest
-	51,  // 86: panelarr.source.v1.SourcePluginService.GetSeries:input_type -> panelarr.source.v1.GetSeriesRequest
-	54,  // 87: panelarr.source.v1.SourcePluginService.ListChapters:input_type -> panelarr.source.v1.ListChaptersRequest
-	57,  // 88: panelarr.source.v1.SourcePluginService.ListPages:input_type -> panelarr.source.v1.ListPagesRequest
-	59,  // 89: panelarr.source.v1.SourcePluginService.FetchImage:input_type -> panelarr.source.v1.FetchImageRequest
-	78,  // 90: panelarr.source.v1.SourcePluginService.GetSettingsSchema:input_type -> panelarr.source.v1.GetSettingsSchemaRequest
-	80,  // 91: panelarr.source.v1.SourcePluginService.GetSettings:input_type -> panelarr.source.v1.GetSettingsRequest
-	82,  // 92: panelarr.source.v1.SourcePluginService.SetSettings:input_type -> panelarr.source.v1.SetSettingsRequest
-	66,  // 93: panelarr.source.v1.SourcePluginService.ListPackages:input_type -> panelarr.source.v1.ListPackagesRequest
-	68,  // 94: panelarr.source.v1.SourcePluginService.GetPackage:input_type -> panelarr.source.v1.GetPackageRequest
-	70,  // 95: panelarr.source.v1.SourcePluginService.InstallPackage:input_type -> panelarr.source.v1.InstallPackageRequest
-	72,  // 96: panelarr.source.v1.SourcePluginService.UpdatePackage:input_type -> panelarr.source.v1.UpdatePackageRequest
-	74,  // 97: panelarr.source.v1.SourcePluginService.UninstallPackage:input_type -> panelarr.source.v1.UninstallPackageRequest
-	76,  // 98: panelarr.source.v1.SourcePluginService.SetPackageSettings:input_type -> panelarr.source.v1.SetPackageSettingsRequest
-	86,  // 99: panelarr.source.v1.SourcePluginService.GetNetworkProfile:input_type -> panelarr.source.v1.GetNetworkProfileRequest
-	84,  // 100: panelarr.source.v1.SourcePluginService.SetNetworkProfile:input_type -> panelarr.source.v1.SetNetworkProfileRequest
-	13,  // 101: panelarr.source.v1.SourcePluginService.GetInfo:output_type -> panelarr.source.v1.GetInfoResponse
-	18,  // 102: panelarr.source.v1.SourcePluginService.GetConfig:output_type -> panelarr.source.v1.GetConfigResponse
-	20,  // 103: panelarr.source.v1.SourcePluginService.SetConfig:output_type -> panelarr.source.v1.SetConfigResponse
-	22,  // 104: panelarr.source.v1.SourcePluginService.Health:output_type -> panelarr.source.v1.HealthResponse
-	26,  // 105: panelarr.source.v1.SourcePluginService.ListSources:output_type -> panelarr.source.v1.ListSourcesResponse
-	28,  // 106: panelarr.source.v1.SourcePluginService.GetSource:output_type -> panelarr.source.v1.GetSourceResponse
-	30,  // 107: panelarr.source.v1.SourcePluginService.GetFilters:output_type -> panelarr.source.v1.GetFiltersResponse
-	44,  // 108: panelarr.source.v1.SourcePluginService.Popular:output_type -> panelarr.source.v1.PopularResponse
-	46,  // 109: panelarr.source.v1.SourcePluginService.Latest:output_type -> panelarr.source.v1.LatestResponse
-	48,  // 110: panelarr.source.v1.SourcePluginService.Search:output_type -> panelarr.source.v1.SearchResponse
-	50,  // 111: panelarr.source.v1.SourcePluginService.ResolveUrl:output_type -> panelarr.source.v1.ResolveUrlResponse
-	52,  // 112: panelarr.source.v1.SourcePluginService.GetSeries:output_type -> panelarr.source.v1.GetSeriesResponse
-	55,  // 113: panelarr.source.v1.SourcePluginService.ListChapters:output_type -> panelarr.source.v1.ListChaptersResponse
-	58,  // 114: panelarr.source.v1.SourcePluginService.ListPages:output_type -> panelarr.source.v1.ListPagesResponse
-	60,  // 115: panelarr.source.v1.SourcePluginService.FetchImage:output_type -> panelarr.source.v1.FetchImageResponse
-	79,  // 116: panelarr.source.v1.SourcePluginService.GetSettingsSchema:output_type -> panelarr.source.v1.GetSettingsSchemaResponse
-	81,  // 117: panelarr.source.v1.SourcePluginService.GetSettings:output_type -> panelarr.source.v1.GetSettingsResponse
-	83,  // 118: panelarr.source.v1.SourcePluginService.SetSettings:output_type -> panelarr.source.v1.SetSettingsResponse
-	67,  // 119: panelarr.source.v1.SourcePluginService.ListPackages:output_type -> panelarr.source.v1.ListPackagesResponse
-	69,  // 120: panelarr.source.v1.SourcePluginService.GetPackage:output_type -> panelarr.source.v1.GetPackageResponse
-	71,  // 121: panelarr.source.v1.SourcePluginService.InstallPackage:output_type -> panelarr.source.v1.InstallPackageResponse
-	73,  // 122: panelarr.source.v1.SourcePluginService.UpdatePackage:output_type -> panelarr.source.v1.UpdatePackageResponse
-	75,  // 123: panelarr.source.v1.SourcePluginService.UninstallPackage:output_type -> panelarr.source.v1.UninstallPackageResponse
-	77,  // 124: panelarr.source.v1.SourcePluginService.SetPackageSettings:output_type -> panelarr.source.v1.SetPackageSettingsResponse
-	87,  // 125: panelarr.source.v1.SourcePluginService.GetNetworkProfile:output_type -> panelarr.source.v1.GetNetworkProfileResponse
-	85,  // 126: panelarr.source.v1.SourcePluginService.SetNetworkProfile:output_type -> panelarr.source.v1.SetNetworkProfileResponse
-	101, // [101:127] is the sub-list for method output_type
-	75,  // [75:101] is the sub-list for method input_type
-	75,  // [75:75] is the sub-list for extension type_name
-	75,  // [75:75] is the sub-list for extension extendee
-	0,   // [0:75] is the sub-list for field type_name
+	108, // 70: panelarr.source.v1.Solver.session_ttl:type_name -> google.protobuf.Duration
+	108, // 71: panelarr.source.v1.Solver.max_timeout:type_name -> google.protobuf.Duration
+	108, // 72: panelarr.source.v1.Timeouts.connect:type_name -> google.protobuf.Duration
+	108, // 73: panelarr.source.v1.Timeouts.read:type_name -> google.protobuf.Duration
+	108, // 74: panelarr.source.v1.Timeouts.call:type_name -> google.protobuf.Duration
+	110, // 75: panelarr.source.v1.ListJobsResponse.jobs:type_name -> panelarr.jobs.v1.Job
+	110, // 76: panelarr.source.v1.GetJobResponse.job:type_name -> panelarr.jobs.v1.Job
+	111, // 77: panelarr.source.v1.ListJobRunsRequest.status:type_name -> panelarr.jobs.v1.JobRunStatus
+	112, // 78: panelarr.source.v1.ListJobRunsResponse.runs:type_name -> panelarr.jobs.v1.JobRunSummary
+	113, // 79: panelarr.source.v1.GetJobRunResponse.run:type_name -> panelarr.jobs.v1.JobRun
+	106, // 80: panelarr.source.v1.RunJobRequest.params:type_name -> panelarr.source.v1.RunJobRequest.ParamsEntry
+	112, // 81: panelarr.source.v1.RunJobResponse.run:type_name -> panelarr.jobs.v1.JobRunSummary
+	112, // 82: panelarr.source.v1.CancelJobRunResponse.run:type_name -> panelarr.jobs.v1.JobRunSummary
+	12,  // 83: panelarr.source.v1.SourcePluginService.GetInfo:input_type -> panelarr.source.v1.GetInfoRequest
+	17,  // 84: panelarr.source.v1.SourcePluginService.GetConfig:input_type -> panelarr.source.v1.GetConfigRequest
+	19,  // 85: panelarr.source.v1.SourcePluginService.SetConfig:input_type -> panelarr.source.v1.SetConfigRequest
+	21,  // 86: panelarr.source.v1.SourcePluginService.Health:input_type -> panelarr.source.v1.HealthRequest
+	25,  // 87: panelarr.source.v1.SourcePluginService.ListSources:input_type -> panelarr.source.v1.ListSourcesRequest
+	27,  // 88: panelarr.source.v1.SourcePluginService.GetSource:input_type -> panelarr.source.v1.GetSourceRequest
+	29,  // 89: panelarr.source.v1.SourcePluginService.GetFilters:input_type -> panelarr.source.v1.GetFiltersRequest
+	43,  // 90: panelarr.source.v1.SourcePluginService.Popular:input_type -> panelarr.source.v1.PopularRequest
+	45,  // 91: panelarr.source.v1.SourcePluginService.Latest:input_type -> panelarr.source.v1.LatestRequest
+	47,  // 92: panelarr.source.v1.SourcePluginService.Search:input_type -> panelarr.source.v1.SearchRequest
+	49,  // 93: panelarr.source.v1.SourcePluginService.ResolveUrl:input_type -> panelarr.source.v1.ResolveUrlRequest
+	51,  // 94: panelarr.source.v1.SourcePluginService.GetSeries:input_type -> panelarr.source.v1.GetSeriesRequest
+	54,  // 95: panelarr.source.v1.SourcePluginService.ListChapters:input_type -> panelarr.source.v1.ListChaptersRequest
+	57,  // 96: panelarr.source.v1.SourcePluginService.ListPages:input_type -> panelarr.source.v1.ListPagesRequest
+	59,  // 97: panelarr.source.v1.SourcePluginService.FetchImage:input_type -> panelarr.source.v1.FetchImageRequest
+	78,  // 98: panelarr.source.v1.SourcePluginService.GetSettingsSchema:input_type -> panelarr.source.v1.GetSettingsSchemaRequest
+	80,  // 99: panelarr.source.v1.SourcePluginService.GetSettings:input_type -> panelarr.source.v1.GetSettingsRequest
+	82,  // 100: panelarr.source.v1.SourcePluginService.SetSettings:input_type -> panelarr.source.v1.SetSettingsRequest
+	66,  // 101: panelarr.source.v1.SourcePluginService.ListPackages:input_type -> panelarr.source.v1.ListPackagesRequest
+	68,  // 102: panelarr.source.v1.SourcePluginService.GetPackage:input_type -> panelarr.source.v1.GetPackageRequest
+	70,  // 103: panelarr.source.v1.SourcePluginService.InstallPackage:input_type -> panelarr.source.v1.InstallPackageRequest
+	72,  // 104: panelarr.source.v1.SourcePluginService.UpdatePackage:input_type -> panelarr.source.v1.UpdatePackageRequest
+	74,  // 105: panelarr.source.v1.SourcePluginService.UninstallPackage:input_type -> panelarr.source.v1.UninstallPackageRequest
+	76,  // 106: panelarr.source.v1.SourcePluginService.SetPackageSettings:input_type -> panelarr.source.v1.SetPackageSettingsRequest
+	86,  // 107: panelarr.source.v1.SourcePluginService.GetNetworkProfile:input_type -> panelarr.source.v1.GetNetworkProfileRequest
+	84,  // 108: panelarr.source.v1.SourcePluginService.SetNetworkProfile:input_type -> panelarr.source.v1.SetNetworkProfileRequest
+	93,  // 109: panelarr.source.v1.SourcePluginService.ListJobs:input_type -> panelarr.source.v1.ListJobsRequest
+	95,  // 110: panelarr.source.v1.SourcePluginService.GetJob:input_type -> panelarr.source.v1.GetJobRequest
+	97,  // 111: panelarr.source.v1.SourcePluginService.ListJobRuns:input_type -> panelarr.source.v1.ListJobRunsRequest
+	99,  // 112: panelarr.source.v1.SourcePluginService.GetJobRun:input_type -> panelarr.source.v1.GetJobRunRequest
+	101, // 113: panelarr.source.v1.SourcePluginService.RunJob:input_type -> panelarr.source.v1.RunJobRequest
+	103, // 114: panelarr.source.v1.SourcePluginService.CancelJobRun:input_type -> panelarr.source.v1.CancelJobRunRequest
+	13,  // 115: panelarr.source.v1.SourcePluginService.GetInfo:output_type -> panelarr.source.v1.GetInfoResponse
+	18,  // 116: panelarr.source.v1.SourcePluginService.GetConfig:output_type -> panelarr.source.v1.GetConfigResponse
+	20,  // 117: panelarr.source.v1.SourcePluginService.SetConfig:output_type -> panelarr.source.v1.SetConfigResponse
+	22,  // 118: panelarr.source.v1.SourcePluginService.Health:output_type -> panelarr.source.v1.HealthResponse
+	26,  // 119: panelarr.source.v1.SourcePluginService.ListSources:output_type -> panelarr.source.v1.ListSourcesResponse
+	28,  // 120: panelarr.source.v1.SourcePluginService.GetSource:output_type -> panelarr.source.v1.GetSourceResponse
+	30,  // 121: panelarr.source.v1.SourcePluginService.GetFilters:output_type -> panelarr.source.v1.GetFiltersResponse
+	44,  // 122: panelarr.source.v1.SourcePluginService.Popular:output_type -> panelarr.source.v1.PopularResponse
+	46,  // 123: panelarr.source.v1.SourcePluginService.Latest:output_type -> panelarr.source.v1.LatestResponse
+	48,  // 124: panelarr.source.v1.SourcePluginService.Search:output_type -> panelarr.source.v1.SearchResponse
+	50,  // 125: panelarr.source.v1.SourcePluginService.ResolveUrl:output_type -> panelarr.source.v1.ResolveUrlResponse
+	52,  // 126: panelarr.source.v1.SourcePluginService.GetSeries:output_type -> panelarr.source.v1.GetSeriesResponse
+	55,  // 127: panelarr.source.v1.SourcePluginService.ListChapters:output_type -> panelarr.source.v1.ListChaptersResponse
+	58,  // 128: panelarr.source.v1.SourcePluginService.ListPages:output_type -> panelarr.source.v1.ListPagesResponse
+	60,  // 129: panelarr.source.v1.SourcePluginService.FetchImage:output_type -> panelarr.source.v1.FetchImageResponse
+	79,  // 130: panelarr.source.v1.SourcePluginService.GetSettingsSchema:output_type -> panelarr.source.v1.GetSettingsSchemaResponse
+	81,  // 131: panelarr.source.v1.SourcePluginService.GetSettings:output_type -> panelarr.source.v1.GetSettingsResponse
+	83,  // 132: panelarr.source.v1.SourcePluginService.SetSettings:output_type -> panelarr.source.v1.SetSettingsResponse
+	67,  // 133: panelarr.source.v1.SourcePluginService.ListPackages:output_type -> panelarr.source.v1.ListPackagesResponse
+	69,  // 134: panelarr.source.v1.SourcePluginService.GetPackage:output_type -> panelarr.source.v1.GetPackageResponse
+	71,  // 135: panelarr.source.v1.SourcePluginService.InstallPackage:output_type -> panelarr.source.v1.InstallPackageResponse
+	73,  // 136: panelarr.source.v1.SourcePluginService.UpdatePackage:output_type -> panelarr.source.v1.UpdatePackageResponse
+	75,  // 137: panelarr.source.v1.SourcePluginService.UninstallPackage:output_type -> panelarr.source.v1.UninstallPackageResponse
+	77,  // 138: panelarr.source.v1.SourcePluginService.SetPackageSettings:output_type -> panelarr.source.v1.SetPackageSettingsResponse
+	87,  // 139: panelarr.source.v1.SourcePluginService.GetNetworkProfile:output_type -> panelarr.source.v1.GetNetworkProfileResponse
+	85,  // 140: panelarr.source.v1.SourcePluginService.SetNetworkProfile:output_type -> panelarr.source.v1.SetNetworkProfileResponse
+	94,  // 141: panelarr.source.v1.SourcePluginService.ListJobs:output_type -> panelarr.source.v1.ListJobsResponse
+	96,  // 142: panelarr.source.v1.SourcePluginService.GetJob:output_type -> panelarr.source.v1.GetJobResponse
+	98,  // 143: panelarr.source.v1.SourcePluginService.ListJobRuns:output_type -> panelarr.source.v1.ListJobRunsResponse
+	100, // 144: panelarr.source.v1.SourcePluginService.GetJobRun:output_type -> panelarr.source.v1.GetJobRunResponse
+	102, // 145: panelarr.source.v1.SourcePluginService.RunJob:output_type -> panelarr.source.v1.RunJobResponse
+	104, // 146: panelarr.source.v1.SourcePluginService.CancelJobRun:output_type -> panelarr.source.v1.CancelJobRunResponse
+	115, // [115:147] is the sub-list for method output_type
+	83,  // [83:115] is the sub-list for method input_type
+	83,  // [83:83] is the sub-list for extension type_name
+	83,  // [83:83] is the sub-list for extension extendee
+	0,   // [0:83] is the sub-list for field type_name
 }
 
 func init() { file_panelarr_source_v1_source_plugin_proto_init() }
@@ -6330,7 +6997,7 @@ func file_panelarr_source_v1_source_plugin_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_panelarr_source_v1_source_plugin_proto_rawDesc), len(file_panelarr_source_v1_source_plugin_proto_rawDesc)),
 			NumEnums:      12,
-			NumMessages:   82,
+			NumMessages:   95,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

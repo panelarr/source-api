@@ -47,6 +47,12 @@ const (
 	SourcePluginService_SetPackageSettings_FullMethodName = "/panelarr.source.v1.SourcePluginService/SetPackageSettings"
 	SourcePluginService_GetNetworkProfile_FullMethodName  = "/panelarr.source.v1.SourcePluginService/GetNetworkProfile"
 	SourcePluginService_SetNetworkProfile_FullMethodName  = "/panelarr.source.v1.SourcePluginService/SetNetworkProfile"
+	SourcePluginService_ListJobs_FullMethodName           = "/panelarr.source.v1.SourcePluginService/ListJobs"
+	SourcePluginService_GetJob_FullMethodName             = "/panelarr.source.v1.SourcePluginService/GetJob"
+	SourcePluginService_ListJobRuns_FullMethodName        = "/panelarr.source.v1.SourcePluginService/ListJobRuns"
+	SourcePluginService_GetJobRun_FullMethodName          = "/panelarr.source.v1.SourcePluginService/GetJobRun"
+	SourcePluginService_RunJob_FullMethodName             = "/panelarr.source.v1.SourcePluginService/RunJob"
+	SourcePluginService_CancelJobRun_FullMethodName       = "/panelarr.source.v1.SourcePluginService/CancelJobRun"
 )
 
 // SourcePluginServiceClient is the client API for SourcePluginService service.
@@ -143,6 +149,23 @@ type SourcePluginServiceClient interface {
 	// A pushed profile overrides anything the plugin configured locally. Leaving
 	// `profile` unset removes the override.
 	SetNetworkProfile(ctx context.Context, in *SetNetworkProfileRequest, opts ...grpc.CallOption) (*SetNetworkProfileResponse, error)
+	// ListJobs lists the plugin's background jobs (with the JOBS capability), such as
+	// refreshing what it can install or checking its sources. Jobs use the shared
+	// panelarr.jobs.v1 model and its rules. Plugins without the capability answer
+	// UNIMPLEMENTED, and so do the other job calls.
+	ListJobs(ctx context.Context, in *ListJobsRequest, opts ...grpc.CallOption) (*ListJobsResponse, error)
+	GetJob(ctx context.Context, in *GetJobRequest, opts ...grpc.CallOption) (*GetJobResponse, error)
+	// ListJobRuns lists a job's runs, newest first.
+	ListJobRuns(ctx context.Context, in *ListJobRunsRequest, opts ...grpc.CallOption) (*ListJobRunsResponse, error)
+	// GetJobRun returns a run with its params, notes and, while it runs, progress.
+	GetJobRun(ctx context.Context, in *GetJobRunRequest, opts ...grpc.CallOption) (*GetJobRunResponse, error)
+	// RunJob starts a run now and returns at once. If the job is already running, it
+	// fails with ALREADY_EXISTS, an ErrorInfo with reason `ALREADY_RUNNING` and a
+	// panelarr.jobs.v1.JobAlreadyRunning detail naming the running run.
+	RunJob(ctx context.Context, in *RunJobRequest, opts ...grpc.CallOption) (*RunJobResponse, error)
+	// CancelJobRun stops a running run. Fails with FAILED_PRECONDITION when the run isn't
+	// running or its job can't be cancelled.
+	CancelJobRun(ctx context.Context, in *CancelJobRunRequest, opts ...grpc.CallOption) (*CancelJobRunResponse, error)
 }
 
 type sourcePluginServiceClient struct {
@@ -422,6 +445,66 @@ func (c *sourcePluginServiceClient) SetNetworkProfile(ctx context.Context, in *S
 	return out, nil
 }
 
+func (c *sourcePluginServiceClient) ListJobs(ctx context.Context, in *ListJobsRequest, opts ...grpc.CallOption) (*ListJobsResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(ListJobsResponse)
+	err := c.cc.Invoke(ctx, SourcePluginService_ListJobs_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *sourcePluginServiceClient) GetJob(ctx context.Context, in *GetJobRequest, opts ...grpc.CallOption) (*GetJobResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(GetJobResponse)
+	err := c.cc.Invoke(ctx, SourcePluginService_GetJob_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *sourcePluginServiceClient) ListJobRuns(ctx context.Context, in *ListJobRunsRequest, opts ...grpc.CallOption) (*ListJobRunsResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(ListJobRunsResponse)
+	err := c.cc.Invoke(ctx, SourcePluginService_ListJobRuns_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *sourcePluginServiceClient) GetJobRun(ctx context.Context, in *GetJobRunRequest, opts ...grpc.CallOption) (*GetJobRunResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(GetJobRunResponse)
+	err := c.cc.Invoke(ctx, SourcePluginService_GetJobRun_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *sourcePluginServiceClient) RunJob(ctx context.Context, in *RunJobRequest, opts ...grpc.CallOption) (*RunJobResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(RunJobResponse)
+	err := c.cc.Invoke(ctx, SourcePluginService_RunJob_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *sourcePluginServiceClient) CancelJobRun(ctx context.Context, in *CancelJobRunRequest, opts ...grpc.CallOption) (*CancelJobRunResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(CancelJobRunResponse)
+	err := c.cc.Invoke(ctx, SourcePluginService_CancelJobRun_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // SourcePluginServiceServer is the server API for SourcePluginService service.
 // All implementations must embed UnimplementedSourcePluginServiceServer
 // for forward compatibility.
@@ -516,6 +599,23 @@ type SourcePluginServiceServer interface {
 	// A pushed profile overrides anything the plugin configured locally. Leaving
 	// `profile` unset removes the override.
 	SetNetworkProfile(context.Context, *SetNetworkProfileRequest) (*SetNetworkProfileResponse, error)
+	// ListJobs lists the plugin's background jobs (with the JOBS capability), such as
+	// refreshing what it can install or checking its sources. Jobs use the shared
+	// panelarr.jobs.v1 model and its rules. Plugins without the capability answer
+	// UNIMPLEMENTED, and so do the other job calls.
+	ListJobs(context.Context, *ListJobsRequest) (*ListJobsResponse, error)
+	GetJob(context.Context, *GetJobRequest) (*GetJobResponse, error)
+	// ListJobRuns lists a job's runs, newest first.
+	ListJobRuns(context.Context, *ListJobRunsRequest) (*ListJobRunsResponse, error)
+	// GetJobRun returns a run with its params, notes and, while it runs, progress.
+	GetJobRun(context.Context, *GetJobRunRequest) (*GetJobRunResponse, error)
+	// RunJob starts a run now and returns at once. If the job is already running, it
+	// fails with ALREADY_EXISTS, an ErrorInfo with reason `ALREADY_RUNNING` and a
+	// panelarr.jobs.v1.JobAlreadyRunning detail naming the running run.
+	RunJob(context.Context, *RunJobRequest) (*RunJobResponse, error)
+	// CancelJobRun stops a running run. Fails with FAILED_PRECONDITION when the run isn't
+	// running or its job can't be cancelled.
+	CancelJobRun(context.Context, *CancelJobRunRequest) (*CancelJobRunResponse, error)
 	mustEmbedUnimplementedSourcePluginServiceServer()
 }
 
@@ -603,6 +703,24 @@ func (UnimplementedSourcePluginServiceServer) GetNetworkProfile(context.Context,
 }
 func (UnimplementedSourcePluginServiceServer) SetNetworkProfile(context.Context, *SetNetworkProfileRequest) (*SetNetworkProfileResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method SetNetworkProfile not implemented")
+}
+func (UnimplementedSourcePluginServiceServer) ListJobs(context.Context, *ListJobsRequest) (*ListJobsResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method ListJobs not implemented")
+}
+func (UnimplementedSourcePluginServiceServer) GetJob(context.Context, *GetJobRequest) (*GetJobResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method GetJob not implemented")
+}
+func (UnimplementedSourcePluginServiceServer) ListJobRuns(context.Context, *ListJobRunsRequest) (*ListJobRunsResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method ListJobRuns not implemented")
+}
+func (UnimplementedSourcePluginServiceServer) GetJobRun(context.Context, *GetJobRunRequest) (*GetJobRunResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method GetJobRun not implemented")
+}
+func (UnimplementedSourcePluginServiceServer) RunJob(context.Context, *RunJobRequest) (*RunJobResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method RunJob not implemented")
+}
+func (UnimplementedSourcePluginServiceServer) CancelJobRun(context.Context, *CancelJobRunRequest) (*CancelJobRunResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method CancelJobRun not implemented")
 }
 func (UnimplementedSourcePluginServiceServer) mustEmbedUnimplementedSourcePluginServiceServer() {}
 func (UnimplementedSourcePluginServiceServer) testEmbeddedByValue()                             {}
@@ -1086,6 +1204,114 @@ func _SourcePluginService_SetNetworkProfile_Handler(srv interface{}, ctx context
 	return interceptor(ctx, in, info, handler)
 }
 
+func _SourcePluginService_ListJobs_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(ListJobsRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(SourcePluginServiceServer).ListJobs(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: SourcePluginService_ListJobs_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(SourcePluginServiceServer).ListJobs(ctx, req.(*ListJobsRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _SourcePluginService_GetJob_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(GetJobRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(SourcePluginServiceServer).GetJob(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: SourcePluginService_GetJob_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(SourcePluginServiceServer).GetJob(ctx, req.(*GetJobRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _SourcePluginService_ListJobRuns_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(ListJobRunsRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(SourcePluginServiceServer).ListJobRuns(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: SourcePluginService_ListJobRuns_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(SourcePluginServiceServer).ListJobRuns(ctx, req.(*ListJobRunsRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _SourcePluginService_GetJobRun_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(GetJobRunRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(SourcePluginServiceServer).GetJobRun(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: SourcePluginService_GetJobRun_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(SourcePluginServiceServer).GetJobRun(ctx, req.(*GetJobRunRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _SourcePluginService_RunJob_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(RunJobRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(SourcePluginServiceServer).RunJob(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: SourcePluginService_RunJob_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(SourcePluginServiceServer).RunJob(ctx, req.(*RunJobRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _SourcePluginService_CancelJobRun_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(CancelJobRunRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(SourcePluginServiceServer).CancelJobRun(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: SourcePluginService_CancelJobRun_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(SourcePluginServiceServer).CancelJobRun(ctx, req.(*CancelJobRunRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // SourcePluginService_ServiceDesc is the grpc.ServiceDesc for SourcePluginService service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -1192,6 +1418,30 @@ var SourcePluginService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "SetNetworkProfile",
 			Handler:    _SourcePluginService_SetNetworkProfile_Handler,
+		},
+		{
+			MethodName: "ListJobs",
+			Handler:    _SourcePluginService_ListJobs_Handler,
+		},
+		{
+			MethodName: "GetJob",
+			Handler:    _SourcePluginService_GetJob_Handler,
+		},
+		{
+			MethodName: "ListJobRuns",
+			Handler:    _SourcePluginService_ListJobRuns_Handler,
+		},
+		{
+			MethodName: "GetJobRun",
+			Handler:    _SourcePluginService_GetJobRun_Handler,
+		},
+		{
+			MethodName: "RunJob",
+			Handler:    _SourcePluginService_RunJob_Handler,
+		},
+		{
+			MethodName: "CancelJobRun",
+			Handler:    _SourcePluginService_CancelJobRun_Handler,
 		},
 	},
 	Streams: []grpc.StreamDesc{

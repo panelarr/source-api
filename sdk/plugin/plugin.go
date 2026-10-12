@@ -70,6 +70,14 @@ type Plugin interface {
 	// Plugins that declare the network profile common service apply it to
 	// every request for that source; httpx.Sources does that for them.
 	SetNetworkProfile(ctx context.Context, req *sourcev1.SetNetworkProfileRequest) (*sourcev1.SetNetworkProfileResponse, error)
+	// The job calls, for plugins with the JOBS capability: see the proto and
+	// panelarr.jobs.v1. The jobs package implements them.
+	ListJobs(ctx context.Context, req *sourcev1.ListJobsRequest) (*sourcev1.ListJobsResponse, error)
+	GetJob(ctx context.Context, req *sourcev1.GetJobRequest) (*sourcev1.GetJobResponse, error)
+	ListJobRuns(ctx context.Context, req *sourcev1.ListJobRunsRequest) (*sourcev1.ListJobRunsResponse, error)
+	GetJobRun(ctx context.Context, req *sourcev1.GetJobRunRequest) (*sourcev1.GetJobRunResponse, error)
+	RunJob(ctx context.Context, req *sourcev1.RunJobRequest) (*sourcev1.RunJobResponse, error)
+	CancelJobRun(ctx context.Context, req *sourcev1.CancelJobRunRequest) (*sourcev1.CancelJobRunResponse, error)
 }
 
 // ImageSendFunc sends one FetchImage message to the host. It returns an
@@ -185,6 +193,30 @@ func (Unimplemented) SetPackageSettings(context.Context, *sourcev1.SetPackageSet
 
 func (Unimplemented) SetNetworkProfile(context.Context, *sourcev1.SetNetworkProfileRequest) (*sourcev1.SetNetworkProfileResponse, error) {
 	return nil, ErrUnimplemented("SetNetworkProfile")
+}
+
+func (Unimplemented) ListJobs(context.Context, *sourcev1.ListJobsRequest) (*sourcev1.ListJobsResponse, error) {
+	return nil, ErrUnimplemented("ListJobs")
+}
+
+func (Unimplemented) GetJob(context.Context, *sourcev1.GetJobRequest) (*sourcev1.GetJobResponse, error) {
+	return nil, ErrUnimplemented("GetJob")
+}
+
+func (Unimplemented) ListJobRuns(context.Context, *sourcev1.ListJobRunsRequest) (*sourcev1.ListJobRunsResponse, error) {
+	return nil, ErrUnimplemented("ListJobRuns")
+}
+
+func (Unimplemented) GetJobRun(context.Context, *sourcev1.GetJobRunRequest) (*sourcev1.GetJobRunResponse, error) {
+	return nil, ErrUnimplemented("GetJobRun")
+}
+
+func (Unimplemented) RunJob(context.Context, *sourcev1.RunJobRequest) (*sourcev1.RunJobResponse, error) {
+	return nil, ErrUnimplemented("RunJob")
+}
+
+func (Unimplemented) CancelJobRun(context.Context, *sourcev1.CancelJobRunRequest) (*sourcev1.CancelJobRunResponse, error) {
+	return nil, ErrUnimplemented("CancelJobRun")
 }
 
 // PackageIDPattern is what package IDs look like: no ':', which HTTP paths

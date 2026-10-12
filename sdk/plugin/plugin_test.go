@@ -60,6 +60,19 @@ func TestErrors(t *testing.T) {
 	}
 }
 
+func TestAlreadyRunningCarriesTheRun(t *testing.T) {
+	e := plugin.ErrAlreadyRunning("run-7", "busy")
+	for name, back := range map[string]error{
+		"grpc":    plugin.FromGRPCError(plugin.ToGRPCError(e)),
+		"connect": plugin.FromConnectError(plugin.ToConnectError(e)),
+	} {
+		var pe *plugin.Error
+		if !errors.As(back, &pe) || pe.Code != plugin.CodeAlreadyExists || pe.Reason != plugin.ReasonAlreadyRunning || pe.CurrentRunID != "run-7" {
+			t.Errorf("%s: %#v", name, back)
+		}
+	}
+}
+
 func TestUnimplementedDefaults(t *testing.T) {
 	var u plugin.Unimplemented
 	ctx := context.Background()

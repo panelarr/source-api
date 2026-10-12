@@ -13,8 +13,11 @@ import (
 	"google.golang.org/genproto/googleapis/rpc/errdetails"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
+	"google.golang.org/protobuf/proto"
+	"google.golang.org/protobuf/protoadapt"
 	"google.golang.org/protobuf/types/known/durationpb"
 
+	jobsv1 "github.com/panelarr/source-api/gen/panelarr/jobs/v1"
 	sourcev1 "github.com/panelarr/source-api/gen/panelarr/source/v1"
 )
 
@@ -54,6 +57,8 @@ const (
 	// Package origins (e.g. extension stores).
 	ReasonStoreFetchFailed Reason = "STORE_FETCH_FAILED"
 	ReasonStoreInvalid     Reason = "STORE_INVALID"
+	// Jobs.
+	ReasonAlreadyRunning Reason = "ALREADY_RUNNING"
 )
 
 // ReasonOf turns an ErrorReason value into its wire name.
@@ -74,6 +79,9 @@ type Error struct {
 	// RetryAfter tells the caller when to try again, e.g. after the source
 	// rate-limited the plugin. Zero means no hint.
 	RetryAfter time.Duration
+	// CurrentRunID is the running run, when starting a job that is already
+	// running (reason ALREADY_RUNNING).
+	CurrentRunID string
 }
 
 func (e *Error) Error() string {
@@ -156,6 +164,14 @@ func ErrStoreInvalid(format string, args ...any) *Error {
 	return reasoned(CodeFailedPrecondition, ReasonStoreInvalid, format, args...)
 }
 
+// ErrAlreadyRunning says a job can't start because it is running already, as
+// the run runID.
+func ErrAlreadyRunning(runID, format string, args ...any) *Error {
+	e := reasoned(CodeAlreadyExists, ReasonAlreadyRunning, format, args...)
+	e.CurrentRunID = runID
+	return e
+}
+
 // ErrorCode returns the code of err: the code of an *Error, CodeCanceled or
 // CodeDeadlineExceeded for context errors, CodeInternal otherwise.
 func ErrorCode(err error) Code {
@@ -199,13 +215,8 @@ func ToConnectError(err error) error {
 	}
 	pe := asError(err)
 	ce := connect.NewError(pe.Code, errors.New(pe.Message))
-	if pe.Reason != "" {
-		if d, derr := connect.NewErrorDetail(&errdetails.ErrorInfo{Reason: string(pe.Reason), Domain: ErrorDomain}); derr == nil {
-			ce.AddDetail(d)
-		}
-	}
-	if pe.RetryAfter > 0 {
-		if d, derr := connect.NewErrorDetail(&errdetails.RetryInfo{RetryDelay: durationpb.New(pe.RetryAfter)}); derr == nil {
+	for _, m := range details(pe) {
+		if d, derr := connect.NewErrorDetail(m); derr == nil {
 			ce.AddDetail(d)
 		}
 	}
@@ -219,23 +230,43 @@ func ToGRPCError(err error) error {
 	}
 	pe := asError(err)
 	st := status.New(codes.Code(pe.Code), pe.Message)
-	if pe.Reason != "" {
-		if withDetails, derr := st.WithDetails(&errdetails.ErrorInfo{Reason: string(pe.Reason), Domain: ErrorDomain}); derr == nil {
-			st = withDetails
-		}
-	}
-	if pe.RetryAfter > 0 {
-		if withDetails, derr := st.WithDetails(&errdetails.RetryInfo{RetryDelay: durationpb.New(pe.RetryAfter)}); derr == nil {
+	for _, m := range details(pe) {
+		if withDetails, derr := st.WithDetails(protoadapt.MessageV1Of(m)); derr == nil {
 			st = withDetails
 		}
 	}
 	return st.Err()
 }
 
+// details are the status details that carry pe's reason, retry hint and
+// running run.
+func details(pe *Error) []proto.Message {
+	var out []proto.Message
+	if pe.Reason != "" {
+		info := &errdetails.ErrorInfo{Reason: string(pe.Reason), Domain: ErrorDomain}
+		if pe.CurrentRunID != "" {
+			info.Metadata = map[string]string{"current_run_id": pe.CurrentRunID}
+		}
+		out = append(out, info)
+	}
+	if pe.RetryAfter > 0 {
+		out = append(out, &errdetails.RetryInfo{RetryDelay: durationpb.New(pe.RetryAfter)})
+	}
+	if pe.CurrentRunID != "" {
+		out = append(out, &jobsv1.JobAlreadyRunning{CurrentRunId: pe.CurrentRunID})
+	}
+	return out
+}
+
 func fromDetail(pe *Error, v any) {
 	switch d := v.(type) {
 	case *errdetails.ErrorInfo:
 		pe.Reason = Reason(d.GetReason())
+		if id := d.GetMetadata()["current_run_id"]; id != "" {
+			pe.CurrentRunID = id
+		}
+	case *jobsv1.JobAlreadyRunning:
+		pe.CurrentRunID = d.GetCurrentRunId()
 	case *errdetails.RetryInfo:
 		pe.RetryAfter = d.GetRetryDelay().AsDuration()
 	}

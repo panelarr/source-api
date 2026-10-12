@@ -23,6 +23,7 @@ import (
 	"google.golang.org/protobuf/types/known/timestamppb"
 
 	sourcev1 "github.com/panelarr/source-api/gen/panelarr/source/v1"
+	"github.com/panelarr/source-api/sdk/jobs"
 	"github.com/panelarr/source-api/sdk/plugin"
 )
 
@@ -47,12 +48,16 @@ type Fake struct {
 	Packages []*Package
 	// Langs are the languages the plugin offers sources in; empty means all.
 	Langs []string
+	// Jobs, when set, makes the fake a plugin with the JOBS capability. [New]
+	// sets up "refresh" and "hold".
+	Jobs *jobs.Runner
 
 	mu       sync.Mutex
 	pkgState map[string]*packageState
 	profiles map[string]*sourcev1.NetworkProfile
 	settings map[string]map[string]any
 	calls    map[string]int
+	release  chan struct{}
 }
 
 // Source is a fake source and its catalogue.
@@ -77,7 +82,7 @@ type Chapter struct {
 // filters, URL resolving, settings) and "Beispiel Comics" (de: search only),
 // each with a few series, chapters and pages. Everything is made up.
 func New() *Fake {
-	f := &Fake{ID: "fake"}
+	f := &Fake{ID: "fake", release: make(chan struct{}, 1)}
 	f.Sources = []*Source{
 		NewSource("1001", "Example Comics", "en", []string{
 			"The Lantern Keeper", "Salt and Iron", "A Quiet Orbit", "Paper Cranes",
@@ -106,6 +111,7 @@ func New() *Fake {
 		NewPackage("beispiel.comics", "Beispiel Comics", "2.0", []*Source{f.Sources[1]}, Offer{"store-a", "Store A", "2.0"}).Installed("2.0"),
 		NewPackage("multi.comics", "Multi Comics", "3.1", multi, Offer{"store-a", "Store A", "3.0"}, Offer{"store-b", "Store B", "3.1"}),
 	}
+	f.Jobs = f.newJobs()
 	return f
 }
 

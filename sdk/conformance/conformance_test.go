@@ -169,3 +169,44 @@ func TestReportsInstanceAndProfileViolations(t *testing.T) {
 		}
 	}
 }
+
+// brokenJobs breaks the job rules on purpose.
+type brokenJobs struct{ *plugintest.Fake }
+
+func (b brokenJobs) ListJobs(ctx context.Context, r *sourcev1.ListJobsRequest) (*sourcev1.ListJobsResponse, error) {
+	res, err := b.Fake.ListJobs(ctx, r)
+	if err == nil && len(res.GetJobs()) > 0 {
+		res.Jobs[0].Id = "sync:bad"
+		res.Jobs[0].Running = true
+	}
+	return res, err
+}
+
+func (brokenJobs) RunJob(context.Context, *sourcev1.RunJobRequest) (*sourcev1.RunJobResponse, error) {
+	return nil, plugin.Errorf(plugin.CodeInvalidArgument, "no")
+}
+
+func TestReportsJobViolations(t *testing.T) {
+	rep, err := conformance.Check(context.Background(), client.InProcess(brokenJobs{plugintest.New()}), conformance.Options{SkipImages: true})
+	if err != nil {
+		t.Fatal(err)
+	}
+	problems := strings.Join(rep.Problems, "\n")
+	for _, want := range []string{"id must match", "running and current_run_id disagree", "an unknown job must be NOT_FOUND"} {
+		if !strings.Contains(problems, want) {
+			t.Errorf("missing problem %q in:\n%s", want, problems)
+		}
+	}
+}
+
+func TestReadsJobsWithoutRunningThem(t *testing.T) {
+	f := plugintest.New()
+	rep, err := conformance.Check(context.Background(), client.InProcess(f), conformance.Options{SkipImages: true})
+	if err != nil || !rep.OK() || rep.Jobs != 2 {
+		t.Fatalf("report: %+v, %v", rep, err)
+	}
+	runs, _ := f.ListJobRuns(context.Background(), &sourcev1.ListJobRunsRequest{JobId: "refresh"})
+	if len(runs.GetRuns()) != 0 {
+		t.Fatalf("conformance ran a job: %v", runs)
+	}
+}

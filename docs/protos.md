@@ -21,6 +21,17 @@ Plugins that host many sites (Mihon extensions, say) declare the `PACKAGES` capa
 - `Source.package_id` names the package a listed source comes from; `PackageSource.available` says whether a package's source passes the languages.
 - Failures of the package's origin carry `STORE_FETCH_FAILED` (UNAVAILABLE) or `STORE_INVALID` (FAILED_PRECONDITION).
 
+## Jobs
+
+Plugins with background work (refreshing what they can install, checking their sources) declare the `JOBS` capability. Hosts then show it in their Jobs view: `ListJobs`, `GetJob`, `ListJobRuns`, `GetJobRun`, `RunJob` and `CancelJobRun`. Plugins without the capability answer `UNIMPLEMENTED`.
+
+The jobs and runs are messages of `panelarr.jobs.v1` ([proto](../proto/panelarr/jobs/v1/jobs.proto)), the model Panelarr's services share, so one view can show them all:
+
+- **Job IDs** match `^[a-z0-9][a-z0-9._-]*$`: never a `:`, for the same reason as package IDs (`:run`).
+- **One run at a time.** `RunJob` returns once the run has started; follow it with `GetJobRun`. Starting a running job fails with `ALREADY_EXISTS`, reason `ALREADY_RUNNING` (metadata `current_run_id`) and a `JobAlreadyRunning` detail. A scheduled run that finds its job busy is recorded as `SKIPPED`.
+- **Params** are declared on the job (`bool`, `int`, `string`, `string_list`, with defaults and choices). Scheduled runs use the defaults; a run that leaves a param out gets its default. `RunJobRequest.on_behalf_of` names who asked the host, and becomes the run's `triggered_by`.
+- Cancelling a run that isn't running, or of a job that isn't `cancellable`, answers `FAILED_PRECONDITION`. Unknown jobs and runs answer `NOT_FOUND`.
+
 ## Restarts and network profiles
 
 - **`HealthResponse.instance_id`** changes whenever the plugin starts and stays the same while it runs. A host that sees a new value pushes the plugin's configuration and network profiles again. The Go SDK fills it in for every plugin.
@@ -28,7 +39,7 @@ Plugins that host many sites (Mihon extensions, say) declare the `PACKAGES` capa
 
 ## Errors
 
-Errors are gRPC status codes. When the upstream source is the problem, the status carries a `google.rpc.ErrorInfo` with domain `source.panelarr` and a reason from `ErrorReason` without its prefix: `CLOUDFLARE_CHALLENGE`, `RATE_LIMITED` (with a `google.rpc.RetryInfo`), `SOURCE_DOWN`, `NOT_FOUND`, `LOGIN_REQUIRED`, `UNSUPPORTED`, and for packages `STORE_FETCH_FAILED` and `STORE_INVALID`.
+Errors are gRPC status codes. When the upstream source is the problem, the status carries a `google.rpc.ErrorInfo` with domain `source.panelarr` and a reason from `ErrorReason` without its prefix: `CLOUDFLARE_CHALLENGE`, `RATE_LIMITED` (with a `google.rpc.RetryInfo`), `SOURCE_DOWN`, `NOT_FOUND`, `LOGIN_REQUIRED`, `UNSUPPORTED`, for packages `STORE_FETCH_FAILED` and `STORE_INVALID`, and for jobs `ALREADY_RUNNING`.
 
 ## Wire
 

@@ -9,10 +9,12 @@ A **source plugin** serves one or more sources: catalogues of series that can be
 | Path | What |
 |---|---|
 | [`proto/panelarr/source/v1`](proto/panelarr/source/v1) | The protos: `SourcePluginService` and its messages |
+| [`proto/panelarr/jobs/v1`](proto/panelarr/jobs/v1) | The job and run model Panelarr's services share, used by the `JOBS` calls |
 | [`gen/`](gen) | Generated Go (messages, gRPC, Connect) and the OpenAPI document of the HTTP/JSON mapping |
 | [`sdk/plugin`](sdk/plugin) | Write a plugin: `plugin.Main` runs it managed (go-plugin) or standalone (`--listen`), errors with reasons, plugin configuration |
 | [`sdk/client`](sdk/client) | Host plugins: managed, remote (gRPC), over your own gRPC connection, or in-process |
 | [`sdk/httpx`](sdk/httpx) | HTTP clients per source that follow network profiles: proxies, solvers, rate limits, DoH, cookies |
+| [`sdk/jobs`](sdk/jobs) | Background jobs for plugins: schedules, runs, history and the `JOBS` calls |
 | [`sdk/settings`](sdk/settings) | JSON Schema settings and configuration: validation and defaults |
 | [`sdk/conformance`](sdk/conformance), [`cmd/source-conformance`](cmd/source-conformance) | The conformance suite every plugin must pass, as a library and a CLI |
 | [`sdk/plugintest`](sdk/plugintest), [`sdk/examples/static-source`](sdk/examples/static-source) | A made-up plugin for tests, and an example plugin built on it |

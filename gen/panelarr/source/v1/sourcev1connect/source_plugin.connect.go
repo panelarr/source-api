@@ -113,6 +113,24 @@ const (
 	// SourcePluginServiceSetNetworkProfileProcedure is the fully-qualified name of the
 	// SourcePluginService's SetNetworkProfile RPC.
 	SourcePluginServiceSetNetworkProfileProcedure = "/panelarr.source.v1.SourcePluginService/SetNetworkProfile"
+	// SourcePluginServiceListJobsProcedure is the fully-qualified name of the SourcePluginService's
+	// ListJobs RPC.
+	SourcePluginServiceListJobsProcedure = "/panelarr.source.v1.SourcePluginService/ListJobs"
+	// SourcePluginServiceGetJobProcedure is the fully-qualified name of the SourcePluginService's
+	// GetJob RPC.
+	SourcePluginServiceGetJobProcedure = "/panelarr.source.v1.SourcePluginService/GetJob"
+	// SourcePluginServiceListJobRunsProcedure is the fully-qualified name of the SourcePluginService's
+	// ListJobRuns RPC.
+	SourcePluginServiceListJobRunsProcedure = "/panelarr.source.v1.SourcePluginService/ListJobRuns"
+	// SourcePluginServiceGetJobRunProcedure is the fully-qualified name of the SourcePluginService's
+	// GetJobRun RPC.
+	SourcePluginServiceGetJobRunProcedure = "/panelarr.source.v1.SourcePluginService/GetJobRun"
+	// SourcePluginServiceRunJobProcedure is the fully-qualified name of the SourcePluginService's
+	// RunJob RPC.
+	SourcePluginServiceRunJobProcedure = "/panelarr.source.v1.SourcePluginService/RunJob"
+	// SourcePluginServiceCancelJobRunProcedure is the fully-qualified name of the SourcePluginService's
+	// CancelJobRun RPC.
+	SourcePluginServiceCancelJobRunProcedure = "/panelarr.source.v1.SourcePluginService/CancelJobRun"
 )
 
 // SourcePluginServiceClient is a client for the panelarr.source.v1.SourcePluginService service.
@@ -194,6 +212,23 @@ type SourcePluginServiceClient interface {
 	// A pushed profile overrides anything the plugin configured locally. Leaving
 	// `profile` unset removes the override.
 	SetNetworkProfile(context.Context, *connect.Request[v1.SetNetworkProfileRequest]) (*connect.Response[v1.SetNetworkProfileResponse], error)
+	// ListJobs lists the plugin's background jobs (with the JOBS capability), such as
+	// refreshing what it can install or checking its sources. Jobs use the shared
+	// panelarr.jobs.v1 model and its rules. Plugins without the capability answer
+	// UNIMPLEMENTED, and so do the other job calls.
+	ListJobs(context.Context, *connect.Request[v1.ListJobsRequest]) (*connect.Response[v1.ListJobsResponse], error)
+	GetJob(context.Context, *connect.Request[v1.GetJobRequest]) (*connect.Response[v1.GetJobResponse], error)
+	// ListJobRuns lists a job's runs, newest first.
+	ListJobRuns(context.Context, *connect.Request[v1.ListJobRunsRequest]) (*connect.Response[v1.ListJobRunsResponse], error)
+	// GetJobRun returns a run with its params, notes and, while it runs, progress.
+	GetJobRun(context.Context, *connect.Request[v1.GetJobRunRequest]) (*connect.Response[v1.GetJobRunResponse], error)
+	// RunJob starts a run now and returns at once. If the job is already running, it
+	// fails with ALREADY_EXISTS, an ErrorInfo with reason `ALREADY_RUNNING` and a
+	// panelarr.jobs.v1.JobAlreadyRunning detail naming the running run.
+	RunJob(context.Context, *connect.Request[v1.RunJobRequest]) (*connect.Response[v1.RunJobResponse], error)
+	// CancelJobRun stops a running run. Fails with FAILED_PRECONDITION when the run isn't
+	// running or its job can't be cancelled.
+	CancelJobRun(context.Context, *connect.Request[v1.CancelJobRunRequest]) (*connect.Response[v1.CancelJobRunResponse], error)
 }
 
 // NewSourcePluginServiceClient constructs a client for the panelarr.source.v1.SourcePluginService
@@ -363,6 +398,42 @@ func NewSourcePluginServiceClient(httpClient connect.HTTPClient, baseURL string,
 			connect.WithSchema(sourcePluginServiceMethods.ByName("SetNetworkProfile")),
 			connect.WithClientOptions(opts...),
 		),
+		listJobs: connect.NewClient[v1.ListJobsRequest, v1.ListJobsResponse](
+			httpClient,
+			baseURL+SourcePluginServiceListJobsProcedure,
+			connect.WithSchema(sourcePluginServiceMethods.ByName("ListJobs")),
+			connect.WithClientOptions(opts...),
+		),
+		getJob: connect.NewClient[v1.GetJobRequest, v1.GetJobResponse](
+			httpClient,
+			baseURL+SourcePluginServiceGetJobProcedure,
+			connect.WithSchema(sourcePluginServiceMethods.ByName("GetJob")),
+			connect.WithClientOptions(opts...),
+		),
+		listJobRuns: connect.NewClient[v1.ListJobRunsRequest, v1.ListJobRunsResponse](
+			httpClient,
+			baseURL+SourcePluginServiceListJobRunsProcedure,
+			connect.WithSchema(sourcePluginServiceMethods.ByName("ListJobRuns")),
+			connect.WithClientOptions(opts...),
+		),
+		getJobRun: connect.NewClient[v1.GetJobRunRequest, v1.GetJobRunResponse](
+			httpClient,
+			baseURL+SourcePluginServiceGetJobRunProcedure,
+			connect.WithSchema(sourcePluginServiceMethods.ByName("GetJobRun")),
+			connect.WithClientOptions(opts...),
+		),
+		runJob: connect.NewClient[v1.RunJobRequest, v1.RunJobResponse](
+			httpClient,
+			baseURL+SourcePluginServiceRunJobProcedure,
+			connect.WithSchema(sourcePluginServiceMethods.ByName("RunJob")),
+			connect.WithClientOptions(opts...),
+		),
+		cancelJobRun: connect.NewClient[v1.CancelJobRunRequest, v1.CancelJobRunResponse](
+			httpClient,
+			baseURL+SourcePluginServiceCancelJobRunProcedure,
+			connect.WithSchema(sourcePluginServiceMethods.ByName("CancelJobRun")),
+			connect.WithClientOptions(opts...),
+		),
 	}
 }
 
@@ -394,6 +465,12 @@ type sourcePluginServiceClient struct {
 	setPackageSettings *connect.Client[v1.SetPackageSettingsRequest, v1.SetPackageSettingsResponse]
 	getNetworkProfile  *connect.Client[v1.GetNetworkProfileRequest, v1.GetNetworkProfileResponse]
 	setNetworkProfile  *connect.Client[v1.SetNetworkProfileRequest, v1.SetNetworkProfileResponse]
+	listJobs           *connect.Client[v1.ListJobsRequest, v1.ListJobsResponse]
+	getJob             *connect.Client[v1.GetJobRequest, v1.GetJobResponse]
+	listJobRuns        *connect.Client[v1.ListJobRunsRequest, v1.ListJobRunsResponse]
+	getJobRun          *connect.Client[v1.GetJobRunRequest, v1.GetJobRunResponse]
+	runJob             *connect.Client[v1.RunJobRequest, v1.RunJobResponse]
+	cancelJobRun       *connect.Client[v1.CancelJobRunRequest, v1.CancelJobRunResponse]
 }
 
 // GetInfo calls panelarr.source.v1.SourcePluginService.GetInfo.
@@ -526,6 +603,36 @@ func (c *sourcePluginServiceClient) SetNetworkProfile(ctx context.Context, req *
 	return c.setNetworkProfile.CallUnary(ctx, req)
 }
 
+// ListJobs calls panelarr.source.v1.SourcePluginService.ListJobs.
+func (c *sourcePluginServiceClient) ListJobs(ctx context.Context, req *connect.Request[v1.ListJobsRequest]) (*connect.Response[v1.ListJobsResponse], error) {
+	return c.listJobs.CallUnary(ctx, req)
+}
+
+// GetJob calls panelarr.source.v1.SourcePluginService.GetJob.
+func (c *sourcePluginServiceClient) GetJob(ctx context.Context, req *connect.Request[v1.GetJobRequest]) (*connect.Response[v1.GetJobResponse], error) {
+	return c.getJob.CallUnary(ctx, req)
+}
+
+// ListJobRuns calls panelarr.source.v1.SourcePluginService.ListJobRuns.
+func (c *sourcePluginServiceClient) ListJobRuns(ctx context.Context, req *connect.Request[v1.ListJobRunsRequest]) (*connect.Response[v1.ListJobRunsResponse], error) {
+	return c.listJobRuns.CallUnary(ctx, req)
+}
+
+// GetJobRun calls panelarr.source.v1.SourcePluginService.GetJobRun.
+func (c *sourcePluginServiceClient) GetJobRun(ctx context.Context, req *connect.Request[v1.GetJobRunRequest]) (*connect.Response[v1.GetJobRunResponse], error) {
+	return c.getJobRun.CallUnary(ctx, req)
+}
+
+// RunJob calls panelarr.source.v1.SourcePluginService.RunJob.
+func (c *sourcePluginServiceClient) RunJob(ctx context.Context, req *connect.Request[v1.RunJobRequest]) (*connect.Response[v1.RunJobResponse], error) {
+	return c.runJob.CallUnary(ctx, req)
+}
+
+// CancelJobRun calls panelarr.source.v1.SourcePluginService.CancelJobRun.
+func (c *sourcePluginServiceClient) CancelJobRun(ctx context.Context, req *connect.Request[v1.CancelJobRunRequest]) (*connect.Response[v1.CancelJobRunResponse], error) {
+	return c.cancelJobRun.CallUnary(ctx, req)
+}
+
 // SourcePluginServiceHandler is an implementation of the panelarr.source.v1.SourcePluginService
 // service.
 type SourcePluginServiceHandler interface {
@@ -606,6 +713,23 @@ type SourcePluginServiceHandler interface {
 	// A pushed profile overrides anything the plugin configured locally. Leaving
 	// `profile` unset removes the override.
 	SetNetworkProfile(context.Context, *connect.Request[v1.SetNetworkProfileRequest]) (*connect.Response[v1.SetNetworkProfileResponse], error)
+	// ListJobs lists the plugin's background jobs (with the JOBS capability), such as
+	// refreshing what it can install or checking its sources. Jobs use the shared
+	// panelarr.jobs.v1 model and its rules. Plugins without the capability answer
+	// UNIMPLEMENTED, and so do the other job calls.
+	ListJobs(context.Context, *connect.Request[v1.ListJobsRequest]) (*connect.Response[v1.ListJobsResponse], error)
+	GetJob(context.Context, *connect.Request[v1.GetJobRequest]) (*connect.Response[v1.GetJobResponse], error)
+	// ListJobRuns lists a job's runs, newest first.
+	ListJobRuns(context.Context, *connect.Request[v1.ListJobRunsRequest]) (*connect.Response[v1.ListJobRunsResponse], error)
+	// GetJobRun returns a run with its params, notes and, while it runs, progress.
+	GetJobRun(context.Context, *connect.Request[v1.GetJobRunRequest]) (*connect.Response[v1.GetJobRunResponse], error)
+	// RunJob starts a run now and returns at once. If the job is already running, it
+	// fails with ALREADY_EXISTS, an ErrorInfo with reason `ALREADY_RUNNING` and a
+	// panelarr.jobs.v1.JobAlreadyRunning detail naming the running run.
+	RunJob(context.Context, *connect.Request[v1.RunJobRequest]) (*connect.Response[v1.RunJobResponse], error)
+	// CancelJobRun stops a running run. Fails with FAILED_PRECONDITION when the run isn't
+	// running or its job can't be cancelled.
+	CancelJobRun(context.Context, *connect.Request[v1.CancelJobRunRequest]) (*connect.Response[v1.CancelJobRunResponse], error)
 }
 
 // NewSourcePluginServiceHandler builds an HTTP handler from the service implementation. It returns
@@ -771,6 +895,42 @@ func NewSourcePluginServiceHandler(svc SourcePluginServiceHandler, opts ...conne
 		connect.WithSchema(sourcePluginServiceMethods.ByName("SetNetworkProfile")),
 		connect.WithHandlerOptions(opts...),
 	)
+	sourcePluginServiceListJobsHandler := connect.NewUnaryHandler(
+		SourcePluginServiceListJobsProcedure,
+		svc.ListJobs,
+		connect.WithSchema(sourcePluginServiceMethods.ByName("ListJobs")),
+		connect.WithHandlerOptions(opts...),
+	)
+	sourcePluginServiceGetJobHandler := connect.NewUnaryHandler(
+		SourcePluginServiceGetJobProcedure,
+		svc.GetJob,
+		connect.WithSchema(sourcePluginServiceMethods.ByName("GetJob")),
+		connect.WithHandlerOptions(opts...),
+	)
+	sourcePluginServiceListJobRunsHandler := connect.NewUnaryHandler(
+		SourcePluginServiceListJobRunsProcedure,
+		svc.ListJobRuns,
+		connect.WithSchema(sourcePluginServiceMethods.ByName("ListJobRuns")),
+		connect.WithHandlerOptions(opts...),
+	)
+	sourcePluginServiceGetJobRunHandler := connect.NewUnaryHandler(
+		SourcePluginServiceGetJobRunProcedure,
+		svc.GetJobRun,
+		connect.WithSchema(sourcePluginServiceMethods.ByName("GetJobRun")),
+		connect.WithHandlerOptions(opts...),
+	)
+	sourcePluginServiceRunJobHandler := connect.NewUnaryHandler(
+		SourcePluginServiceRunJobProcedure,
+		svc.RunJob,
+		connect.WithSchema(sourcePluginServiceMethods.ByName("RunJob")),
+		connect.WithHandlerOptions(opts...),
+	)
+	sourcePluginServiceCancelJobRunHandler := connect.NewUnaryHandler(
+		SourcePluginServiceCancelJobRunProcedure,
+		svc.CancelJobRun,
+		connect.WithSchema(sourcePluginServiceMethods.ByName("CancelJobRun")),
+		connect.WithHandlerOptions(opts...),
+	)
 	return "/panelarr.source.v1.SourcePluginService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case SourcePluginServiceGetInfoProcedure:
@@ -825,6 +985,18 @@ func NewSourcePluginServiceHandler(svc SourcePluginServiceHandler, opts ...conne
 			sourcePluginServiceGetNetworkProfileHandler.ServeHTTP(w, r)
 		case SourcePluginServiceSetNetworkProfileProcedure:
 			sourcePluginServiceSetNetworkProfileHandler.ServeHTTP(w, r)
+		case SourcePluginServiceListJobsProcedure:
+			sourcePluginServiceListJobsHandler.ServeHTTP(w, r)
+		case SourcePluginServiceGetJobProcedure:
+			sourcePluginServiceGetJobHandler.ServeHTTP(w, r)
+		case SourcePluginServiceListJobRunsProcedure:
+			sourcePluginServiceListJobRunsHandler.ServeHTTP(w, r)
+		case SourcePluginServiceGetJobRunProcedure:
+			sourcePluginServiceGetJobRunHandler.ServeHTTP(w, r)
+		case SourcePluginServiceRunJobProcedure:
+			sourcePluginServiceRunJobHandler.ServeHTTP(w, r)
+		case SourcePluginServiceCancelJobRunProcedure:
+			sourcePluginServiceCancelJobRunHandler.ServeHTTP(w, r)
 		default:
 			http.NotFound(w, r)
 		}
@@ -936,4 +1108,28 @@ func (UnimplementedSourcePluginServiceHandler) GetNetworkProfile(context.Context
 
 func (UnimplementedSourcePluginServiceHandler) SetNetworkProfile(context.Context, *connect.Request[v1.SetNetworkProfileRequest]) (*connect.Response[v1.SetNetworkProfileResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("panelarr.source.v1.SourcePluginService.SetNetworkProfile is not implemented"))
+}
+
+func (UnimplementedSourcePluginServiceHandler) ListJobs(context.Context, *connect.Request[v1.ListJobsRequest]) (*connect.Response[v1.ListJobsResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("panelarr.source.v1.SourcePluginService.ListJobs is not implemented"))
+}
+
+func (UnimplementedSourcePluginServiceHandler) GetJob(context.Context, *connect.Request[v1.GetJobRequest]) (*connect.Response[v1.GetJobResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("panelarr.source.v1.SourcePluginService.GetJob is not implemented"))
+}
+
+func (UnimplementedSourcePluginServiceHandler) ListJobRuns(context.Context, *connect.Request[v1.ListJobRunsRequest]) (*connect.Response[v1.ListJobRunsResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("panelarr.source.v1.SourcePluginService.ListJobRuns is not implemented"))
+}
+
+func (UnimplementedSourcePluginServiceHandler) GetJobRun(context.Context, *connect.Request[v1.GetJobRunRequest]) (*connect.Response[v1.GetJobRunResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("panelarr.source.v1.SourcePluginService.GetJobRun is not implemented"))
+}
+
+func (UnimplementedSourcePluginServiceHandler) RunJob(context.Context, *connect.Request[v1.RunJobRequest]) (*connect.Response[v1.RunJobResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("panelarr.source.v1.SourcePluginService.RunJob is not implemented"))
+}
+
+func (UnimplementedSourcePluginServiceHandler) CancelJobRun(context.Context, *connect.Request[v1.CancelJobRunRequest]) (*connect.Response[v1.CancelJobRunResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("panelarr.source.v1.SourcePluginService.CancelJobRun is not implemented"))
 }

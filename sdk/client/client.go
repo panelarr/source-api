@@ -57,6 +57,14 @@ type Client interface {
 	UpdatePackage(ctx context.Context, req *sourcev1.UpdatePackageRequest) (*sourcev1.UpdatePackageResponse, error)
 	UninstallPackage(ctx context.Context, req *sourcev1.UninstallPackageRequest) (*sourcev1.UninstallPackageResponse, error)
 	SetPackageSettings(ctx context.Context, req *sourcev1.SetPackageSettingsRequest) (*sourcev1.SetPackageSettingsResponse, error)
+	// The job calls (plugins with the JOBS capability). RunJob returns once the
+	// run has started; follow it with GetJobRun.
+	ListJobs(ctx context.Context, req *sourcev1.ListJobsRequest) (*sourcev1.ListJobsResponse, error)
+	GetJob(ctx context.Context, req *sourcev1.GetJobRequest) (*sourcev1.GetJobResponse, error)
+	ListJobRuns(ctx context.Context, req *sourcev1.ListJobRunsRequest) (*sourcev1.ListJobRunsResponse, error)
+	GetJobRun(ctx context.Context, req *sourcev1.GetJobRunRequest) (*sourcev1.GetJobRunResponse, error)
+	RunJob(ctx context.Context, req *sourcev1.RunJobRequest) (*sourcev1.RunJobResponse, error)
+	CancelJobRun(ctx context.Context, req *sourcev1.CancelJobRunRequest) (*sourcev1.CancelJobRunResponse, error)
 	// FetchImage starts streaming an image. Read it with Recv, or use
 	// [ReadImage].
 	FetchImage(ctx context.Context, req *sourcev1.FetchImageRequest) (ImageStream, error)
@@ -291,6 +299,30 @@ func (r *remoteClient) SetPackageSettings(ctx context.Context, req *sourcev1.Set
 	return callConnect(ctx, req, r.c.SetPackageSettings)
 }
 
+func (r *remoteClient) ListJobs(ctx context.Context, req *sourcev1.ListJobsRequest) (*sourcev1.ListJobsResponse, error) {
+	return callConnect(ctx, req, r.c.ListJobs)
+}
+
+func (r *remoteClient) GetJob(ctx context.Context, req *sourcev1.GetJobRequest) (*sourcev1.GetJobResponse, error) {
+	return callConnect(ctx, req, r.c.GetJob)
+}
+
+func (r *remoteClient) ListJobRuns(ctx context.Context, req *sourcev1.ListJobRunsRequest) (*sourcev1.ListJobRunsResponse, error) {
+	return callConnect(ctx, req, r.c.ListJobRuns)
+}
+
+func (r *remoteClient) GetJobRun(ctx context.Context, req *sourcev1.GetJobRunRequest) (*sourcev1.GetJobRunResponse, error) {
+	return callConnect(ctx, req, r.c.GetJobRun)
+}
+
+func (r *remoteClient) RunJob(ctx context.Context, req *sourcev1.RunJobRequest) (*sourcev1.RunJobResponse, error) {
+	return callConnect(ctx, req, r.c.RunJob)
+}
+
+func (r *remoteClient) CancelJobRun(ctx context.Context, req *sourcev1.CancelJobRunRequest) (*sourcev1.CancelJobRunResponse, error) {
+	return callConnect(ctx, req, r.c.CancelJobRun)
+}
+
 func (r *remoteClient) FetchImage(ctx context.Context, req *sourcev1.FetchImageRequest) (ImageStream, error) {
 	s, err := r.c.FetchImage(ctx, connect.NewRequest(req))
 	if err != nil {
@@ -493,6 +525,30 @@ func (g *grpcClient) UninstallPackage(ctx context.Context, req *sourcev1.Uninsta
 
 func (g *grpcClient) SetPackageSettings(ctx context.Context, req *sourcev1.SetPackageSettingsRequest) (*sourcev1.SetPackageSettingsResponse, error) {
 	return callGRPC(ctx, req, g.c.SetPackageSettings)
+}
+
+func (g *grpcClient) ListJobs(ctx context.Context, req *sourcev1.ListJobsRequest) (*sourcev1.ListJobsResponse, error) {
+	return callGRPC(ctx, req, g.c.ListJobs)
+}
+
+func (g *grpcClient) GetJob(ctx context.Context, req *sourcev1.GetJobRequest) (*sourcev1.GetJobResponse, error) {
+	return callGRPC(ctx, req, g.c.GetJob)
+}
+
+func (g *grpcClient) ListJobRuns(ctx context.Context, req *sourcev1.ListJobRunsRequest) (*sourcev1.ListJobRunsResponse, error) {
+	return callGRPC(ctx, req, g.c.ListJobRuns)
+}
+
+func (g *grpcClient) GetJobRun(ctx context.Context, req *sourcev1.GetJobRunRequest) (*sourcev1.GetJobRunResponse, error) {
+	return callGRPC(ctx, req, g.c.GetJobRun)
+}
+
+func (g *grpcClient) RunJob(ctx context.Context, req *sourcev1.RunJobRequest) (*sourcev1.RunJobResponse, error) {
+	return callGRPC(ctx, req, g.c.RunJob)
+}
+
+func (g *grpcClient) CancelJobRun(ctx context.Context, req *sourcev1.CancelJobRunRequest) (*sourcev1.CancelJobRunResponse, error) {
+	return callGRPC(ctx, req, g.c.CancelJobRun)
 }
 
 func (g *grpcClient) FetchImage(ctx context.Context, req *sourcev1.FetchImageRequest) (ImageStream, error) {

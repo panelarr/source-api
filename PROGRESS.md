@@ -24,3 +24,10 @@ All v0 slices are done.
 - [x] **2. mihon-source:** instance ID, GetNetworkProfile, writeOnly secrets in source settings.
 - [x] **3. source-mihon:** instance ID covering mihon-source's, GetNetworkProfile; end to end: proxy, solver, fallback, restarts, settings.
 - [x] **4. Docs and done.**
+
+## GOAL-0020: jobs, package origins and details
+
+- [x] **1. source.v1 jobs:** `panelarr.jobs.v1` (the shared job and run messages), the `JOBS` capability and its six calls, `ALREADY_RUNNING`; `sdk/jobs`, fake, conformance, docs.
+- [ ] **2. source.v1 packages and health checks:** origins, package details, reload, per-source health checks.
+- [ ] **3. mihon-source:** health-check schedule over the admin API, step notes for targeted checks.
+- [ ] **4. source-mihon:** jobs, origins, details, reload, health checks; end to end.

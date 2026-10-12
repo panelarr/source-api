@@ -154,6 +154,30 @@ func (c *inProcess) FetchImage(ctx context.Context, req *sourcev1.FetchImageRequ
 	return s, nil
 }
 
+func (c *inProcess) ListJobs(ctx context.Context, req *sourcev1.ListJobsRequest) (*sourcev1.ListJobsResponse, error) {
+	return call(ctx, req, c.p.ListJobs)
+}
+
+func (c *inProcess) GetJob(ctx context.Context, req *sourcev1.GetJobRequest) (*sourcev1.GetJobResponse, error) {
+	return call(ctx, req, c.p.GetJob)
+}
+
+func (c *inProcess) ListJobRuns(ctx context.Context, req *sourcev1.ListJobRunsRequest) (*sourcev1.ListJobRunsResponse, error) {
+	return call(ctx, req, c.p.ListJobRuns)
+}
+
+func (c *inProcess) GetJobRun(ctx context.Context, req *sourcev1.GetJobRunRequest) (*sourcev1.GetJobRunResponse, error) {
+	return call(ctx, req, c.p.GetJobRun)
+}
+
+func (c *inProcess) RunJob(ctx context.Context, req *sourcev1.RunJobRequest) (*sourcev1.RunJobResponse, error) {
+	return call(ctx, req, c.p.RunJob)
+}
+
+func (c *inProcess) CancelJobRun(ctx context.Context, req *sourcev1.CancelJobRunRequest) (*sourcev1.CancelJobRunResponse, error) {
+	return call(ctx, req, c.p.CancelJobRun)
+}
+
 func (c *inProcess) GetNetworkProfile(ctx context.Context, sourceID string) (*sourcev1.GetNetworkProfileResponse, error) {
 	return call(ctx, &sourcev1.GetNetworkProfileRequest{SourceId: sourceID}, c.p.GetNetworkProfile)
 }

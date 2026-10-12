@@ -44,6 +44,10 @@ Standalone plugins use ports from 8903 up. `plugin.WithRoutes(plugin.Route{Patte
 
 A plugin that installs things that provide sources (extensions) declares `PLUGIN_CAPABILITY_PACKAGES` and implements the package calls (see [protos.md](protos.md#packages-and-languages)). Keep install and update idempotent and all-or-nothing, set `Source.package_id` on listed sources, list only sources whose language is enabled at the plugin's and the package's level, and answer `NOT_FOUND` for the others. If the plugin's configuration has a languages field, say in its description that `"all"`/`"multi"` must be listed to keep multi-language sources. `plugintest.New()` shows a complete fake.
 
+## Jobs
+
+A plugin with background work declares `PLUGIN_CAPABILITY_JOBS` and lets [`sdk/jobs`](../sdk/jobs/jobs.go) do the bookkeeping: add each `jobs.Job` (ID, name, schedule, params, a `Run` function) to a `jobs.Runner`, call `Start`, and forward the six job calls to the runner's methods of the same names. The runner keeps one run per job at a time, the last 100 runs in memory, schedules, skips scheduled runs while the job is busy, validates params and fills in their defaults, and cancels runs of `Cancellable` jobs. In `Run`, report through the `*jobs.Run`: `Count`, `Note`, `Progress`, `SetMessage`, or `Skip` when there's nothing to do; a returned error fails the run. `SetEvery` changes a schedule when the configuration does, and `Trigger` starts a run the plugin decides on itself.
+
 ## Errors
 
 Return the SDK's errors so hosts see the right code and reason:
@@ -58,6 +62,7 @@ Return the SDK's errors so hosts see the right code and reason:
 | `plugin.ErrLoginRequired` | UNAUTHENTICATED | `LOGIN_REQUIRED` |
 | `plugin.ErrStoreFetchFailed` | UNAVAILABLE | `STORE_FETCH_FAILED` (a package's origin couldn't be downloaded) |
 | `plugin.ErrStoreInvalid` | FAILED_PRECONDITION | `STORE_INVALID` (a package's origin can't be used) |
+| `plugin.ErrAlreadyRunning(runID, …)` | ALREADY_EXISTS | `ALREADY_RUNNING`, with the running run (`sdk/jobs` returns it for you) |
 | `plugin.ErrInvalidArgument` | INVALID_ARGUMENT | — |
 
 `httpx.StatusError(resp)` and `httpx.Wrap(err)` turn HTTP responses and transport errors into these.

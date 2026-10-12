@@ -66,6 +66,8 @@ type Report struct {
 	Sources []*SourceReport
 	// Packages is how many packages ListPackages returned (PACKAGES plugins).
 	Packages int
+	// Jobs is how many jobs ListJobs returned (JOBS plugins).
+	Jobs int
 	// PackageSteps is the install walk of Options.PackageID.
 	PackageSteps []Step
 }
@@ -182,6 +184,7 @@ func Check(ctx context.Context, c client.Client, opts Options) (*Report, error) 
 
 	checkUnknownSource(ctx, rep, c)
 	checkPackages(ctx, rep, c, info, opts.PackageID)
+	checkJobs(ctx, rep, c, info)
 	if slices.Contains(info.GetCapabilities(), sourcev1.PluginCapability_PLUGIN_CAPABILITY_NETWORK_PROFILES) && len(sources) > 0 {
 		// Removing a pushed profile is always allowed and changes nothing a
 		// test cares about.

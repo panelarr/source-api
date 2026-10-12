@@ -18,6 +18,7 @@ import (
 	"google.golang.org/grpc/credentials/insecure"
 	"google.golang.org/protobuf/types/known/structpb"
 
+	jobsv1 "github.com/panelarr/source-api/gen/panelarr/jobs/v1"
 	sourcev1 "github.com/panelarr/source-api/gen/panelarr/source/v1"
 	"github.com/panelarr/source-api/sdk/client"
 	"github.com/panelarr/source-api/sdk/conformance"
@@ -433,5 +434,36 @@ func TestGetNetworkProfile(t *testing.T) {
 	}
 	if _, err := c.GetNetworkProfile(ctx, "nope"); plugin.ErrorCode(err) != plugin.CodeNotFound {
 		t.Fatalf("unknown source: %v", err)
+	}
+}
+
+func TestJobsOverEveryTransport(t *testing.T) {
+	f := plugintest.New()
+	clients := map[string]client.Client{
+		"in-process": client.InProcess(f),
+		"grpc":       remote(t, f, ""),
+		"connect":    client.Remote(serve(t, f, ""), client.RemoteOptions{Connect: true}),
+	}
+	ctx := context.Background()
+	for name, c := range clients {
+		held, err := c.RunJob(ctx, &sourcev1.RunJobRequest{JobId: "hold", OnBehalfOf: "tester"})
+		if err != nil {
+			t.Fatalf("%s: %v", name, err)
+		}
+		_, err = c.RunJob(ctx, &sourcev1.RunJobRequest{JobId: "hold"})
+		var pe *plugin.Error
+		if !errors.As(err, &pe) || pe.Code != plugin.CodeAlreadyExists || pe.Reason != plugin.ReasonAlreadyRunning || pe.CurrentRunID != held.GetRun().GetId() {
+			t.Errorf("%s: second run: %#v", name, err)
+		}
+		if _, err := c.CancelJobRun(ctx, &sourcev1.CancelJobRunRequest{RunId: held.GetRun().GetId()}); err != nil {
+			t.Errorf("%s: cancel: %v", name, err)
+		}
+		if _, err := f.Jobs.Wait(ctx, held.GetRun().GetId()); err != nil {
+			t.Fatal(err)
+		}
+		run, err := c.GetJobRun(ctx, &sourcev1.GetJobRunRequest{RunId: held.GetRun().GetId()})
+		if err != nil || run.GetRun().GetSummary().GetStatus() != jobsv1.JobRunStatus_JOB_RUN_STATUS_CANCELLED || run.GetRun().GetSummary().GetTriggeredBy() != "tester" {
+			t.Errorf("%s: run: %v, %v", name, run, err)
+		}
 	}
 }

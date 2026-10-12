@@ -8,6 +8,7 @@ import "google/api/annotations.proto";
 import "google/protobuf/duration.proto";
 import "google/protobuf/struct.proto";
 import "google/protobuf/timestamp.proto";
+import "panelarr/jobs/v1/jobs.proto";
 
 option java_multiple_files = true;
 option java_package = "panelarr.source.v1";
@@ -204,6 +205,47 @@ service SourcePluginService {
       body: "*"
     };
   }
+
+  // ListJobs lists the plugin's background jobs (with the JOBS capability), such as
+  // refreshing what it can install or checking its sources. Jobs use the shared
+  // panelarr.jobs.v1 model and its rules. Plugins without the capability answer
+  // UNIMPLEMENTED, and so do the other job calls.
+  rpc ListJobs(ListJobsRequest) returns (ListJobsResponse) {
+    option (google.api.http) = {get: "/v1/jobs"};
+  }
+
+  rpc GetJob(GetJobRequest) returns (GetJobResponse) {
+    option (google.api.http) = {get: "/v1/jobs/{job_id}"};
+  }
+
+  // ListJobRuns lists a job's runs, newest first.
+  rpc ListJobRuns(ListJobRunsRequest) returns (ListJobRunsResponse) {
+    option (google.api.http) = {get: "/v1/jobs/{job_id}/runs"};
+  }
+
+  // GetJobRun returns a run with its params, notes and, while it runs, progress.
+  rpc GetJobRun(GetJobRunRequest) returns (GetJobRunResponse) {
+    option (google.api.http) = {get: "/v1/job-runs/{run_id}"};
+  }
+
+  // RunJob starts a run now and returns at once. If the job is already running, it
+  // fails with ALREADY_EXISTS, an ErrorInfo with reason `ALREADY_RUNNING` and a
+  // panelarr.jobs.v1.JobAlreadyRunning detail naming the running run.
+  rpc RunJob(RunJobRequest) returns (RunJobResponse) {
+    option (google.api.http) = {
+      post: "/v1/jobs/{job_id}:run"
+      body: "*"
+    };
+  }
+
+  // CancelJobRun stops a running run. Fails with FAILED_PRECONDITION when the run isn't
+  // running or its job can't be cancelled.
+  rpc CancelJobRun(CancelJobRunRequest) returns (CancelJobRunResponse) {
+    option (google.api.http) = {
+      post: "/v1/job-runs/{run_id}:cancel"
+      body: "*"
+    };
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -245,6 +287,9 @@ enum PluginCapability {
   // The plugin lists, installs, updates and removes packages (ListPackages and the
   // other package calls), e.g. extensions that each provide some sources.
   PLUGIN_CAPABILITY_PACKAGES = 3;
+  // The plugin has background jobs that hosts can list, run and cancel (ListJobs and
+  // the other job calls).
+  PLUGIN_CAPABILITY_JOBS = 4;
 }
 
 // CommonService is a service a host can offer to plugins.
@@ -348,6 +393,9 @@ enum ErrorReason {
   // signing key that doesn't match. Sent with FAILED_PRECONDITION. (A bad signature or
   // checksum of the package file itself is INVALID_ARGUMENT.)
   ERROR_REASON_STORE_INVALID = 8;
+  // The job is already running. Sent with ALREADY_EXISTS; the ErrorInfo's metadata
+  // `current_run_id` and a panelarr.jobs.v1.JobAlreadyRunning detail name the running run.
+  ERROR_REASON_ALREADY_RUNNING = 9;
 }
 
 // ---------------------------------------------------------------------------
@@ -950,4 +998,68 @@ message Timeouts {
   google.protobuf.Duration read = 2;
   // Whole call, including redirects and retries.
   google.protobuf.Duration call = 3;
+}
+
+// ---------------------------------------------------------------------------
+// Jobs
+// ---------------------------------------------------------------------------
+
+message ListJobsRequest {}
+
+message ListJobsResponse {
+  repeated panelarr.jobs.v1.Job jobs = 1;
+}
+
+message GetJobRequest {
+  string job_id = 1;
+}
+
+message GetJobResponse {
+  panelarr.jobs.v1.Job job = 1;
+}
+
+message ListJobRunsRequest {
+  string job_id = 1;
+  // At most 100; 20 when unset.
+  int32 page_size = 2;
+  // From the previous response's `next_page_token`.
+  string page_token = 3;
+  // Only runs with this status, when set.
+  panelarr.jobs.v1.JobRunStatus status = 4;
+}
+
+message ListJobRunsResponse {
+  repeated panelarr.jobs.v1.JobRunSummary runs = 1;
+  // Empty on the last page.
+  string next_page_token = 2;
+}
+
+message GetJobRunRequest {
+  string run_id = 1;
+}
+
+message GetJobRunResponse {
+  panelarr.jobs.v1.JobRun run = 1;
+}
+
+message RunJobRequest {
+  string job_id = 1;
+  // Values for the job's params; lists are comma-separated. Params left out get their
+  // defaults.
+  map<string, string> params = 2;
+  // Who asked the host for the run, e.g. its user. The plugin records it in the run's
+  // `triggered_by`.
+  string on_behalf_of = 3;
+}
+
+message RunJobResponse {
+  panelarr.jobs.v1.JobRunSummary run = 1;
+}
+
+message CancelJobRunRequest {
+  string run_id = 1;
+}
+
+message CancelJobRunResponse {
+  panelarr.jobs.v1.JobRunSummary run = 1;
 }

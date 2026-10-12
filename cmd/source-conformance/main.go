@@ -143,6 +143,9 @@ func printReport(w io.Writer, rep *conformance.Report) {
 			fmt.Fprintf(w, "       %-14s %-22s %s\n", st.Name, state, st.Detail)
 		}
 	}
+	if rep.Jobs > 0 {
+		fmt.Fprintf(w, "\n%d jobs\n", rep.Jobs)
+	}
 	if rep.Packages > 0 || len(rep.PackageSteps) > 0 {
 		fmt.Fprintf(w, "\n%d packages\n", rep.Packages)
 		for _, st := range rep.PackageSteps {

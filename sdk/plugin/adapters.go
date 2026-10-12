@@ -133,6 +133,30 @@ func (s *connectServer) SetPackageSettings(ctx context.Context, r *connect.Reque
 	return unaryConnect(ctx, r, s.p.SetPackageSettings)
 }
 
+func (s *connectServer) ListJobs(ctx context.Context, r *connect.Request[sourcev1.ListJobsRequest]) (*connect.Response[sourcev1.ListJobsResponse], error) {
+	return unaryConnect(ctx, r, s.p.ListJobs)
+}
+
+func (s *connectServer) GetJob(ctx context.Context, r *connect.Request[sourcev1.GetJobRequest]) (*connect.Response[sourcev1.GetJobResponse], error) {
+	return unaryConnect(ctx, r, s.p.GetJob)
+}
+
+func (s *connectServer) ListJobRuns(ctx context.Context, r *connect.Request[sourcev1.ListJobRunsRequest]) (*connect.Response[sourcev1.ListJobRunsResponse], error) {
+	return unaryConnect(ctx, r, s.p.ListJobRuns)
+}
+
+func (s *connectServer) GetJobRun(ctx context.Context, r *connect.Request[sourcev1.GetJobRunRequest]) (*connect.Response[sourcev1.GetJobRunResponse], error) {
+	return unaryConnect(ctx, r, s.p.GetJobRun)
+}
+
+func (s *connectServer) RunJob(ctx context.Context, r *connect.Request[sourcev1.RunJobRequest]) (*connect.Response[sourcev1.RunJobResponse], error) {
+	return unaryConnect(ctx, r, s.p.RunJob)
+}
+
+func (s *connectServer) CancelJobRun(ctx context.Context, r *connect.Request[sourcev1.CancelJobRunRequest]) (*connect.Response[sourcev1.CancelJobRunResponse], error) {
+	return unaryConnect(ctx, r, s.p.CancelJobRun)
+}
+
 func (s *connectServer) FetchImage(ctx context.Context, r *connect.Request[sourcev1.FetchImageRequest], stream *connect.ServerStream[sourcev1.FetchImageResponse]) error {
 	return ToConnectError(s.p.FetchImage(ctx, r.Msg, stream.Send))
 }
@@ -261,6 +285,30 @@ func (s *grpcServer) UninstallPackage(ctx context.Context, r *sourcev1.Uninstall
 
 func (s *grpcServer) SetPackageSettings(ctx context.Context, r *sourcev1.SetPackageSettingsRequest) (*sourcev1.SetPackageSettingsResponse, error) {
 	return unaryGRPC(ctx, r, s.p.SetPackageSettings)
+}
+
+func (s *grpcServer) ListJobs(ctx context.Context, r *sourcev1.ListJobsRequest) (*sourcev1.ListJobsResponse, error) {
+	return unaryGRPC(ctx, r, s.p.ListJobs)
+}
+
+func (s *grpcServer) GetJob(ctx context.Context, r *sourcev1.GetJobRequest) (*sourcev1.GetJobResponse, error) {
+	return unaryGRPC(ctx, r, s.p.GetJob)
+}
+
+func (s *grpcServer) ListJobRuns(ctx context.Context, r *sourcev1.ListJobRunsRequest) (*sourcev1.ListJobRunsResponse, error) {
+	return unaryGRPC(ctx, r, s.p.ListJobRuns)
+}
+
+func (s *grpcServer) GetJobRun(ctx context.Context, r *sourcev1.GetJobRunRequest) (*sourcev1.GetJobRunResponse, error) {
+	return unaryGRPC(ctx, r, s.p.GetJobRun)
+}
+
+func (s *grpcServer) RunJob(ctx context.Context, r *sourcev1.RunJobRequest) (*sourcev1.RunJobResponse, error) {
+	return unaryGRPC(ctx, r, s.p.RunJob)
+}
+
+func (s *grpcServer) CancelJobRun(ctx context.Context, r *sourcev1.CancelJobRunRequest) (*sourcev1.CancelJobRunResponse, error) {
+	return unaryGRPC(ctx, r, s.p.CancelJobRun)
 }
 
 func (s *grpcServer) FetchImage(r *sourcev1.FetchImageRequest, stream grpc.ServerStreamingServer[sourcev1.FetchImageResponse]) error {
