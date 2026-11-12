@@ -1,5 +1,18 @@
 # Changelog
 
+## [0.1.1](https://github.com/panelarr/source-api/compare/v0.1.0...v0.1.1) (2026-11-12)
+
+
+### Features
+
+* **proto:** optional compat_ids on Source and PackageSource ([333bb17](https://github.com/panelarr/source-api/commit/333bb17d70d513ccb8034137a9241320072e0e43))
+* **proto:** optional compat_ids on Source and PackageSource ([1ffe197](https://github.com/panelarr/source-api/commit/1ffe197a142f1354420ea06e9fed59084550d209))
+
+
+### Bug Fixes
+
+* **deps:** build with Go 1.27.4 ([092eddc](https://github.com/panelarr/source-api/commit/092eddceb82aa25cc2050442c515d9a52dc4ba36))
+
 ## 0.1.0 (2026-11-09)
 
 
