@@ -85,6 +85,7 @@ func checkPackage(rep *Report, at string, p *sourcev1.Package) {
 		if s.GetId() == "" || s.GetLang() == "" {
 			rep.problem("%s (%s): a source needs an id and a language", at, p.GetId())
 		}
+		checkCompatIDs(rep, fmt.Sprintf("%s (%s): source %s", at, p.GetId(), s.GetId()), s.GetCompatIds())
 		if !slices.Contains(p.GetLangs(), s.GetLang()) {
 			rep.problem("%s (%s): source %s's language %q isn't among the package's languages", at, p.GetId(), s.GetId(), s.GetLang())
 		}
@@ -167,6 +168,9 @@ func checkSourcesMatchPackages(ctx context.Context, rep *Report, c client.Client
 				rep.problem("ListSources: source %s of package %q is listed but its language isn't enabled", ps.GetId(), p.GetId())
 			case ok && s.GetPackageId() != p.GetId():
 				rep.problem("ListSources: source %s should name its package %q", ps.GetId(), p.GetId())
+			}
+			if ok && !sameSet(s.GetCompatIds(), ps.GetCompatIds()) {
+				rep.warn("ListSources: source %s has compat ids %q, but package %q lists %q for it", ps.GetId(), s.GetCompatIds(), p.GetId(), ps.GetCompatIds())
 			}
 		}
 	}
@@ -325,4 +329,11 @@ func (w *packageWalk) run() {
 		}
 		return "", nil
 	})
+}
+
+func sameSet(a, b []string) bool {
+	a, b = slices.Clone(a), slices.Clone(b)
+	slices.Sort(a)
+	slices.Sort(b)
+	return slices.Equal(slices.Compact(a), slices.Compact(b))
 }

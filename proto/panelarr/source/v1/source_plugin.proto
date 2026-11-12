@@ -464,6 +464,13 @@ message Source {
   // The package that provides the source (see ListPackages), for plugins with the
   // PACKAGES capability. Empty otherwise.
   string package_id = 9;
+  // Optional. IDs this source is known by in other apps' ecosystems, as
+  // "<scheme>:<id>" (the scheme matches ^[a-z0-9-]+$ and the id isn't empty),
+  // e.g. "mihon:1234567890". Hosts use them to recognise the source in data
+  // imported from those apps (backups, reading history). A plugin sets only the
+  // schemes it knows to be right; the core never interprets them, and two
+  // plugins may claim the same ID.
+  repeated string compat_ids = 10;
 }
 
 // SourceHealth is what a plugin last saw when it checked a source itself.
@@ -875,6 +882,9 @@ message PackageSource {
   // lists it when the package is installed. (Hosts may still turn single sources off
   // on their side.)
   bool available = 4;
+  // Optional. The Source.compat_ids it has once installed, so hosts can tell
+  // which package would provide a source they're looking for.
+  repeated string compat_ids = 5;
 }
 
 message PackageSettings {
