@@ -31,3 +31,9 @@ All v0 slices are done.
 - [x] **2. source.v1 packages and health checks:** origins, package details, reload, per-source health checks.
 - [x] **3. mihon-source:** health-check schedule over the admin API, step notes for targeted checks.
 - [x] **4. source-mihon:** jobs, origins, details, reload, health checks; end to end.
+
+## FEAT-0017: import from other apps
+
+- [x] **1. source.v1 `compat_ids`:** optional `Source.compat_ids` and `PackageSource.compat_ids` (`"<scheme>:<id>"`); `plugin.CompatID` and `plugin.CompatIDPattern`, fake, conformance, docs.
+- [ ] **2. mihon-source:** fill `mihon:<id>` on sources and package sources.
+- [ ] **3. source-mihon:** pass `compat_ids` through; end to end.

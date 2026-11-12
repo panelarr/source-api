@@ -99,3 +99,22 @@ func TestUnimplementedDefaults(t *testing.T) {
 		t.Fatalf("config: %v", err)
 	}
 }
+
+func TestCompatIDs(t *testing.T) {
+	if got := plugin.CompatID("example-app", "1234567890"); got != "example-app:1234567890" {
+		t.Errorf("CompatID = %q", got)
+	}
+	for id, ok := range map[string]bool{
+		"example-app:1234567890": true,
+		"app2:a:b":               true, // the ID may hold colons
+		"app:":                   false,
+		":123":                   false,
+		"App:123":                false,
+		"no-scheme":              false,
+		"":                       false,
+	} {
+		if plugin.CompatIDPattern.MatchString(id) != ok {
+			t.Errorf("%q: matches = %v, want %v", id, !ok, ok)
+		}
+	}
+}

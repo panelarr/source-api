@@ -359,6 +359,7 @@ func checkSources(ctx context.Context, rep *Report, c client.Client) []*sourcev1
 		if slices.Contains(s.GetCapabilities(), sourcev1.SourceCapability_SOURCE_CAPABILITY_UNSPECIFIED) {
 			rep.problem("ListSources: source %q has an UNSPECIFIED capability", s.GetId())
 		}
+		checkCompatIDs(rep, "ListSources: source "+s.GetId(), s.GetCompatIds())
 		if h := s.GetHealth(); h.GetStatus() == sourcev1.SourceHealthStatus_SOURCE_HEALTH_STATUS_FAILING && h.GetReason() == "" {
 			rep.warn("ListSources: source %q is failing without a reason", s.GetId())
 		}
@@ -743,4 +744,19 @@ func (w *walk) notFound() {
 		return
 	}
 	checkError(w.rep, w.call("GetSeries"), err)
+}
+
+// checkCompatIDs: compat IDs are optional, but those given must be well formed
+// and unique.
+func checkCompatIDs(rep *Report, at string, ids []string) {
+	seen := map[string]bool{}
+	for _, id := range ids {
+		if !plugin.CompatIDPattern.MatchString(id) {
+			rep.problem("%s: compat id %q must match %s", at, id, plugin.CompatIDPattern)
+		}
+		if seen[id] {
+			rep.warn("%s: compat id %q appears twice", at, id)
+		}
+		seen[id] = true
+	}
 }

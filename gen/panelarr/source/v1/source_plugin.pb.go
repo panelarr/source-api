@@ -1355,7 +1355,14 @@ type Source struct {
 	Health *SourceHealth `protobuf:"bytes,8,opt,name=health,proto3" json:"health,omitempty"`
 	// The package that provides the source (see ListPackages), for plugins with the
 	// PACKAGES capability. Empty otherwise.
-	PackageId     string `protobuf:"bytes,9,opt,name=package_id,json=packageId,proto3" json:"package_id,omitempty"`
+	PackageId string `protobuf:"bytes,9,opt,name=package_id,json=packageId,proto3" json:"package_id,omitempty"`
+	// Optional. IDs this source is known by in other apps' ecosystems, as
+	// "<scheme>:<id>" (the scheme matches ^[a-z0-9-]+$ and the id isn't empty),
+	// e.g. "mihon:1234567890". Hosts use them to recognise the source in data
+	// imported from those apps (backups, reading history). A plugin sets only the
+	// schemes it knows to be right; the core never interprets them, and two
+	// plugins may claim the same ID.
+	CompatIds     []string `protobuf:"bytes,10,rep,name=compat_ids,json=compatIds,proto3" json:"compat_ids,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1451,6 +1458,13 @@ func (x *Source) GetPackageId() string {
 		return x.PackageId
 	}
 	return ""
+}
+
+func (x *Source) GetCompatIds() []string {
+	if x != nil {
+		return x.CompatIds
+	}
+	return nil
 }
 
 // SourceHealth is what a plugin last saw when it checked a source itself.
@@ -4224,7 +4238,10 @@ type PackageSource struct {
 	// Its language is enabled at the plugin's and the package's level, so ListSources
 	// lists it when the package is installed. (Hosts may still turn single sources off
 	// on their side.)
-	Available     bool `protobuf:"varint,4,opt,name=available,proto3" json:"available,omitempty"`
+	Available bool `protobuf:"varint,4,opt,name=available,proto3" json:"available,omitempty"`
+	// Optional. The Source.compat_ids it has once installed, so hosts can tell
+	// which package would provide a source they're looking for.
+	CompatIds     []string `protobuf:"bytes,5,rep,name=compat_ids,json=compatIds,proto3" json:"compat_ids,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -4285,6 +4302,13 @@ func (x *PackageSource) GetAvailable() bool {
 		return x.Available
 	}
 	return false
+}
+
+func (x *PackageSource) GetCompatIds() []string {
+	if x != nil {
+		return x.CompatIds
+	}
+	return nil
 }
 
 type PackageSettings struct {
@@ -6792,7 +6816,7 @@ const file_panelarr_source_v1_source_plugin_proto_rawDesc = "" +
 	"\x06status\x18\x01 \x01(\x0e2 .panelarr.source.v1.HealthStatusR\x06status\x12\x18\n" +
 	"\amessage\x18\x02 \x01(\tR\amessage\x12\x1f\n" +
 	"\vinstance_id\x18\x03 \x01(\tR\n" +
-	"instanceId\"\xe3\x02\n" +
+	"instanceId\"\x82\x03\n" +
 	"\x06Source\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x12\n" +
 	"\x04name\x18\x02 \x01(\tR\x04name\x12\x12\n" +
@@ -6803,7 +6827,10 @@ const file_panelarr_source_v1_source_plugin_proto_rawDesc = "" +
 	"\bhome_url\x18\a \x01(\tR\ahomeUrl\x128\n" +
 	"\x06health\x18\b \x01(\v2 .panelarr.source.v1.SourceHealthR\x06health\x12\x1d\n" +
 	"\n" +
-	"package_id\x18\t \x01(\tR\tpackageId\"\x99\x02\n" +
+	"package_id\x18\t \x01(\tR\tpackageId\x12\x1d\n" +
+	"\n" +
+	"compat_ids\x18\n" +
+	" \x03(\tR\tcompatIds\"\x99\x02\n" +
 	"\fSourceHealth\x12>\n" +
 	"\x06status\x18\x01 \x01(\x0e2&.panelarr.source.v1.SourceHealthStatusR\x06status\x12\x16\n" +
 	"\x06reason\x18\x02 \x01(\tR\x06reason\x12\x18\n" +
@@ -6988,12 +7015,14 @@ const file_panelarr_source_v1_source_plugin_proto_rawDesc = "" +
 	"\vorigin_name\x18\x02 \x01(\tR\n" +
 	"originName\x12\x18\n" +
 	"\aversion\x18\x03 \x01(\tR\aversion\x12\x1c\n" +
-	"\tsupported\x18\x04 \x01(\bR\tsupported\"e\n" +
+	"\tsupported\x18\x04 \x01(\bR\tsupported\"\x84\x01\n" +
 	"\rPackageSource\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x12\n" +
 	"\x04name\x18\x02 \x01(\tR\x04name\x12\x12\n" +
 	"\x04lang\x18\x03 \x01(\tR\x04lang\x12\x1c\n" +
-	"\tavailable\x18\x04 \x01(\bR\tavailable\"6\n" +
+	"\tavailable\x18\x04 \x01(\bR\tavailable\x12\x1d\n" +
+	"\n" +
+	"compat_ids\x18\x05 \x03(\tR\tcompatIds\"6\n" +
 	"\x0fPackageSettings\x12#\n" +
 	"\renabled_langs\x18\x01 \x03(\tR\fenabledLangs\"\xe2\x01\n" +
 	"\x13ListPackagesRequest\x12\x14\n" +

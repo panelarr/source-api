@@ -274,3 +274,58 @@ func TestReportsOriginAndHealthCheckViolations(t *testing.T) {
 		}
 	}
 }
+
+// badCompatIDs lists a package's source with other compat IDs than the source.
+type badCompatIDs struct{ *plugintest.Fake }
+
+func (b badCompatIDs) ListPackages(ctx context.Context, r *sourcev1.ListPackagesRequest) (*sourcev1.ListPackagesResponse, error) {
+	res, err := b.Fake.ListPackages(ctx, r)
+	for _, p := range res.GetPackages() {
+		if p.GetId() == "beispiel.comics" {
+			p.Sources[0].CompatIds = []string{"example-app:9999"}
+		}
+	}
+	return res, err
+}
+
+func TestReportsCompatIDViolations(t *testing.T) {
+	f := plugintest.New()
+	f.Sources[0].Source.CompatIds = []string{"No Scheme", ":1001", "Upper:1", "example-app:", "example-app:1001", "example-app:1001"}
+	rep, err := conformance.Check(context.Background(), client.InProcess(badCompatIDs{f}), conformance.Options{SkipImages: true})
+	if err != nil {
+		t.Fatal(err)
+	}
+	problems := strings.Join(rep.Problems, "\n")
+	for _, bad := range []string{"No Scheme", ":1001", "Upper:1", "example-app:"} {
+		if want := fmt.Sprintf("ListSources: source 1001: compat id %q must match", bad); !strings.Contains(problems, want) {
+			t.Errorf("missing problem %q in:\n%s", want, problems)
+		}
+		// The package lists the same IDs, and is checked too.
+		if want := fmt.Sprintf("(example.comics): source 1001: compat id %q must match", bad); !strings.Contains(problems, want) {
+			t.Errorf("missing problem %q in:\n%s", want, problems)
+		}
+	}
+	if strings.Contains(problems, `"example-app:1001" must match`) {
+		t.Errorf("a valid compat id was reported:\n%s", problems)
+	}
+	warnings := strings.Join(rep.Warnings, "\n")
+	for _, want := range []string{
+		`source 1001: compat id "example-app:1001" appears twice`,
+		`source 2001 has compat ids ["example-app:2001"], but package "beispiel.comics" lists ["example-app:9999"]`,
+	} {
+		if !strings.Contains(warnings, want) {
+			t.Errorf("missing warning %q in:\n%s", want, warnings)
+		}
+	}
+}
+
+func TestCompatIDsAreOptional(t *testing.T) {
+	f := plugintest.New()
+	for _, s := range f.Sources {
+		s.Source.CompatIds = nil
+	}
+	rep, err := conformance.Check(context.Background(), client.InProcess(f), conformance.Options{SkipImages: true})
+	if err != nil || !rep.OK() || len(rep.Warnings) > 0 {
+		t.Fatalf("report: %+v, %v", rep, err)
+	}
+}

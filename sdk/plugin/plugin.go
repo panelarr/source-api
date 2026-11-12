@@ -246,6 +246,13 @@ func (Unimplemented) SetSourceHealthCheck(context.Context, *sourcev1.SetSourceHe
 // read as a custom verb (as in ":install").
 var PackageIDPattern = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9._-]*$`)
 
+// CompatIDPattern is what Source.compat_ids and PackageSource.compat_ids look
+// like: "<scheme>:<id>", e.g. "mihon:1234567890".
+var CompatIDPattern = regexp.MustCompile(`^[a-z0-9-]+:.+$`)
+
+// CompatID joins a scheme and an ID into a compat ID ("<scheme>:<id>").
+func CompatID(scheme, id string) string { return scheme + ":" + id }
+
 // InstanceID identifies this run of the process: random, set at start. The
 // SDK puts it in Health answers that don't carry their own, so hosts notice a
 // restart and push configuration and profiles again.

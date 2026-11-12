@@ -11,6 +11,10 @@
 - **Settings:** per source, as JSON Schema plus values (`GetSettingsSchema`, `GetSettings`, `SetSettings`).
 - **Network profiles:** the host owns proxies, solvers and rate limits, and pushes the profile for each source with `SetNetworkProfile`.
 
+## Compat IDs
+
+A source can say which IDs it has in other apps' ecosystems: `Source.compat_ids`, as `"<scheme>:<id>"` (e.g. `"mihon:1234567890"`; the scheme matches `^[a-z0-9-]+$`). Hosts use them to recognise the source in data imported from those apps, such as a backup with reading history. They're optional: set only the schemes you know to be right. The API doesn't interpret schemes, and two plugins may claim the same ID, so hosts that look sources up by compat ID decide which one wins. `PackageSource.compat_ids` lists the same IDs for a package's sources before it's installed, so a host can tell which package would provide a source it's looking for. In Go, `plugin.CompatID(scheme, id)` builds one and `plugin.CompatIDPattern` checks one.
+
 ## Packages and languages
 
 Plugins that host many sites (Mihon extensions, say) declare the `PACKAGES` capability. Hosts then show an Extensions list for them: `ListPackages` (with search and language, installed, updates and origin filters), `GetPackage`, `InstallPackage`, `UpdatePackage`, `UninstallPackage` and `SetPackageSettings`. Plugins without the capability answer `UNIMPLEMENTED`.

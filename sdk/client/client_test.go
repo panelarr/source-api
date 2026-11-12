@@ -11,6 +11,7 @@ import (
 	"net/http/httptest"
 	"os/exec"
 	"path/filepath"
+	"slices"
 	"testing"
 	"time"
 
@@ -504,6 +505,31 @@ func TestOriginsDetailsReloadAndHealthChecks(t *testing.T) {
 		on, err := c.SetSourceHealthCheck(ctx, &sourcev1.SetSourceHealthCheckRequest{SourceId: "1001", Enabled: true})
 		if err != nil || on.GetSource().GetHealth().GetChecksDisabled() {
 			t.Errorf("%s: checks on: %v, %v", name, on, err)
+		}
+	}
+}
+
+func TestCompatIDsOverEveryTransport(t *testing.T) {
+	f := plugintest.New()
+	clients := map[string]client.Client{
+		"in-process": client.InProcess(f),
+		"grpc":       remote(t, f, ""),
+		"connect":    client.Remote(serve(t, f, ""), client.RemoteOptions{Connect: true}),
+	}
+	ctx := context.Background()
+	want := []string{"example-app:1001"}
+	for name, c := range clients {
+		list, err := c.ListSources(ctx, &sourcev1.ListSourcesRequest{Lang: "en"})
+		if err != nil || len(list.GetSources()) == 0 || !slices.Equal(list.GetSources()[0].GetCompatIds(), want) {
+			t.Errorf("%s: ListSources: %v, %v", name, list, err)
+		}
+		src, err := c.GetSource(ctx, &sourcev1.GetSourceRequest{SourceId: "1001"})
+		if err != nil || !slices.Equal(src.GetSource().GetCompatIds(), want) {
+			t.Errorf("%s: GetSource: %v, %v", name, src, err)
+		}
+		pkg, err := c.GetPackage(ctx, &sourcev1.GetPackageRequest{PackageId: "example.comics"})
+		if err != nil || len(pkg.GetPackage().GetSources()) != 1 || !slices.Equal(pkg.GetPackage().GetSources()[0].GetCompatIds(), want) {
+			t.Errorf("%s: GetPackage: %v, %v", name, pkg, err)
 		}
 	}
 }

@@ -110,6 +110,10 @@ func New() *Fake {
 		NewSource("3003", "Multi Comics", "all", []string{"Every Tongue"}, sourcev1.SourceCapability_SOURCE_CAPABILITY_SEARCH),
 	}
 	f.Sources = append(f.Sources, multi...)
+	// Compat IDs, as a plugin that knows another app's source IDs sets them.
+	for _, s := range f.Sources {
+		s.Source.CompatIds = []string{plugin.CompatID("example-app", s.Source.GetId())}
+	}
 	f.Packages = []*Package{
 		NewPackage("example.comics", "Example Comics", "1.1", []*Source{f.Sources[0]}, Offer{"store-a", "Store A", "1.1"}).Installed("1.0"),
 		NewPackage("beispiel.comics", "Beispiel Comics", "2.0", []*Source{f.Sources[1]}, Offer{"store-a", "Store A", "2.0"}).Installed("2.0"),

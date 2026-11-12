@@ -149,6 +149,7 @@ func (f *Fake) view(p *Package) *sourcev1.Package {
 		out.Sources = append(out.Sources, &sourcev1.PackageSource{
 			Id: s.Source.GetId(), Name: s.Source.GetName(), Lang: s.Source.GetLang(),
 			Available: langEnabled(s.Source.GetLang(), f.Langs, st.langs),
+			CompatIds: slices.Clone(s.Source.GetCompatIds()),
 		})
 	}
 	return out
